@@ -1,0 +1,6 @@
+[toolchain]
+channel = "stable"
+# soroban-sdk 27.x requires wasm32v1-none (wasm32-unknown-unknown on
+# rustc 1.82+ enables reference-types/multi-value, which Soroban's
+# environment does not yet support).
+targets = ["wasm32v1-none"]

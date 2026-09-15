@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">Anchor Reliability Oracle Network</title>
+  <desc id="hero-desc">A Soroban SEP-24 reliability oracle that turns real mainnet activity, real testnet probes, and controlled mock anchors into one on-chain score with automatic slashing.</desc>
+
+  <defs>
+    <radialGradient id="glow-accent" cx="0" cy="0" r="1">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow-success" cx="1" cy="1" r="1">
+      <stop offset="0%" stop-color="#34D399" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#34D399" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade-mask" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000" stop-opacity="0"/>
+      <stop offset="18%" stop-color="#fff"/>
+      <stop offset="82%" stop-color="#fff"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="grid-fade">
+      <rect width="1200" height="340" fill="url(#fade-mask)"/>
+    </mask>
+    <pattern id="grid" width="56" height="56" patternUnits="userSpaceOnUse">
+      <path d="M 56 0 L 0 0 0 56" fill="none" stroke="#282E3D" stroke-width="1"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="340" rx="26" fill="#06080D"/>
+  <rect width="1200" height="340" rx="26" fill="url(#glow-accent)"/>
+  <rect width="1200" height="340" rx="26" fill="url(#glow-success)"/>
+  <rect width="1200" height="340" rx="26" fill="url(#grid)" mask="url(#grid-fade)" opacity="0.55"/>
+  <rect x="0.5" y="0.5" width="1199" height="339" rx="25.5" fill="none" stroke="#282E3D"/>
+
+  <!-- Title block -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="64" y="66" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600" letter-spacing="2.5" fill="#38BDF8">SOROBAN · SEP-24 RELIABILITY ORACLE</text>
+
+    <text x="63" y="128" font-size="46" font-weight="700" fill="#ECEEF5">Anchor Reliability</text>
+    <text x="63" y="178" font-size="46" font-weight="700" fill="#ECEEF5">Oracle Network</text>
+
+    <text x="64" y="216" font-size="16" fill="#9EA6B8">Scores Stellar SEP-24 anchors from three independent sources —</text>
+    <text x="64" y="240" font-size="16" fill="#9EA6B8">mainnet, testnet, and controlled mocks — into one on-chain score</text>
+    <text x="64" y="264" font-size="16" fill="#9EA6B8">that automatically slashes stake when reliability drops.</text>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6B7280">
+      <text x="64" y="300">Soroban / Rust</text>
+      <circle cx="169" cy="296" r="2" fill="#3A404F"/>
+      <text x="180" y="300">Next.js</text>
+      <circle cx="243" cy="296" r="2" fill="#3A404F"/>
+      <text x="254" y="300">Node.js</text>
+      <circle cx="323" cy="296" r="2" fill="#3A404F"/>
+      <text x="334" y="300">Django</text>
+    </g>
+  </g>
+
+  <!-- Proof: three sources feeding one on-chain score -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <g transform="translate(742,54)">
+      <rect width="192" height="44" rx="10" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="22" cy="22" r="5" fill="#34D399"/>
+      <text x="38" y="27" font-size="15" font-weight="600" fill="#ECEEF5">Real mainnet</text>
+    </g>
+    <g transform="translate(742,116)">
+      <rect width="192" height="44" rx="10" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="22" cy="22" r="5" fill="#38BDF8"/>
+      <text x="38" y="27" font-size="15" font-weight="600" fill="#ECEEF5">Real testnet</text>
+    </g>
+    <g transform="translate(742,178)">
+      <rect width="192" height="44" rx="10" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="22" cy="22" r="5" fill="#94A3B8"/>
+      <text x="38" y="27" font-size="15" font-weight="600" fill="#ECEEF5">Mock anchors</text>
+    </g>
+
+    <path d="M934,76 C980,76 970,150 1030,150" fill="none" stroke="#34D399" stroke-width="1.5" opacity="0.55"/>
+    <path d="M934,138 C970,138 990,150 1030,150" fill="none" stroke="#38BDF8" stroke-width="1.5" opacity="0.55"/>
+    <path d="M934,200 C980,200 990,150 1030,150" fill="none" stroke="#94A3B8" stroke-width="1.5" opacity="0.55"/>
+
+    <g transform="translate(1030,150)">
+      <circle r="68" fill="#0B0E15" stroke="#282E3D"/>
+      <circle r="54" fill="none" stroke="#1B2130" stroke-width="8"/>
+      <circle r="54" fill="none" stroke="#34D399" stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="291 339" transform="rotate(-90)"/>
+      <text x="0" y="10" font-size="34" font-weight="700" fill="#ECEEF5" text-anchor="middle">83</text>
+      <text x="0" y="94" font-size="13" fill="#6B7280" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">ON-CHAIN SCORE</text>
+    </g>
+  </g>
+</svg>

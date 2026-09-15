@@ -1,0 +1,24 @@
+{
+  "name": "@anchor-oracle/passive-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only mainnet Horizon monitor for real Stellar anchors (Layer 1: RealMainnet).",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.0.1",
+    "dotenv": "^16.4.5",
+    "smol-toml": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}

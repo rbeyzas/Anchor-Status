@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy this file to anchors.json and fill it in with the REAL mainnet anchors you want to monitor. distribution_account should be the account that anchor uses to pay/receive from its users on mainnet (published in the anchor's own stellar.toml or documentation). This service is READ-ONLY and never signs a transaction.",
+  "anchors": [
+    {
+      "anchor_id": "example_anchor",
+      "name": "Example Anchor (PLACEHOLDER — replace me)",
+      "domain": "example.com",
+      "distribution_account": "GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+    }
+  ]
+}

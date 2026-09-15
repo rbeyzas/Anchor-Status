@@ -1,0 +1,5 @@
+{
+  "_comment": "mock_anchor_2: decent but slower, occasional failures. No degradation.",
+  "avg_completion_seconds": 45,
+  "success_rate_percent": 90
+}

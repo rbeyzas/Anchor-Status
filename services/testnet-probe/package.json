@@ -1,0 +1,28 @@
+{
+  "name": "@anchor-oracle/testnet-probe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Live SEP-10 + SEP-24 probe against a real testnet anchor (Layer 2: RealTestnet).",
+  "type": "module",
+  "scripts": {
+    "probe": "tsx src/probe.ts",
+    "schedule": "tsx src/schedule.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.0.1",
+    "dotenv": "^16.4.5",
+    "node-schedule": "^2.1.1",
+    "playwright": "^1.49.1",
+    "smol-toml": "^1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/node-schedule": "^2.1.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}

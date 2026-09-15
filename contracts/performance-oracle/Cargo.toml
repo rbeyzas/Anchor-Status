@@ -1,0 +1,36 @@
+[package]
+name = "performance-oracle"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = "27.0.6"
+anchor-registry = { path = "../anchor-registry", default-features = false }
+
+[dev-dependencies]
+soroban-sdk = { version = "27.0.6", features = ["testutils"] }
+# Tests need the real `AnchorRegistry` contract (env.register(AnchorRegistry,
+# ())), so re-enable the "contract" feature (default) here — Cargo unifies
+# features across [dependencies]/[dev-dependencies] for a crate's own test
+# build, so this doesn't affect the release/wasm build, which only sees the
+# default-features=false entry above.
+anchor-registry = { path = "../anchor-registry" }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
+
+[profile.release-with-logs]
+inherits = "release"
+debug-assertions = true

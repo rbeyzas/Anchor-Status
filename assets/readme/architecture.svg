@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="arch-title arch-desc">
+  <title id="arch-title">How the oracle pipeline works</title>
+  <desc id="arch-desc">Three collector services normalize into an aggregator, which reports to the PerformanceOracle Soroban contract; it scores and cross-calls AnchorRegistry to update scores and slash stake; the dashboard reads both contracts read-only over Soroban RPC.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3A404F"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#38BDF8"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="560" rx="26" fill="#06080D"/>
+  <rect x="0.5" y="0.5" width="1199" height="559" rx="25.5" fill="none" stroke="#282E3D"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="64" y="52" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600" letter-spacing="2" fill="#6B7280">PIPELINE</text>
+    <text x="64" y="82" font-size="24" font-weight="700" fill="#ECEEF5">Three sources, one score, on-chain</text>
+
+    <!-- Row 1: sources -->
+    <g transform="translate(70,110)">
+      <rect width="340" height="92" rx="12" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="26" cy="28" r="5" fill="#34D399"/>
+      <text x="42" y="33" font-size="17" font-weight="700" fill="#ECEEF5">passive-monitor</text>
+      <text x="26" y="58" font-size="13" fill="#9EA6B8">Read-only Horizon scan of real</text>
+      <text x="26" y="76" font-size="13" fill="#9EA6B8">mainnet anchor payment activity</text>
+    </g>
+    <g transform="translate(430,110)">
+      <rect width="340" height="92" rx="12" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="26" cy="28" r="5" fill="#38BDF8"/>
+      <text x="42" y="33" font-size="17" font-weight="700" fill="#ECEEF5">testnet-probe</text>
+      <text x="26" y="58" font-size="13" fill="#9EA6B8">Real SEP-10 auth + SEP-24</text>
+      <text x="26" y="76" font-size="13" fill="#9EA6B8">interactive deposit against testnet</text>
+    </g>
+    <g transform="translate(790,110)">
+      <rect width="340" height="92" rx="12" fill="#161A24" stroke="#282E3D"/>
+      <circle cx="26" cy="28" r="5" fill="#94A3B8"/>
+      <text x="42" y="33" font-size="17" font-weight="700" fill="#ECEEF5">mock-anchors</text>
+      <text x="26" y="58" font-size="13" fill="#9EA6B8">4 controlled django-polaris anchors,</text>
+      <text x="26" y="76" font-size="13" fill="#9EA6B8">scripted success/latency profiles</text>
+    </g>
+
+    <path d="M240,202 L430,255" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M600,202 L600,255" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M960,202 L770,255" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Row 2: aggregator -->
+    <g transform="translate(430,262)">
+      <rect width="340" height="66" rx="12" fill="#0F1420" stroke="#38BDF8"/>
+      <text x="170" y="30" font-size="16" font-weight="700" fill="#ECEEF5" text-anchor="middle">aggregator</text>
+      <text x="170" y="50" font-size="12.5" fill="#9EA6B8" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">normalizes 3 shapes, dedupes, submits</text>
+    </g>
+
+    <path d="M600,328 L600,368" fill="none" stroke="#38BDF8" stroke-width="1.5" marker-end="url(#arrow-accent)"/>
+    <text x="616" y="352" font-size="12.5" fill="#6B7280" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">submit_report()</text>
+
+    <!-- Row 3: contracts -->
+    <g transform="translate(300,376)">
+      <rect width="280" height="96" rx="12" fill="#161A24" stroke="#282E3D"/>
+      <text x="20" y="30" font-size="10.5" font-weight="600" letter-spacing="1.5" fill="#6B7280" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">SOROBAN CONTRACT</text>
+      <text x="20" y="54" font-size="17" font-weight="700" fill="#ECEEF5">PerformanceOracle</text>
+      <text x="20" y="76" font-size="12.5" fill="#9EA6B8">Weighted EMA score per source,</text>
+      <text x="20" y="92" font-size="12.5" fill="#9EA6B8">triggers slashing below threshold</text>
+    </g>
+    <g transform="translate(620,376)">
+      <rect width="280" height="96" rx="12" fill="#161A24" stroke="#282E3D"/>
+      <text x="20" y="30" font-size="10.5" font-weight="600" letter-spacing="1.5" fill="#6B7280" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">SOROBAN CONTRACT</text>
+      <text x="20" y="54" font-size="17" font-weight="700" fill="#ECEEF5">AnchorRegistry</text>
+      <text x="20" y="76" font-size="12.5" fill="#9EA6B8">Anchor identity, operator stake,</text>
+      <text x="20" y="92" font-size="12.5" fill="#9EA6B8">and the score of record</text>
+    </g>
+    <path d="M580,414 L620,414" fill="none" stroke="#FB7185" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <path d="M620,438 L580,438" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="600" y="490" font-size="12" fill="#FB7185" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">update_score() / slash()</text>
+
+    <path d="M760,472 L760,500" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+    <!-- Row 4: dashboard -->
+    <g transform="translate(560,506)">
+      <rect width="400" height="46" rx="10" fill="#0F1420" stroke="#282E3D"/>
+      <circle cx="26" cy="23" r="5" fill="#FBBF24"/>
+      <text x="42" y="28" font-size="15" font-weight="700" fill="#ECEEF5">dashboard</text>
+      <text x="140" y="28" font-size="12.5" fill="#9EA6B8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">reads both contracts read-only over Soroban RPC</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,5 @@
+{
+  "_comment": "mock_anchor_4: unreliable from the start — slow and failure-prone. Demonstrates a fast/early slash, contrasting anchor_3's gradual degradation.",
+  "avg_completion_seconds": 120,
+  "success_rate_percent": 35
+}

@@ -1,0 +1,10 @@
+django-polaris==2.5.0
+# django-polaris 2.6.0 (previously pinned here) is no longer published on
+# PyPI. 2.5.0's own metadata constrains stellar-sdk to <11.0.0,>=10.0.0 —
+# a version outside that range (e.g. 12.3.0, previously pinned here to
+# dodge a since-removed-symbol ImportError seen against 2.6.0) makes pip's
+# resolver fail outright. Stay inside 2.5.0's own declared range instead of
+# overriding it.
+stellar-sdk<11.0.0,>=10.0.0
+python-dotenv==1.0.1
+pytest==8.3.4

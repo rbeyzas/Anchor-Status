@@ -1,0 +1,9 @@
+{
+  "_comment": "mock_anchor_3: starts reliable, then degrades sharply after day 20 — the slashing demo scenario (Faz 8). With the default TIME_ACCELERATION=1440 (1 real minute = 1 simulated day), this triggers ~20 real minutes after the anchor's first transaction.",
+  "avg_completion_seconds": 15,
+  "success_rate_percent": 92,
+  "degradation": {
+    "after_days": 20,
+    "success_rate_percent": 40
+  }
+}
