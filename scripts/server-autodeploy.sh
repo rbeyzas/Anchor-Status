@@ -9,11 +9,20 @@
 #   * `npm install` runs only for services whose package.json/lock changed;
 #   * /var/lib/anchor-status (history, dedup state, probe log) is never
 #     touched, and neither is the untracked .env;
-#   * waits for an in-flight collection round instead of swapping files
-#     under it.
+#   * holds the collection lock for the whole deploy, so it can never swap
+#     files under a running round.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/anchor-status}"
+LOCK="${ANCHOR_LOCK:-/var/lock/anchor-collect.lock}"
+
+# Hold the collection lock for the whole deploy, not just long enough to
+# check it: swapping files halfway through a round is what breaks a round.
+# collect.sh runs under the same lock, so one waits for the other. Re-exec
+# rather than wrap, so the lock is held until this script exits.
+if [ -z "${ANCHOR_DEPLOY_LOCKED:-}" ]; then
+  exec env ANCHOR_DEPLOY_LOCKED=1 flock -w 1800 "$LOCK" "$0" "$@"
+fi
 BRANCH="${DEPLOY_BRANCH:-main}"
 SERVICES=(passive-monitor testnet-probe aggregator history-archiver)
 
@@ -30,8 +39,6 @@ if [ "$local_sha" = "$remote_sha" ]; then
 fi
 
 log "deploying ${local_sha:0:8} -> ${remote_sha:0:8}"
-flock -w 600 /var/lock/anchor-collect.lock -c true || log "collection round still running, deploying anyway"
-
 # Hard reset rather than merge: the host is a deployment target, not a place
 # anyone edits. Untracked files (.env, node_modules, .deps.sum) are kept.
 # checkout -B also fixes the branch name when the checkout was bootstrapped
