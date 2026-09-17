@@ -5,6 +5,7 @@ import { Lightning, Vault } from '@phosphor-icons/react';
 import { formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
 import type { AnchorViewModel } from '@/lib/types';
+import { scoreTier } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 import { Sparkline } from './Sparkline';
 import { SourceBadge } from './SourceBadge';
@@ -23,6 +24,7 @@ export function AnchorCard({
   onSelect: (anchor: AnchorViewModel) => void;
 }) {
   const recentDrop = hasRecentSignificantDrop(anchor.scoreHistory, anchor.score);
+  const isRisky = scoreTier(anchor.score) === 'low';
 
   return (
     <motion.button
@@ -33,10 +35,10 @@ export function AnchorCard({
       transition={{ duration: 0.18, ease: 'easeOut' }}
       className={`glass-panel relative flex w-full cursor-pointer items-center justify-between gap-4 rounded-card p-4 text-left shadow-card transition-shadow duration-300 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-5 ${RING_SHADOW[anchor.sourceType]}`}
     >
-      {recentDrop && (
+      {(recentDrop || isRisky) && (
         <span className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-pill bg-danger-soft px-2.5 py-1 text-[11px] font-semibold text-danger shadow-glow-danger">
           <Lightning size={11} weight="fill" aria-hidden="true" />
-          Recent slashing
+          {recentDrop ? 'Recent slashing' : 'Risky anchor'}
         </span>
       )}
 

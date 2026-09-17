@@ -29,7 +29,7 @@ import {
   type Sep24Transaction,
 } from '@/lib/anchor-client';
 import { formatStakeXlm } from '@/lib/format';
-import { loadRampAnchors, MIN_ROUTABLE_SCORE, rankRoutes, type RouteCandidate } from '@/lib/routing';
+import { loadRampAnchors, rankRoutes, type RouteCandidate } from '@/lib/routing';
 import type { AnchorViewModel } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 
@@ -198,17 +198,7 @@ export function RampPanel({ anchors }: { anchors: AnchorViewModel[] }) {
   const blocked = routes.filter((r) => !r.eligible);
 
   return (
-    <section className="glass-panel mb-8 rounded-card p-5 shadow-glow sm:p-6" aria-labelledby="ramp-title">
-      <div className="mb-5 flex flex-col gap-1">
-        <h2 id="ramp-title" className="font-heading text-lg font-semibold text-ink">
-          Move money through an anchor you can trust
-        </h2>
-        <p className="text-sm text-ink-muted">
-          We only route you through anchors whose on-chain reliability score is {MIN_ROUTABLE_SCORE}+ and who have
-          money at stake if they fail you.
-        </p>
-      </div>
-
+    <section className="glass-panel mb-8 rounded-card p-5 shadow-glow sm:p-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
         <div className="flex min-w-0 flex-col gap-4">
           <div className="grid grid-cols-2 gap-2 rounded-pill bg-surface-muted p-1" role="tablist">

@@ -32,7 +32,10 @@ export function Dashboard({
 
   const filtered = useMemo(() => {
     const scoped = filter === 'all' ? anchors : anchors.filter((a) => a.sourceType === filter);
-    return [...scoped].sort((a, b) => SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType]);
+    return [...scoped].sort((a, b) => {
+      const sourceDiff = SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType];
+      return sourceDiff !== 0 ? sourceDiff : b.score - a.score;
+    });
   }, [anchors, filter]);
 
   return (
