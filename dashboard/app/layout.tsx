@@ -26,7 +26,8 @@ const mono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Anchor Reliability Oracle Network',
-  description: 'Stellar SEP-24 anchor reliability — from live mainnet, live testnet, and simulated sources.',
+  description:
+    'Stellar SEP-24 anchor reliability — from live mainnet, live testnet, and simulated sources.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
