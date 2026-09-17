@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# Pull-based auto-deploy, run by cron on the collector host every few
-# minutes. Whoever pushes to the tracked branch gets deployed — it does not
-# matter whose machine the commit came from, and no one needs SSH access to
-# this host.
+# Deploys the collector host from the tracked branch. Run it by hand on the
+# host when you want a push to go live:
+#
+#   ssh <host> 'cd /opt/anchor-status && scripts/server-autodeploy.sh'
+#
+# It was on a cron timer, but a deploy queued at the end of a collection
+# round inherited cron's lock file descriptor and then waited for the lock
+# it was itself holding — the deploys piled up, stuck, and nothing said so.
+# Running it deliberately is the honest version until that is fixed.
 #
 # Incremental by design:
 #   * exits immediately when the remote SHA hasn't moved (the common case);
