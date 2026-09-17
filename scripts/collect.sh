@@ -27,3 +27,13 @@ log "history-archiver (append on-chain events to the durable archive)"
 (cd services/history-archiver && npm run --silent archive) || log "history-archiver failed"
 
 log "round complete"
+
+# Deploy right after the round, rather than waiting for the next deploy
+# tick. Detached on purpose: this script is running from the very tree the
+# deploy rewrites, and bash reads a script as it executes, so the deploy
+# must not start until this process is gone. It blocks on the collection
+# lock, which cron holds until this script exits.
+if [ -x scripts/server-autodeploy.sh ]; then
+  setsid nohup scripts/server-autodeploy.sh >> /var/log/anchor-status/deploy.log 2>&1 &
+  log "deploy check queued (runs once this round's lock is released)"
+fi
