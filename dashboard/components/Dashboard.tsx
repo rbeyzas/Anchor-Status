@@ -7,7 +7,6 @@ import type { AnchorViewModel, DataSource, SourceType } from '@/lib/types';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
 import { FilterBar, type FilterValue } from './FilterBar';
-import { RampPanel } from './RampPanel';
 import { StatsBar } from './StatsBar';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -86,8 +85,6 @@ export function Dashboard({
 
         <StatsBar anchors={anchors} />
       </header>
-
-      <RampPanel anchors={anchors} />
 
       <div className="mb-6 flex items-center justify-between gap-4">
         <FilterBar active={filter} onChange={setFilter} />
