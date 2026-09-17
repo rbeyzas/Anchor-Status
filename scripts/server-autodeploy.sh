@@ -21,7 +21,9 @@ cd "$REPO_DIR"
 log() { echo "[autodeploy $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 
 git fetch --quiet origin "$BRANCH"
-local_sha=$(git rev-parse HEAD)
+# "none" on a freshly initialised checkout that has no commit yet, so the
+# first deploy after bootstrapping works like any other.
+local_sha=$(git rev-parse HEAD 2>/dev/null || echo none)
 remote_sha=$(git rev-parse "origin/$BRANCH")
 if [ "$local_sha" = "$remote_sha" ]; then
   exit 0
@@ -32,6 +34,9 @@ flock -w 600 /var/lock/anchor-collect.lock -c true || log "collection round stil
 
 # Hard reset rather than merge: the host is a deployment target, not a place
 # anyone edits. Untracked files (.env, node_modules, .deps.sum) are kept.
+# checkout -B also fixes the branch name when the checkout was bootstrapped
+# with `git init` (which starts on master with no commits).
+git checkout -q -B "$BRANCH" "origin/$BRANCH"
 git reset --hard --quiet "origin/$BRANCH"
 
 for d in "${SERVICES[@]}"; do
