@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Deploys the collector host after every commit, in the background so a
+# commit never waits on the network.
+#
+# Enable once per checkout:
+#   git config core.hooksPath .githooks
+#   git config anchorstatus.collectorhost root@37.221.76.23
+#
+# Skips silently when no host is configured, so a clone without server
+# access behaves normally. The deploy itself is incremental — see
+# scripts/deploy-to-server.sh.
+set -euo pipefail
+
+HOST="$(git config --get anchorstatus.collectorhost || true)"
+[ -n "${COLLECTOR_HOST:-}" ] && HOST="$COLLECTOR_HOST"
+[ -z "$HOST" ] && exit 0
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+LOG="$REPO_ROOT/.git/deploy.log"
+
+{
+  echo "=== $(date -u '+%Y-%m-%dT%H:%M:%SZ') deploying $(git rev-parse --short HEAD) to $HOST"
+  COLLECTOR_HOST="$HOST" bash "$REPO_ROOT/scripts/deploy-to-server.sh"
+} >> "$LOG" 2>&1 &
+
+echo "post-commit: deploying to $HOST in the background (log: .git/deploy.log)"
