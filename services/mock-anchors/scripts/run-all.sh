@@ -20,7 +20,10 @@ source secrets.env
 mkdir -p state
 : > state/pids
 
-PY="/Users/onderdurak/Desktop/Anchor-Status/services/mock-anchors/.venv/bin/python3"
+PY="$(pwd)/.venv/bin/python3"
+# Captured once: start_anchor exports DJANGO_SECRET_KEY, so reading it inside
+# the function would leak anchor 1's fallback key into anchors 2-4.
+BASE_DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-}"
 
 start_anchor() {
   local idx="$1" port="$2"
@@ -35,7 +38,7 @@ start_anchor() {
   export ASSET_ISSUER="${!issuer_var}"
   export DISTRIBUTION_SEED="${!secret_var}"
   export BEHAVIOR_PROFILE_PATH="$(pwd)/behavior_profiles/anchor-${idx}.json"
-  export DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-dev-insecure-$(date +%s)-${idx}}"
+  export DJANGO_SECRET_KEY="${BASE_DJANGO_SECRET_KEY:-dev-insecure-mock-anchor-${idx}}"
   export HORIZON_TESTNET_URL="${HORIZON_TESTNET_URL:-https://horizon-testnet.stellar.org}"
   export STELLAR_NETWORK_PASSPHRASE="${STELLAR_NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}"
   export TIME_ACCELERATION="${TIME_ACCELERATION:-1440}"

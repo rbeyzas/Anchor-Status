@@ -34,6 +34,8 @@ export const config = {
   ),
   testnetProbeLogPath: path.resolve(repoRoot, 'services/testnet-probe/results/probe-log.json'),
   mockAnchorsLogsDir: path.resolve(repoRoot, 'services/mock-anchors/logs'),
+  // Set to "true" to submit only real mainnet/testnet reports.
+  skipMock: process.env.AGGREGATOR_SKIP_MOCK === 'true',
 
   statePath: path.resolve(
     repoRoot,

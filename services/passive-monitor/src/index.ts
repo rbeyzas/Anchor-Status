@@ -26,8 +26,25 @@ async function buildProfile(
   const cutoff = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
 
   console.log(`[passive-monitor] ${anchor.anchor_id}: fetching payments since ${cutoff.toISOString()}`);
-  const payments = await fetchRecentPayments(server, anchor.distribution_account, cutoff, delayMs, maxPages);
-  const { overall, byAsset } = aggregatePayments(payments, lookbackDays);
+  const { records, truncated, oldestScannedAt } = await fetchRecentPayments(
+    server,
+    anchor.distribution_account,
+    cutoff,
+    delayMs,
+    maxPages,
+  );
+  // When truncated, stats cover only the window actually scanned, so
+  // per-day frequency (and the aggregator's settlement estimate) stay honest.
+  const windowDays =
+    truncated && oldestScannedAt
+      ? Math.max((Date.now() - new Date(oldestScannedAt).getTime()) / (24 * 60 * 60 * 1000), 1 / (24 * 60))
+      : lookbackDays;
+  if (truncated) {
+    console.log(
+      `[passive-monitor] ${anchor.anchor_id}: hit ${maxPages}-page cap, measuring over the last ${(windowDays * 24).toFixed(2)}h (${records.length} payments)`,
+    );
+  }
+  const { overall, byAsset } = aggregatePayments(records, windowDays);
 
   await sleep(delayMs);
   console.log(`[passive-monitor] ${anchor.anchor_id}: fetching stellar.toml + SEP-24 /info from ${anchor.domain}`);
@@ -44,7 +61,8 @@ async function buildProfile(
     name: anchor.name,
     domain: anchor.domain,
     source_type: 'RealMainnet',
-    lookback_days: lookbackDays,
+    lookback_days: windowDays,
+    truncated,
     overall,
     by_asset: byAsset,
     anchor_info: anchorInfo,
@@ -65,13 +83,7 @@ async function main() {
   for (const raw of anchors) {
     const anchor = validateAnchor(raw);
     try {
-      const profile = await buildProfile(
-        server,
-        anchor,
-        config.lookbackDays,
-        config.requestDelayMs,
-        config.maxPaymentPages,
-      );
+      const profile = await buildProfile(server, anchor, config.lookbackDays, config.requestDelayMs, config.maxPages);
       profiles.push(profile);
     } catch (err) {
       console.error(`[passive-monitor] ${anchor.anchor_id}: failed: ${(err as Error).message}`);

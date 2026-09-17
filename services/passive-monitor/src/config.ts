@@ -26,11 +26,8 @@ export const config = {
   ),
   lookbackDays: Number(process.env.PASSIVE_MONITOR_LOOKBACK_DAYS ?? '7'),
   requestDelayMs: Number(process.env.PASSIVE_MONITOR_REQUEST_DELAY_MS ?? '1500'),
-  // Caps pagination for very high-traffic accounts (e.g. an exchange hot
-  // wallet can produce tens of thousands of payments/day) so one anchor
-  // can't make the whole scan take minutes. The resulting volume/frequency
-  // stats become a sample of the most recent activity rather than exhaustive.
-  maxPaymentPages: Number(process.env.PASSIVE_MONITOR_MAX_PAGES ?? '10'),
+  // 200 payments/page; caps very high-volume accounts at ~5,000 payments.
+  maxPages: Number(process.env.PASSIVE_MONITOR_MAX_PAGES ?? '25'),
   outputPath: path.join(__dirname, '..', 'output', 'base-profiles.json'),
 };
 

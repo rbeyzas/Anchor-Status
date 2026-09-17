@@ -46,7 +46,9 @@ export interface BaseProfile {
   name: string;
   domain: string;
   source_type: 'RealMainnet';
+  /** Days actually measured — less than configured when `truncated`. */
   lookback_days: number;
+  truncated: boolean;
   overall: VolumeStats;
   by_asset: AssetVolume[];
   anchor_info: AnchorInfo;

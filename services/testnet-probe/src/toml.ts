@@ -22,5 +22,9 @@ export async function fetchAnchorToml(domain: string): Promise<StellarTomlInfo> 
     );
   }
 
-  return { webAuthEndpoint, signingKey, transferServerSep24 };
+  const currencies = ((parsed.CURRENCIES as Array<Record<string, unknown>> | undefined) ?? [])
+    .filter((c) => typeof c.code === 'string' && typeof c.issuer === 'string')
+    .map((c) => ({ code: c.code as string, issuer: c.issuer as string }));
+
+  return { webAuthEndpoint, signingKey, transferServerSep24, currencies };
 }

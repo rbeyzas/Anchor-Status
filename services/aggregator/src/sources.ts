@@ -33,7 +33,11 @@ export function readPassiveMonitorReports(baseProfilesPath: string): NormalizedR
 
 export function readTestnetProbeReports(probeLogPath: string): NormalizedReport[] {
   const results = readJsonArray<TestnetProbeResult>(probeLogPath);
-  return results.map(normalizeTestnetProbeResult);
+  const conclusive = results.filter((r) => !r.inconclusive);
+  if (conclusive.length < results.length) {
+    console.log(`[aggregator] skipping ${results.length - conclusive.length} inconclusive testnet probe run(s)`);
+  }
+  return conclusive.map(normalizeTestnetProbeResult);
 }
 
 /** mock-anchors writes one logs/anchor{N}-behavior.json per instance; glob

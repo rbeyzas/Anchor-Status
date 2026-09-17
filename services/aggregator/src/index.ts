@@ -9,7 +9,7 @@ async function main() {
   const reports: NormalizedReport[] = [
     ...readPassiveMonitorReports(config.passiveMonitorProfilesPath),
     ...readTestnetProbeReports(config.testnetProbeLogPath),
-    ...readMockAnchorReports(config.mockAnchorsLogsDir),
+    ...(config.skipMock ? [] : readMockAnchorReports(config.mockAnchorsLogsDir)),
   ];
   console.log(`[aggregator] read ${reports.length} report(s) across all sources`);
 

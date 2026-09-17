@@ -35,6 +35,9 @@ export interface TestnetProbeResult {
   settlement_seconds: number;
   timestamp: string;
   final_transaction_status: string | null;
+  /** True when the probe itself failed (e.g. headless UI never rendered)
+   * before the anchor could succeed or fail. Never submitted on-chain. */
+  inconclusive?: boolean;
   error?: string;
 }
 

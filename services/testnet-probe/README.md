@@ -31,7 +31,7 @@ npm run typecheck
 KYC form. `src/interactive.ts` is a generic, best-effort headless filler
 (fill any visible input, click the obvious continue/submit button) rather
 than a scraper built for one specific anchor's markup — see the comments
-there. Some anchors' reference UI may not finish loading under a headless
-browser at all (consistent with bot-mitigation fingerprinting); when that
-happens the probe honestly reports a failed attempt rather than a
-fabricated success.
+there. The probe opens an SRT trustline on its fresh account first, since a
+deposit can't be delivered without one. If an anchor's UI never renders, the
+run is recorded as inconclusive, not as an anchor failure. Set
+`PROBE_HEADLESS=false` to watch the flow in a visible browser.

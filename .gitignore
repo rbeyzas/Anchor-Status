@@ -1,0 +1,33 @@
+# dependencies & build output
+node_modules/
+.next/
+out/
+dist/
+build/
+target/
+*.tsbuildinfo
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# secrets — never commit
+.env
+.env.*
+!.env.example
+services/mock-anchors/secrets.env
+
+# runtime state & collected data (lives on the server, not in git)
+services/mock-anchors/state/
+services/mock-anchors/logs/
+services/testnet-probe/results/
+services/passive-monitor/output/
+services/aggregator/state.json
+
+# os / editor
+.DS_Store
+Thumbs.db
+
+# graphify dated backups
+graphify-out/20*/
+graphify-out/*.sig

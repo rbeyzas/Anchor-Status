@@ -1,0 +1,8 @@
+# Generated/vendored output — not project source
+services/mock-anchors/state/
+services/mock-anchors/logs/
+**/.venv/
+**/node_modules/
+**/target/
+dashboard/.next/
+graphify-out/

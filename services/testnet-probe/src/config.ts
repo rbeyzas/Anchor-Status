@@ -26,5 +26,8 @@ export const config = {
   pollIntervalMs: Number(process.env.TESTNET_PROBE_POLL_INTERVAL_MS ?? '4000'),
   pollTimeoutMs: Number(process.env.TESTNET_PROBE_POLL_TIMEOUT_MS ?? String(5 * 60 * 1000)),
   interactiveTimeoutMs: Number(process.env.TESTNET_PROBE_INTERACTIVE_TIMEOUT_MS ?? '60000'),
+  // Headless works against testanchor.stellar.org. PROBE_HEADLESS=false opens
+  // a visible browser, which is useful for debugging a new anchor's UI.
+  headless: process.env.PROBE_HEADLESS !== 'false',
   resultsPath: path.join(__dirname, '..', 'results', 'probe-log.json'),
 };

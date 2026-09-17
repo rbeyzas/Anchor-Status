@@ -6,6 +6,7 @@ import { completeInteractiveFlow } from './interactive.js';
 import { authenticateSep10 } from './sep10.js';
 import { initiateInteractiveDeposit, pollUntilTerminal } from './sep24.js';
 import { fetchAnchorToml } from './toml.js';
+import { addTrustline } from './trustline.js';
 import type { ProbeResult } from './types.js';
 
 export async function runProbe(): Promise<ProbeResult> {
@@ -19,6 +20,13 @@ export async function runProbe(): Promise<ProbeResult> {
     console.log(`[testnet-probe] fetching stellar.toml from ${config.anchorDomain}`);
     const toml = await fetchAnchorToml(config.anchorDomain);
 
+    const currency = toml.currencies.find((c) => c.code === config.assetCode);
+    if (!currency) {
+      throw new Error(`${config.anchorDomain}'s stellar.toml lists no issuer for ${config.assetCode}`);
+    }
+    console.log(`[testnet-probe] adding trustline to ${currency.code}:${currency.issuer}`);
+    await addTrustline(config.horizonTestnetUrl, keypair, currency.code, currency.issuer, config.networkPassphrase);
+
     console.log('[testnet-probe] performing SEP-10 authentication');
     const token = await authenticateSep10(toml, keypair, config.networkPassphrase);
 
@@ -31,7 +39,24 @@ export async function runProbe(): Promise<ProbeResult> {
     );
 
     console.log(`[testnet-probe] driving interactive flow at ${deposit.url}`);
-    await completeInteractiveFlow(deposit.url, config.depositAmount, config.interactiveTimeoutMs);
+    const interacted = await completeInteractiveFlow(deposit.url, config.depositAmount, config.interactiveTimeoutMs, config.headless);
+    if (!interacted) {
+      // The anchor's API answered SEP-1/10/24 correctly; only our headless
+      // browser failed to render its UI. That says nothing about the anchor.
+      const settlementSeconds = (Date.now() - startMs) / 1000;
+      console.warn('[testnet-probe] interactive form never rendered in headless browser; recording as inconclusive');
+      return {
+        anchor_id: config.anchorId,
+        domain: config.anchorDomain,
+        source_type: 'RealTestnet',
+        success: false,
+        inconclusive: true,
+        settlement_seconds: settlementSeconds,
+        timestamp: startedAt.toISOString(),
+        final_transaction_status: null,
+        error: 'interactive UI did not render in headless browser',
+      };
+    }
 
     console.log('[testnet-probe] polling transaction status until terminal');
     const finalTx = await pollUntilTerminal(
