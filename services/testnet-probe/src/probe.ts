@@ -9,6 +9,16 @@ import { fetchAnchorToml } from './toml.js';
 import { addTrustline } from './trustline.js';
 import type { ProbeResult } from './types.js';
 
+/** True when the run failed on our side (browser missing or unlaunchable,
+ * Friendbot down) rather than on the anchor's. Blaming an anchor for our
+ * own broken tooling puts a false failure on-chain, which cannot be undone,
+ * so these are recorded as inconclusive and never submitted. */
+export function isProbeEnvironmentError(message: string): boolean {
+  return /browserType\.launch|Executable doesn't exist|playwright install|Friendbot funding failed/i.test(
+    message,
+  );
+}
+
 export async function runProbe(): Promise<ProbeResult> {
   const startedAt = new Date();
   const startMs = Date.now();
@@ -83,17 +93,23 @@ export async function runProbe(): Promise<ProbeResult> {
     return result;
   } catch (err) {
     const settlementSeconds = (Date.now() - startMs) / 1000;
+    const message = (err as Error).message;
+    const environmentFailure = isProbeEnvironmentError(message);
     const result: ProbeResult = {
       anchor_id: config.anchorId,
       domain: config.anchorDomain,
       source_type: 'RealTestnet',
       success: false,
+      ...(environmentFailure ? { inconclusive: true } : {}),
       settlement_seconds: settlementSeconds,
       timestamp: startedAt.toISOString(),
       final_transaction_status: null,
       error: (err as Error).message,
     };
-    console.error(`[testnet-probe] failed after ${settlementSeconds.toFixed(1)}s: ${result.error}`);
+    console.error(
+      `[testnet-probe] failed after ${settlementSeconds.toFixed(1)}s: ${result.error}` +
+        (environmentFailure ? ' (our environment, recorded as inconclusive)' : ''),
+    );
     return result;
   }
 }

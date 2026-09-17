@@ -19,6 +19,18 @@ async function getEvents(
   }
 }
 
+/** AnchorRegistry's SlashEvent has named fields (amount, reason), so
+ * scValToNative yields an object — older code read it as a [amount, reason]
+ * tuple, which silently produced undefined. Both shapes are accepted. */
+export function slashAmountStroops(data: unknown): string | null {
+  const raw = Array.isArray(data)
+    ? (data as unknown[])[0]
+    : (data as { amount?: unknown } | null)?.amount;
+  if (typeof raw === 'bigint' || typeof raw === 'number') return String(raw);
+  if (typeof raw === 'string' && /^-?\d+$/.test(raw)) return raw;
+  return null;
+}
+
 export async function fetchAnchorEvents(
   server: rpc.Server,
   startLedger: number,
@@ -50,9 +62,16 @@ export async function fetchAnchorEvents(
       const data = scValToNative(event.value) as { new_score: number };
       return { timestamp: event.ledgerClosedAt, score: Number(data.new_score) };
     }),
-    slashEvents: slashRes.events.map((event) => {
-      const data = scValToNative(event.value) as [bigint, string];
-      return { timestamp: event.ledgerClosedAt, amountStroops: String(data[0]) };
+    slashEvents: slashRes.events.flatMap((event) => {
+      const amount = slashAmountStroops(scValToNative(event.value));
+      // A shape we can't read must not enter the archive as the string
+      // "undefined" — that is unparseable downstream, and the dashboard
+      // fell back to demo data over it.
+      if (amount === null) {
+        console.warn(`[history-archiver] unreadable slash event at ${event.ledgerClosedAt}, skipped`);
+        return [];
+      }
+      return [{ timestamp: event.ledgerClosedAt, amountStroops: amount }];
     }),
   };
 }

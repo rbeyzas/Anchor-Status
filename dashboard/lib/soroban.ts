@@ -143,9 +143,14 @@ async function fetchSlashEvents(server: rpc.Server, anchorId: string): Promise<S
       1000,
     );
 
-    return response.events.map((event) => {
-      const data = scValToNative(event.value) as [bigint, string];
-      return { timestamp: event.ledgerClosedAt, amount: stroopsToXlm(data[0]) };
+    return response.events.flatMap((event) => {
+      // SlashEvent has named fields (amount, reason), so this is an object,
+      // not a [amount, reason] tuple — reading index 0 yielded undefined and
+      // rendered the slash amount as NaN.
+      const data = scValToNative(event.value) as { amount?: bigint } | [bigint, string];
+      const amount = Array.isArray(data) ? data[0] : data?.amount;
+      if (typeof amount !== 'bigint' && typeof amount !== 'number') return [];
+      return [{ timestamp: event.ledgerClosedAt, amount: stroopsToXlm(amount) }];
     });
   } catch (err) {
     console.warn(`[dashboard] failed to fetch slash events for ${anchorId}:`, err);

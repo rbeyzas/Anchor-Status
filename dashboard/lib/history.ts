@@ -51,6 +51,15 @@ function unionBy<T>(a: T[], b: T[], keyOf: (item: T) => string): T[] {
   return Array.from(byKey.values()).sort((x, y) => keyOf(x).localeCompare(keyOf(y)));
 }
 
+/** Skips entries an older archive may hold in a shape we can't read. The
+ * archive enriches the live view; it must never be able to break it. */
+function toSlashEvents(entries: Array<{ timestamp: string; amountStroops: string }>): SlashEvent[] {
+  return entries.flatMap((e) => {
+    if (!/^-?\d+$/.test(String(e.amountStroops))) return [];
+    return [{ timestamp: e.timestamp, amount: stroopsToXlm(BigInt(e.amountStroops)) }];
+  });
+}
+
 const scoreKey = (p: ScorePoint) => `${p.timestamp}|${p.score}`;
 const slashKey = (e: SlashEvent) => `${e.timestamp}|${e.amount}`;
 
@@ -68,14 +77,7 @@ export function mergeArchiveInto(
     return {
       ...anchor,
       scoreHistory: unionBy(anchor.scoreHistory, archived.scoreHistory, scoreKey),
-      slashEvents: unionBy(
-        anchor.slashEvents,
-        archived.slashEvents.map((e) => ({
-          timestamp: e.timestamp,
-          amount: stroopsToXlm(BigInt(e.amountStroops)),
-        })),
-        slashKey,
-      ),
+      slashEvents: unionBy(anchor.slashEvents, toSlashEvents(archived.slashEvents), slashKey),
     };
   });
 }

@@ -52,6 +52,15 @@ describe('mergeArchiveInto', () => {
     expect(merged[0].slashEvents).toEqual([{ timestamp: '2026-09-17T11:00:00Z', amount: 1 }]);
   });
 
+  it('ignores archived slash entries in an unreadable shape instead of throwing', () => {
+    const merged = mergeArchiveInto(
+      [anchor()],
+      archive({ a: { scoreHistory: [{ timestamp: '2026-09-16T00:00:00Z', score: 20 }], slashEvents: [{ timestamp: '2026-09-16T00:00:00Z', amountStroops: 'undefined' }] } }),
+    );
+    expect(merged[0].slashEvents).toEqual([]);
+    expect(merged[0].scoreHistory).toHaveLength(2);
+  });
+
   it('leaves anchors that the archive has never seen alone', () => {
     const merged = mergeArchiveInto([anchor({ anchorId: 'unknown' })], archive({ a: { scoreHistory: [], slashEvents: [] } }));
     expect(merged[0].scoreHistory).toHaveLength(1);
