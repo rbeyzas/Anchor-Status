@@ -21,11 +21,12 @@ async function buildProfile(
   anchor: AnchorConfig,
   lookbackDays: number,
   delayMs: number,
+  maxPages: number,
 ): Promise<BaseProfile> {
   const cutoff = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
 
   console.log(`[passive-monitor] ${anchor.anchor_id}: fetching payments since ${cutoff.toISOString()}`);
-  const payments = await fetchRecentPayments(server, anchor.distribution_account, cutoff, delayMs);
+  const payments = await fetchRecentPayments(server, anchor.distribution_account, cutoff, delayMs, maxPages);
   const { overall, byAsset } = aggregatePayments(payments, lookbackDays);
 
   await sleep(delayMs);
@@ -64,7 +65,13 @@ async function main() {
   for (const raw of anchors) {
     const anchor = validateAnchor(raw);
     try {
-      const profile = await buildProfile(server, anchor, config.lookbackDays, config.requestDelayMs);
+      const profile = await buildProfile(
+        server,
+        anchor,
+        config.lookbackDays,
+        config.requestDelayMs,
+        config.maxPaymentPages,
+      );
       profiles.push(profile);
     } catch (err) {
       console.error(`[passive-monitor] ${anchor.anchor_id}: failed: ${(err as Error).message}`);

@@ -3,12 +3,18 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Anchor as AnchorIcon, WarningCircle } from '@phosphor-icons/react';
-import type { AnchorViewModel, DataSource } from '@/lib/types';
+import type { AnchorViewModel, DataSource, SourceType } from '@/lib/types';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
 import { FilterBar, type FilterValue } from './FilterBar';
 import { StatsBar } from './StatsBar';
 import { ThemeToggle } from './ThemeToggle';
+
+const SOURCE_ORDER: Record<SourceType, number> = {
+  RealMainnet: 0,
+  RealTestnet: 1,
+  SimulatedMock: 2,
+};
 
 export function Dashboard({
   anchors,
@@ -23,10 +29,10 @@ export function Dashboard({
   const [selected, setSelected] = useState<AnchorViewModel | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
-  const filtered = useMemo(
-    () => (filter === 'all' ? anchors : anchors.filter((a) => a.sourceType === filter)),
-    [anchors, filter],
-  );
+  const filtered = useMemo(() => {
+    const scoped = filter === 'all' ? anchors : anchors.filter((a) => a.sourceType === filter);
+    return [...scoped].sort((a, b) => SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType]);
+  }, [anchors, filter]);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-12">

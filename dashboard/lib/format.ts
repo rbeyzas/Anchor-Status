@@ -14,8 +14,25 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'short',
 });
 
+const TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
 export function formatShortDate(iso: string): string {
   return DATE_FORMATTER.format(new Date(iso));
+}
+
+/** Formats a chart axis label as time-of-day (HH:mm) instead of a bare date
+ * when every point falls on the same calendar day — a same-day date label
+ * repeated across every tick reads as a single frozen data point rather
+ * than a time series, so time-of-day resolution is used instead. */
+export function formatChartAxisLabel(iso: string, allTimestamps: string[]): string {
+  const dates = allTimestamps.map((t) => new Date(t));
+  const sameDay = dates.every(
+    (d) => d.toDateString() === dates[0].toDateString(),
+  );
+  return sameDay ? TIME_FORMATTER.format(new Date(iso)) : DATE_FORMATTER.format(new Date(iso));
 }
 
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {

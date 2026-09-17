@@ -198,7 +198,10 @@ async function fetchLiveDashboardData(): Promise<AnchorViewModel[]> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listTx = await (registry as any).list_anchors();
-  const anchorIds = listTx.result as string[];
+  // "testanc" is a leftover placeholder from initial contract deployment
+  // (domain example.com, never reported on) — AnchorRegistry has no
+  // unregister function, so it's filtered out here instead.
+  const anchorIds = (listTx.result as string[]).filter((id) => id !== 'testanc');
 
   return Promise.all(anchorIds.map((id) => fetchAnchor(server, registry, oracle, id)));
 }

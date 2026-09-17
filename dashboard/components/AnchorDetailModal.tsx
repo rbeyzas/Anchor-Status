@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { formatRelativeTime, formatShortDate, formatStakeXlm } from '@/lib/format';
+import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
 import type { AnchorViewModel } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
@@ -28,8 +28,9 @@ export function AnchorDetailModal({
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  const historyTimestamps = anchor.scoreHistory.map((p) => p.timestamp);
   const chartData = anchor.scoreHistory.map((p) => ({
-    label: formatShortDate(p.timestamp),
+    label: formatChartAxisLabel(p.timestamp, historyTimestamps),
     timestamp: p.timestamp,
     score: p.score,
   }));
@@ -136,7 +137,7 @@ export function AnchorDetailModal({
               {anchor.slashEvents.map((slash) => (
                 <ReferenceLine
                   key={slash.timestamp}
-                  x={formatShortDate(slash.timestamp)}
+                  x={formatChartAxisLabel(slash.timestamp, historyTimestamps)}
                   stroke="rgb(var(--color-danger))"
                   strokeDasharray="4 4"
                   label={{

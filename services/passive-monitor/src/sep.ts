@@ -6,10 +6,15 @@ interface StellarToml {
   [key: string]: unknown;
 }
 
+const FETCH_TIMEOUT_MS = 10_000;
+
 /** Fetches and parses SEP-1 stellar.toml from an anchor's domain. */
 export async function fetchStellarToml(domain: string): Promise<StellarToml> {
   const url = `https://${domain}/.well-known/stellar.toml`;
-  const res = await fetch(url, { headers: { Accept: 'text/plain' } });
+  const res = await fetch(url, {
+    headers: { Accept: 'text/plain' },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
   if (!res.ok) {
     throw new Error(`Failed to fetch stellar.toml from ${url}: HTTP ${res.status}`);
   }
@@ -20,7 +25,7 @@ export async function fetchStellarToml(domain: string): Promise<StellarToml> {
 /** Fetches SEP-24 /info from an anchor's TRANSFER_SERVER_SEP0024 URL. */
 export async function fetchSep24Info(transferServerUrl: string): Promise<AnchorInfo> {
   const url = `${transferServerUrl.replace(/\/$/, '')}/info`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) {
     throw new Error(`Failed to fetch SEP-24 /info from ${url}: HTTP ${res.status}`);
   }
