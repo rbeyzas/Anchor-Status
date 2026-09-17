@@ -155,6 +155,47 @@ bash scripts/demo.sh
 
 Runs setup, deploy (if needed), every collector once, one aggregation pass, and installs the dashboard — then prints the command to start it. See [`docs/DEMO.md`](docs/DEMO.md) for the full walkthrough, including how to watch `mock_anchor_3` degrade and trigger a real slash live.
 
+### 7. Continuous collection (the deployed setup)
+
+A demo run is a single snapshot. To keep scoring anchors — and to build a
+chart that covers more than a few hours — the real collectors run on a
+host, on a schedule:
+
+```bash
+COLLECTOR_HOST=root@your-host bash scripts/deploy-to-server.sh
+```
+
+That syncs the services, installs their dependencies, and leaves
+`/var/lib/anchor-status` untouched. Cron then runs one round every 20
+minutes:
+
+```
+*/20 * * * * root /usr/bin/flock -n /var/lock/anchor-collect.lock /opt/anchor-status/scripts/collect.sh >> /var/log/anchor-status/collect.log 2>&1
+```
+
+One round is [`scripts/collect.sh`](scripts/collect.sh): `passive-monitor`,
+`testnet-probe`, `aggregator` (with `AGGREGATOR_SKIP_MOCK=true`, so only
+real sources are submitted), then `history-archiver`. `flock` skips a tick
+rather than stacking rounds when a probe runs long.
+
+**Nothing accumulated lives in the deployed tree.** Everything that must
+survive a redeploy sits in `/var/lib/anchor-status`:
+
+| File | What it holds | Why it must not reset |
+| --- | --- | --- |
+| `history.json` | Every score point and slash event ever observed | Soroban RPC only serves events for ~12 hours, so this is the only long-term record |
+| `aggregator-state.json` | Dedup keys for reports already submitted | A reset would resubmit tens of thousands of reports |
+| `probe-results/probe-log.json` | Every testnet probe run | The `RealTestnet` evidence trail |
+
+[`services/history-archiver`](services/history-archiver) re-reads the RPC's
+event window each round and merges it into `history.json` by
+`(timestamp, value)`, so overlapping rounds never duplicate and a failed
+round never drops what is already archived. The file is written via temp +
+rename with a `.bak` copy, and served read-only over HTTP; the dashboard
+reads it from `HISTORY_ARCHIVE_URL` server-side and unions it into the live
+contract read. If it is unreachable the dashboard still renders live data —
+just with a shorter chart.
+
 ## Deployed testnet contracts
 
 | Contract | Contract ID |
