@@ -173,6 +173,13 @@ minutes:
 */20 * * * * root /usr/bin/flock -n /var/lock/anchor-collect.lock /opt/anchor-status/scripts/collect.sh >> /var/log/anchor-status/collect.log 2>&1
 ```
 
+Deployment is pull-based: [`scripts/server-autodeploy.sh`](scripts/server-autodeploy.sh)
+runs on the host every 5 minutes, fetches the tracked branch, and exits when
+the SHA hasn't moved. Whoever pushes gets deployed, and nobody needs SSH
+access to the host — the host authenticates to GitHub with a read-only
+deploy key. A push-from-your-laptop hook was tried first and quietly skipped
+every commit made on anyone else's machine.
+
 One round is [`scripts/collect.sh`](scripts/collect.sh): `passive-monitor`,
 `testnet-probe`, `aggregator` (with `AGGREGATOR_SKIP_MOCK=true`, so only
 real sources are submitted), then `history-archiver`. `flock` skips a tick
