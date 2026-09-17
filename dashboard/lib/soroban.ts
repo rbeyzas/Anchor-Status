@@ -1,5 +1,6 @@
 import { contract, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { stroopsToXlm } from './format';
+import { fetchArchive, mergeArchiveInto } from './history';
 import { MOCK_ANCHORS } from './mock-data';
 import type { AnchorViewModel, DashboardData, ScorePoint, SlashEvent, SourceType } from './types';
 
@@ -212,11 +213,12 @@ async function fetchLiveDashboardData(): Promise<AnchorViewModel[]> {
  * network access to soroban-testnet.stellar.org. */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const anchors = await fetchLiveDashboardData();
+    const [anchors, archive] = await Promise.all([fetchLiveDashboardData(), fetchArchive()]);
     if (anchors.length === 0) {
       throw new Error('AnchorRegistry.list_anchors() returned no anchors');
     }
-    return { anchors, dataSource: 'live' };
+    // The archive carries history older than the RPC's ~12h event window.
+    return { anchors: mergeArchiveInto(anchors, archive), dataSource: 'live' };
   } catch (err) {
     return {
       anchors: MOCK_ANCHORS,
