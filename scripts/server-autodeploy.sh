@@ -36,7 +36,10 @@ flock -w 600 /var/lock/anchor-collect.lock -c true || log "collection round stil
 # anyone edits. Untracked files (.env, node_modules, .deps.sum) are kept.
 # checkout -B also fixes the branch name when the checkout was bootstrapped
 # with `git init` (which starts on master with no commits).
-git checkout -q -B "$BRANCH" "origin/$BRANCH"
+# -f: the host may hold untracked copies of tracked files (e.g. a checkout
+# bootstrapped from an rsync deploy). Only paths the target commit contains
+# are overwritten, so .env, node_modules and .deps.sum are left alone.
+git checkout -q -f -B "$BRANCH" "origin/$BRANCH"
 git reset --hard --quiet "origin/$BRANCH"
 
 for d in "${SERVICES[@]}"; do
