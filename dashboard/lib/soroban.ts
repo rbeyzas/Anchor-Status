@@ -2,7 +2,7 @@ import { contract, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { stroopsToXlm } from './format';
 import { fetchArchive, mergeArchiveInto } from './history';
 import { MOCK_ANCHORS } from './mock-data';
-import type { AnchorViewModel, DashboardData, ScorePoint, SlashEvent, SourceType } from './types';
+import type { AnchorHealth, AnchorViewModel, DashboardData, RiskReason, ScorePoint, SlashEvent, SourceType, Trend } from './types';
 
 const RPC_URL = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org';
 const NETWORK_PASSPHRASE =
@@ -158,6 +158,40 @@ async function fetchSlashEvents(server: rpc.Server, anchorId: string): Promise<S
   }
 }
 
+interface RawAnchorHealth {
+  trend: { tag: Trend };
+  risk_reason: { tag: RiskReason };
+  consecutive_failures: number;
+  recent_outcomes: number;
+  recent_count: number;
+  observations: bigint;
+}
+
+/** Reads the oracle's trend/risk record. Returns undefined against an
+ * oracle deployed before health tracking existed (no get_health). */
+async function fetchHealth(oracle: contract.Client, anchorId: string): Promise<AnchorHealth | undefined> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof (oracle as any).get_health !== 'function') return undefined;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = (await (oracle as any).get_health({ anchor_id: anchorId })).result as RawAnchorHealth;
+    const count = Number(raw.recent_count);
+    const mask = count >= 32 ? 0xffffffff : (1 << count) - 1;
+    const successes = (Number(raw.recent_outcomes) & mask).toString(2).split('').filter((b) => b === '1').length;
+    return {
+      trend: raw.trend.tag,
+      riskReason: raw.risk_reason.tag,
+      consecutiveFailures: Number(raw.consecutive_failures),
+      recentSuccessPercent: count === 0 ? 100 : Math.floor((successes * 100) / count),
+      recentCount: count,
+      observations: Number(raw.observations),
+    };
+  } catch (err) {
+    console.warn(`[dashboard] failed to fetch health for ${anchorId}:`, err);
+    return undefined;
+  }
+}
+
 async function fetchAnchor(
   server: rpc.Server,
   registry: contract.Client,
@@ -175,9 +209,10 @@ async function fetchAnchor(
   const scoreTx = await (oracle as any).get_score({ anchor_id: anchorId });
   const currentScore = Number(scoreTx.result);
 
-  const [scoreHistory, slashEvents] = await Promise.all([
+  const [scoreHistory, slashEvents, health] = await Promise.all([
     fetchScoreHistory(server, anchorId),
     fetchSlashEvents(server, anchorId),
+    fetchHealth(oracle, anchorId),
   ]);
 
   return {
@@ -193,6 +228,7 @@ async function fetchAnchor(
         : [{ timestamp: new Date(Number(info.last_updated) * 1000).toISOString(), score: currentScore }],
     slashEvents,
     lastUpdated: new Date(Number(info.last_updated) * 1000).toISOString(),
+    health,
   };
 }
 

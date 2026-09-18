@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
+import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
 import type { AnchorViewModel } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
@@ -141,7 +142,7 @@ export function AnchorDetailModal({
                   stroke="rgb(var(--color-danger))"
                   strokeDasharray="4 4"
                   label={{
-                    value: 'slash',
+                    value: 'legacy slash',
                     position: 'top',
                     fontSize: 10,
                     fill: 'rgb(var(--color-danger))',
@@ -167,10 +168,27 @@ export function AnchorDetailModal({
           </ResponsiveContainer>
         </div>
 
+        {anchor.health && (
+          <div className="mt-4 flex flex-col gap-1 text-sm text-ink-muted">
+            <span>
+              Trend: <span className="font-medium text-ink">{TREND_LABEL[anchor.health.trend]}</span>
+              {RISK_LABEL[anchor.health.riskReason] && (
+                <>
+                  {' · '}
+                  <span className="font-medium text-danger">{RISK_LABEL[anchor.health.riskReason]}</span>
+                </>
+              )}
+            </span>
+            <span className="tabular">{describeHealth(anchor.health)}</span>
+          </div>
+        )}
+
         {anchor.slashEvents.length > 0 && (
           <div className="mt-4 text-sm text-ink-muted">
-            <span className="font-medium text-danger">{anchor.slashEvents.length} slashing event{anchor.slashEvents.length === 1 ? '' : 's'}</span>{' '}
-            in the last 30 days — marked with dashed red lines.
+            <span className="font-medium text-danger">{anchor.slashEvents.length} legacy slashing event{anchor.slashEvents.length === 1 ? '' : 's'}</span>{' '}
+            — marked with dashed red lines. They come from an earlier version of the oracle, which slashed stake
+            automatically and was triggered here by bugs in our own probe. The oracle now only publishes a score and never
+            moves anyone&apos;s stake.
           </div>
         )}
       </motion.div>

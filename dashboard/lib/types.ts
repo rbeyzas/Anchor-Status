@@ -13,6 +13,21 @@ export interface SlashEvent {
   amount: number;
 }
 
+export type Trend = 'Stable' | 'Improving' | 'Degrading';
+export type RiskReason = 'None' | 'ConsecutiveFailures' | 'LowSuccessRate' | 'ScoreBelowFloor';
+
+/** PerformanceOracle's on-chain health record for one anchor. */
+export interface AnchorHealth {
+  trend: Trend;
+  riskReason: RiskReason;
+  consecutiveFailures: number;
+  /** Success rate over the recent outcome window, whole percent. */
+  recentSuccessPercent: number;
+  recentCount: number;
+  /** Total reports ever received — confidence in the score, not part of it. */
+  observations: number;
+}
+
 export interface AnchorViewModel {
   anchorId: string;
   name: string;
@@ -26,6 +41,8 @@ export interface AnchorViewModel {
   scoreHistory: ScorePoint[];
   slashEvents: SlashEvent[];
   lastUpdated: string;
+  /** Absent when reading a contract deployed before health tracking. */
+  health?: AnchorHealth;
 }
 
 export type DataSource = 'live' | 'mock';

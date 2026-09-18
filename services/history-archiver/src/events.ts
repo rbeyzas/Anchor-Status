@@ -1,5 +1,5 @@
 import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
-import type { ScorePoint, SlashEvent } from './types.js';
+import type { RiskEvent, ScorePoint, SlashEvent } from './types.js';
 
 const LEDGER_RANGE_ERROR = /ledger range:\s*(\d+)\s*-\s*(\d+)/i;
 
@@ -31,16 +31,23 @@ export function slashAmountStroops(data: unknown): string | null {
   return null;
 }
 
+/** A unit enum variant from scValToNative: ["Degrading"] or {tag: "Degrading"}. */
+function enumTag(value: unknown): string | null {
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+  const tag = (value as { tag?: unknown } | null)?.tag;
+  return typeof tag === 'string' ? tag : null;
+}
+
 export async function fetchAnchorEvents(
   server: rpc.Server,
   startLedger: number,
   oracleContractId: string,
   registryContractId: string,
   anchorId: string,
-): Promise<{ scoreHistory: ScorePoint[]; slashEvents: SlashEvent[] }> {
+): Promise<{ scoreHistory: ScorePoint[]; slashEvents: SlashEvent[]; riskEvents: RiskEvent[] }> {
   const topicAnchorId = xdr.ScVal.scvSymbol(anchorId).toXDR('base64');
 
-  const [scoreRes, slashRes] = await Promise.all([
+  const [scoreRes, slashRes, riskRes] = await Promise.all([
     getEvents(server, startLedger, [
       {
         type: 'contract',
@@ -53,6 +60,13 @@ export async function fetchAnchorEvents(
         type: 'contract',
         contractIds: [registryContractId],
         topics: [[xdr.ScVal.scvSymbol('slash').toXDR('base64'), topicAnchorId]],
+      },
+    ]),
+    getEvents(server, startLedger, [
+      {
+        type: 'contract',
+        contractIds: [oracleContractId],
+        topics: [[xdr.ScVal.scvSymbol('risk_status_changed').toXDR('base64'), topicAnchorId]],
       },
     ]),
   ]);
@@ -72,6 +86,22 @@ export async function fetchAnchorEvents(
         return [];
       }
       return [{ timestamp: event.ledgerClosedAt, amountStroops: amount }];
+    }),
+    riskEvents: riskRes.events.flatMap((event) => {
+      const data = scValToNative(event.value) as { risk_reason?: unknown; score?: unknown; trend?: unknown };
+      const riskReason = enumTag(data?.risk_reason);
+      if (riskReason === null) {
+        console.warn(`[history-archiver] unreadable risk event at ${event.ledgerClosedAt}, skipped`);
+        return [];
+      }
+      return [
+        {
+          timestamp: event.ledgerClosedAt,
+          riskReason,
+          score: Number(data.score),
+          trend: enumTag(data.trend) ?? 'Stable',
+        },
+      ];
     }),
   };
 }

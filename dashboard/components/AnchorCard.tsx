@@ -1,9 +1,10 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Lightning, Vault } from '@phosphor-icons/react';
+import { Lightning, TrendDown, TrendUp, Vault } from '@phosphor-icons/react';
 import { formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
+import { RISK_LABEL } from '@/lib/health';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
@@ -24,7 +25,15 @@ export function AnchorCard({
   onSelect: (anchor: AnchorViewModel) => void;
 }) {
   const recentDrop = hasRecentSignificantDrop(anchor.scoreHistory, anchor.score);
-  const isRisky = scoreTier(anchor.score) === 'low';
+  // The oracle's own risk verdict when available; the score tier is only a
+  // fallback for contracts deployed before health tracking.
+  const riskLabel = anchor.health
+    ? RISK_LABEL[anchor.health.riskReason]
+    : scoreTier(anchor.score) === 'low'
+      ? 'Risky anchor'
+      : null;
+  const badge = riskLabel ?? (recentDrop ? 'Sharp drop in 24h' : null);
+  const trend = anchor.health?.trend;
 
   return (
     <motion.button
@@ -35,10 +44,10 @@ export function AnchorCard({
       transition={{ duration: 0.18, ease: 'easeOut' }}
       className={`glass-panel relative flex w-full cursor-pointer items-center justify-between gap-4 rounded-card p-4 text-left shadow-card transition-shadow duration-300 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-5 ${RING_SHADOW[anchor.sourceType]}`}
     >
-      {(recentDrop || isRisky) && (
+      {badge && (
         <span className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-pill bg-danger-soft px-2.5 py-1 text-[11px] font-semibold text-danger shadow-glow-danger">
           <Lightning size={11} weight="fill" aria-hidden="true" />
-          {recentDrop ? 'Recent slashing' : 'Risky anchor'}
+          {badge}
         </span>
       )}
 
@@ -54,6 +63,16 @@ export function AnchorCard({
       <div className="flex flex-shrink-0 flex-col items-center gap-2">
         <ScoreValue score={anchor.score} size={52} />
         <Sparkline history={anchor.scoreHistory} currentScore={anchor.score} anchorId={anchor.anchorId} />
+        {trend === 'Degrading' && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-danger">
+            <TrendDown size={12} weight="bold" aria-hidden="true" /> Degrading
+          </span>
+        )}
+        {trend === 'Improving' && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-success">
+            <TrendUp size={12} weight="bold" aria-hidden="true" /> Improving
+          </span>
+        )}
       </div>
     </motion.button>
   );

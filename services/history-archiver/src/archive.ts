@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Archive, AnchorArchive, ScorePoint, SlashEvent } from './types.js';
+import type { Archive, AnchorArchive, RiskEvent, ScorePoint, SlashEvent } from './types.js';
 import { emptyArchive } from './types.js';
 
 /** Reads the archive, or returns an empty one when the file doesn't exist
@@ -38,17 +38,19 @@ function mergeSorted<T>(existing: T[], incoming: T[], keyOf: (item: T) => string
 
 export const scorePointKey = (p: ScorePoint) => `${p.timestamp}|${p.score}`;
 export const slashEventKey = (e: SlashEvent) => `${e.timestamp}|${e.amountStroops}`;
+export const riskEventKey = (e: RiskEvent) => `${e.timestamp}|${e.riskReason}`;
 
 /** Merges one anchor's freshly-read events into what's already archived.
  * Existing entries are never removed — a run that reads nothing (RPC
  * hiccup, pruned window) leaves the archive intact. */
 export function mergeAnchor(
   existing: AnchorArchive | undefined,
-  incoming: { scoreHistory: ScorePoint[]; slashEvents: SlashEvent[] },
+  incoming: { scoreHistory: ScorePoint[]; slashEvents: SlashEvent[]; riskEvents?: RiskEvent[] },
 ): AnchorArchive {
   const base: AnchorArchive = existing ?? { scoreHistory: [], slashEvents: [] };
   return {
     scoreHistory: mergeSorted(base.scoreHistory, incoming.scoreHistory, scorePointKey),
     slashEvents: mergeSorted(base.slashEvents, incoming.slashEvents, slashEventKey),
+    riskEvents: mergeSorted(base.riskEvents ?? [], incoming.riskEvents ?? [], riskEventKey),
   };
 }

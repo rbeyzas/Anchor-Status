@@ -7,22 +7,10 @@
       "distribution_account": "GAQRF3UGHBT6JYQZ7YSUYCIYWAF4T2SAA5237Q5LIQYJOHHFAWDXZ7NM"
     },
     {
-      "anchor_id": "cowrie_exchange",
-      "name": "Cowrie Exchange",
-      "domain": "cowrie.exchange",
-      "distribution_account": "GAWODAROMJ33V5YDFY3NPYTHVYQG7MJXVJ2ND3AOGIHYRWINES6ACCPD"
-    },
-    {
       "anchor_id": "moneygram",
       "name": "MoneyGram",
       "domain": "stellar.moneygram.com",
       "distribution_account": "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
-    },
-    {
-      "anchor_id": "aps_money",
-      "name": "Advanced Payment Solutions",
-      "domain": "aps.money",
-      "distribution_account": "GBN32NH6TMWE4ZD4G245CF3UVOQRXD4FK3FDCLZ4DE5642HWFKSLLRMB"
     },
     {
       "anchor_id": "zeam_money",

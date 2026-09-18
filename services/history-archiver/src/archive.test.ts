@@ -11,7 +11,8 @@ describe('mergeAnchor', () => {
       scoreHistory: [{ timestamp: '2026-09-17T10:00:00Z', score: 80 }],
       slashEvents: [{ timestamp: '2026-09-17T10:00:00Z', amountStroops: '100' }],
     };
-    expect(mergeAnchor(existing, { scoreHistory: [], slashEvents: [] })).toEqual(existing);
+    // Every existing entry survives; the merge may add an empty riskEvents list.
+    expect(mergeAnchor(existing, { scoreHistory: [], slashEvents: [] })).toMatchObject(existing);
   });
 
   it('does not duplicate an entry seen in two overlapping runs', () => {
@@ -38,6 +39,26 @@ describe('mergeAnchor', () => {
       { scoreHistory: [{ timestamp: '2026-09-17T09:00:00Z', score: 90 }], slashEvents: [] },
     );
     expect(merged.scoreHistory.map((p) => p.score)).toEqual([90, 60]);
+  });
+});
+
+describe('mergeAnchor risk events', () => {
+  it('reads an archive written before risk tracking, and adds risk events to it', () => {
+    const old = { scoreHistory: [{ timestamp: '2026-09-17T10:00:00Z', score: 80 }], slashEvents: [] };
+    const merged = mergeAnchor(old, {
+      scoreHistory: [],
+      slashEvents: [],
+      riskEvents: [{ timestamp: '2026-09-18T10:00:00Z', riskReason: 'ConsecutiveFailures', score: 61, trend: 'Degrading' }],
+    });
+    expect(merged.scoreHistory).toHaveLength(1);
+    expect(merged.riskEvents).toHaveLength(1);
+  });
+
+  it('does not duplicate a risk event seen in overlapping runs', () => {
+    const event = { timestamp: '2026-09-18T10:00:00Z', riskReason: 'LowSuccessRate', score: 58, trend: 'Improving' };
+    const once = mergeAnchor(undefined, { scoreHistory: [], slashEvents: [], riskEvents: [event] });
+    const twice = mergeAnchor(once, { scoreHistory: [], slashEvents: [], riskEvents: [event] });
+    expect(twice.riskEvents).toHaveLength(1);
   });
 });
 

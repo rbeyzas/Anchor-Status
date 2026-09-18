@@ -1,0 +1,13 @@
+{
+  "_comment": "Anchors registered on-chain by scripts/deploy-contracts.sh. Only SEP transfer anchors belong here: aps.money and cowrie.exchange were dropped because neither publishes a SEP-6/24/31 transfer server in its stellar.toml (cowrie is also marked abandoned), so a user could never reach them through a wallet.",
+  "anchors": [
+    { "anchor_id": "moneygram", "name": "MoneyGram", "domain": "stellar.moneygram.com", "source_type": "RealMainnet" },
+    { "anchor_id": "mykobo", "name": "Mykobo", "domain": "mykobo.co", "source_type": "RealMainnet" },
+    { "anchor_id": "zeam_money", "name": "Zeam Money", "domain": "zeam.money", "source_type": "RealMainnet" },
+    { "anchor_id": "stellar_test_anchor", "name": "Stellar Test Anchor", "domain": "testanchor.stellar.org", "source_type": "RealTestnet" },
+    { "anchor_id": "mock_anchor_1", "name": "Mock Anchor 1", "domain": "mock-anchor-1.local", "source_type": "SimulatedMock" },
+    { "anchor_id": "mock_anchor_2", "name": "Mock Anchor 2", "domain": "mock-anchor-2.local", "source_type": "SimulatedMock" },
+    { "anchor_id": "mock_anchor_3", "name": "Mock Anchor 3", "domain": "mock-anchor-3.local", "source_type": "SimulatedMock" },
+    { "anchor_id": "mock_anchor_4", "name": "Mock Anchor 4", "domain": "mock-anchor-4.local", "source_type": "SimulatedMock" }
+  ]
+}
