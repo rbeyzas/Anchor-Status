@@ -30,7 +30,6 @@ if [ -z "${ANCHOR_DEPLOY_LOCKED:-}" ]; then
   exec env ANCHOR_DEPLOY_LOCKED=1 flock -w 1800 "$LOCK" "$0" "$@"
 fi
 BRANCH="${DEPLOY_BRANCH:-main}"
-SERVICES=(mainnet-probe passive-monitor testnet-probe aggregator history-archiver)
 
 cd "$REPO_DIR"
 log() { echo "[autodeploy $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
@@ -55,9 +54,13 @@ log "deploying ${local_sha:0:8} -> ${remote_sha:0:8}"
 git checkout -q -f -B "$BRANCH" "origin/$BRANCH"
 git reset --hard --quiet "origin/$BRANCH"
 
-for d in "${SERVICES[@]}"; do
-  svc="$REPO_DIR/services/$d"
-  [ -d "$svc" ] || continue
+# Read the service list from the tree just checked out, not from this
+# script's startup: a service added in the incoming commit must be installed
+# by the same deploy that brings it in. (mock-anchors is Python and has no
+# package.json, so it is skipped — the collector doesn't run it.)
+for pkg in "$REPO_DIR"/services/*/package.json; do
+  svc=$(dirname "$pkg")
+  d=$(basename "$svc")
   sum=$(cat "$svc/package.json" "$svc/package-lock.json" 2>/dev/null | md5sum | cut -d' ' -f1)
   if [ ! -d "$svc/node_modules" ] || [ "$(cat "$svc/.deps.sum" 2>/dev/null)" != "$sum" ]; then
     log "installing deps: $d"
