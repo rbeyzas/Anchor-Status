@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadAnchorsFile, registeredMainnetAnchors } from './anchors.js';
+import { isDormant, loadAnchorsFile, registeredMainnetAnchors, type MainnetAnchor } from './anchors.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { config } from './config.js';
 import { HttpError } from './http.js';
 import { probeAnchor, type MainnetProbeResult, type ProbeTarget } from './probe.js';
+import { buildStatus, lastProbedAt, loadStatus, saveStatus } from './status.js';
 
 /** Resolves to a timeout failure if the whole probe of one anchor overruns,
  * so a hung anchor can't hold up the round. */
@@ -52,10 +53,25 @@ export function appendResults(dir: string, results: MainnetProbeResult[]): void 
 }
 
 async function main() {
-  const anchors = loadAnchorsFile(config.anchorsPath)?.anchors ?? registeredMainnetAnchors(config.registeredAnchorsPath);
-  console.log(`[mainnet-probe] probing ${anchors.length} anchor(s), up to ${config.concurrency} at a time`);
+  const now = new Date();
+  const anchors: MainnetAnchor[] =
+    loadAnchorsFile(config.anchorsPath)?.anchors ??
+    registeredMainnetAnchors(config.registeredAnchorsPath).map((a) => ({ ...a, first_seen: now.toISOString() }));
+  const previousStatus = loadStatus(config.statusPath);
+  const dormant = (a: MainnetAnchor) => isDormant(a, now);
 
-  const results = await mapWithConcurrency(anchors, config.concurrency, (a) =>
+  // Every anchor is measured; dormant ones (silent for a week) only every
+  // few hours, so ~80 dead directory entries don't turn each 20-minute round
+  // into 80 failing transactions.
+  const due = anchors.filter(
+    (a) => !dormant(a) || now.getTime() - lastProbedAt(previousStatus, a.anchor_id) >= config.dormantIntervalMs,
+  );
+  console.log(
+    `[mainnet-probe] probing ${due.length} of ${anchors.length} anchor(s) ` +
+      `(${anchors.filter(dormant).length} dormant), up to ${config.concurrency} at a time`,
+  );
+
+  const results = await mapWithConcurrency(due, config.concurrency, (a) =>
     withAnchorTimeout(
       a,
       probeAnchor(a, {
@@ -87,6 +103,7 @@ async function main() {
   }
 
   appendResults(config.resultsDir, results);
+  saveStatus(config.statusPath, buildStatus(anchors, results, previousStatus, now, dormant));
   for (const r of results) {
     const verdict = r.inconclusive ? 'INCONCLUSIVE' : r.success ? 'OK' : `FAIL@${r.failed_stage}`;
     const policy = Object.entries(r.stages)

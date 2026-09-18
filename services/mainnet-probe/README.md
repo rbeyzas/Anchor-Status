@@ -5,12 +5,20 @@ whether its public API actually works for a wallet — without moving funds.
 
 ## Discovery — `npm run discover`
 
+Nothing is left out for being broken, abandoned or flagged: every anchor is
+tracked and labeled, so the dashboard can show what the directory claims
+next to what we measured. (They disagree: cowrie.exchange and nTokens are
+listed as abandoned/discontinued, yet their SEP-6 APIs still answer.)
+
 1. Collects the issuer home domains of StellarExpert's 2,000 top-rated
-   assets. (Its "anchor"-tagged directory is too stale to use: most entries
-   are dead or marked abandoned.)
-2. Keeps domains whose `stellar.toml` advertises `TRANSFER_SERVER_SEP0024`
-   or `TRANSFER_SERVER` and whose `/info` returns a JSON object — single-page
-   web apps answer any path with an HTML 200, which is not an anchor.
+   assets, **and** every domain in its anchor-tagged directory, with the
+   directory's flags: `abandoned` (name says abandoned, discontinued,
+   defunct…) or `unsafe` (tagged unsafe/malicious).
+2. A domain from the directory or our own registry is always tracked. A
+   rated-asset domain is tracked only once its `stellar.toml` advertises
+   `TRANSFER_SERVER_SEP0024` or `TRANSFER_SERVER` and its `/info` returns a
+   JSON object — single-page web apps answer any path with an HTML 200,
+   which is not an anchor.
 3. Collapses domains that share one transfer server into one operator.
 4. Merges the result into the anchor list. **Anchors are only ever added.**
    One that stops answering stays on the list; otherwise its outage would
@@ -26,8 +34,11 @@ yet; the oracle rejects reports for unregistered anchors.
 
 ## Probe — `npm run probe`
 
-Each anchor runs as its own job, with its own timeout, up to 6 at a time; a
-hung anchor can't hold up the round.
+Each anchor runs as its own job, with its own timeout, up to 12 at a time; a
+hung anchor can't hold up the round. An anchor not seen answering for a week
+is **dormant**: still probed, but every 6 hours instead of every round, so
+~85 dead directory entries don't turn each round into 85 failing
+transactions.
 
 | Stage | What happens | Required |
 | --- | --- | --- |
@@ -49,6 +60,11 @@ hung anchor can't hold up the round.
 
 `settlement_seconds` is the time the anchor's API took. Transaction volume
 plays no part in the score.
+
+After each run the latest verdict per anchor — its directory label, whether
+it is dormant, and the stage and error of its last failure — is written to
+`status.json` (`MAINNET_STATUS_PATH`). The collector serves it next to the
+history archive and the dashboard shows it on each card.
 
 Results are appended, one JSON line per anchor, to
 `results/probe-YYYY-MM-DD.jsonl` (`MAINNET_PROBE_RESULTS_DIR`). Nothing is

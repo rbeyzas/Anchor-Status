@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Anchor as AnchorIcon, WarningCircle } from '@phosphor-icons/react';
 import type { AnchorViewModel, DataSource, SourceType } from '@/lib/types';
+import { statusRank } from '@/lib/status-labels';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
 import { FilterBar, type FilterValue } from './FilterBar';
@@ -33,7 +34,10 @@ export function Dashboard({
     const scoped = filter === 'all' ? anchors : anchors.filter((a) => a.sourceType === filter);
     return [...scoped].sort((a, b) => {
       const sourceDiff = SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType];
-      return sourceDiff !== 0 ? sourceDiff : b.score - a.score;
+      if (sourceDiff !== 0) return sourceDiff;
+      // Reachable first, then failing, then not yet checked; then by score.
+      const statusDiff = statusRank(a) - statusRank(b);
+      return statusDiff !== 0 ? statusDiff : b.score - a.score;
     });
   }, [anchors, filter]);
 

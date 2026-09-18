@@ -28,6 +28,20 @@ export interface AnchorHealth {
   observations: number;
 }
 
+/** Off-chain context from mainnet-probe: how the directory lists the anchor,
+ * and what its latest check found. */
+export interface AnchorStatusView {
+  /** StellarExpert's directory flag. Shown next to what we measured. */
+  listing?: 'abandoned' | 'unsafe';
+  /** Not seen answering for a week; checked every few hours. */
+  dormant: boolean;
+  checkedAt?: string;
+  /** undefined when the last check was inconclusive (our failure, not theirs). */
+  reachable?: boolean;
+  problem?: string;
+  policyNote?: string;
+}
+
 export interface AnchorViewModel {
   anchorId: string;
   name: string;
@@ -43,6 +57,7 @@ export interface AnchorViewModel {
   lastUpdated: string;
   /** Absent when reading a contract deployed before health tracking. */
   health?: AnchorHealth;
+  status?: AnchorStatusView;
 }
 
 export type DataSource = 'live' | 'mock';

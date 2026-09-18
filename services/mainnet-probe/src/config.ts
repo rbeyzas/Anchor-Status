@@ -22,6 +22,11 @@ export const config = {
   // deployed tree, like the rest of the collected data.
   anchorsPath: resolve(process.env.MAINNET_ANCHORS_PATH ?? 'services/mainnet-probe/output/anchors.json'),
   resultsDir: resolve(process.env.MAINNET_PROBE_RESULTS_DIR ?? 'services/mainnet-probe/results'),
+  // Latest verdict per anchor, with its directory label: what the dashboard
+  // shows next to each anchor. Served next to the history archive.
+  statusPath: resolve(process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json'),
+  // Anchors not seen answering for a week are still probed, just this often.
+  dormantIntervalMs: Number(process.env.MAINNET_DORMANT_INTERVAL_HOURS ?? '6') * 60 * 60 * 1000,
   // Anchors registered by hand (existing ids win over derived ones).
   registeredAnchorsPath: resolve('contracts/registered-anchors.json'),
 
@@ -33,7 +38,7 @@ export const config = {
   // 12s flagged sofizpay's deposit start as an outage when it was just slow.
   requestTimeoutMs: Number(process.env.MAINNET_PROBE_REQUEST_TIMEOUT_MS ?? '20000'),
   anchorTimeoutMs: Number(process.env.MAINNET_PROBE_ANCHOR_TIMEOUT_MS ?? '90000'),
-  concurrency: Number(process.env.MAINNET_PROBE_CONCURRENCY ?? '6'),
+  concurrency: Number(process.env.MAINNET_PROBE_CONCURRENCY ?? '12'),
 
   mainnetPassphrase: 'Public Global Stellar Network ; September 2015',
 

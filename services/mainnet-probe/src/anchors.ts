@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/** How StellarExpert's directory lists the anchor, if it flags it. */
+export type Listing = 'abandoned' | 'unsafe';
+
 export interface MainnetAnchor {
   anchor_id: string;
   name: string;
@@ -10,6 +13,36 @@ export interface MainnetAnchor {
   first_seen: string;
   /** Last time discovery found its /info answering. */
   last_seen_live?: string;
+  /** Directory flag. Anchors are tracked whatever their listing — flagged,
+   * not dropped — so the dashboard can say why one is failing. */
+  listing?: Listing;
+}
+
+/** One discovery observation: an anchor candidate, live or not. */
+export interface Candidate extends Omit<MainnetAnchor, 'first_seen' | 'last_seen_live'> {
+  live: boolean;
+  /** true when the directory was consulted for this domain, so an absent
+   * `listing` means "no longer flagged" rather than "unknown". */
+  fromDirectory?: boolean;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Not seen answering for a week (or ever): probed less often, never dropped. */
+export function isDormant(a: MainnetAnchor, now: Date): boolean {
+  return !a.last_seen_live || now.getTime() - Date.parse(a.last_seen_live) > 7 * DAY_MS;
+}
+
+/** Directory name → listing flag: "CowrieExchange - Abandoned", "nTokens - Discontinued". */
+export function listingFrom(name: string | undefined, tags: string[] = []): Listing | undefined {
+  if (name && /abandon|discontinu|deprecat|defunct|shut ?down|closed|inactive/i.test(name)) return 'abandoned';
+  if (tags.some((t) => t === 'unsafe' || t === 'malicious')) return 'unsafe';
+  return undefined;
+}
+
+/** "CowrieExchange - Abandoned" → "CowrieExchange": the status is shown as a label. */
+export function cleanDirectoryName(name: string): string {
+  return name.replace(/\s*[-–(]\s*(abandoned|discontinued|deprecated|defunct|inactive)\)?\s*$/i, '').trim();
 }
 
 export interface AnchorsFile {
@@ -40,24 +73,32 @@ export function saveAnchorsFile(filePath: string, file: AnchorsFile): void {
 }
 
 /**
- * Merges this run's live anchors into the known list. Anchors are only ever
+ * Merges this run's candidates into the known list. Anchors are only ever
  * added: one that stops answering must stay on the list, or its outage would
  * never be measured and its score would simply freeze at its last value.
+ * Live candidates refresh `last_seen_live`; directory listings are refreshed
+ * whenever the directory was consulted.
  */
-export function mergeAnchors(known: MainnetAnchor[], live: MainnetAnchor[], now: string): MainnetAnchor[] {
+export function mergeAnchors(known: MainnetAnchor[], candidates: Candidate[], now: string): MainnetAnchor[] {
   const byId = new Map(known.map((a) => [a.anchor_id, { ...a }]));
   const knownHosts = new Map(known.filter((a) => a.transfer_host).map((a) => [a.transfer_host!, a.anchor_id]));
-  for (const a of live) {
+  for (const { live, fromDirectory, ...c } of candidates) {
     // Same operator already tracked under another domain: refresh, don't duplicate.
-    const id = byId.has(a.anchor_id) ? a.anchor_id : (a.transfer_host && knownHosts.get(a.transfer_host)) || a.anchor_id;
-    const existing = byId.get(id);
-    if (existing) {
-      existing.last_seen_live = now;
-      existing.transfer_host ??= a.transfer_host;
+    const id = byId.has(c.anchor_id) ? c.anchor_id : (c.transfer_host && knownHosts.get(c.transfer_host)) || c.anchor_id;
+    let entry = byId.get(id);
+    if (!entry) {
+      entry = { ...c, first_seen: now };
+      if (!entry.listing) delete entry.listing;
+      byId.set(id, entry);
+      if (c.transfer_host) knownHosts.set(c.transfer_host, id);
     } else {
-      byId.set(id, { ...a, first_seen: now, last_seen_live: now });
-      if (a.transfer_host) knownHosts.set(a.transfer_host, id);
+      entry.transfer_host ??= c.transfer_host;
+      if (fromDirectory) {
+        if (c.listing) entry.listing = c.listing;
+        else delete entry.listing;
+      }
     }
+    if (live) entry.last_seen_live = now;
   }
   return Array.from(byId.values()).sort((x, y) => x.anchor_id.localeCompare(y.anchor_id));
 }

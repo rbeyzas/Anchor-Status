@@ -1,10 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Lightning, TrendDown, TrendUp, Vault } from '@phosphor-icons/react';
+import { Lightning, TrendDown, TrendUp, Vault, WarningCircle } from '@phosphor-icons/react';
 import { formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
 import { RISK_LABEL } from '@/lib/health';
+import { hasEnoughData, LISTING_LABEL } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
@@ -34,6 +35,8 @@ export function AnchorCard({
       : null;
   const badge = riskLabel ?? (recentDrop ? 'Sharp drop in 24h' : null);
   const trend = anchor.health?.trend;
+  const enoughData = hasEnoughData(anchor);
+  const status = anchor.status;
 
   return (
     <motion.button
@@ -54,6 +57,35 @@ export function AnchorCard({
       <div className="flex min-w-0 flex-col gap-2">
         <span className="truncate font-heading text-base font-semibold text-ink">{anchor.name}</span>
         <SourceBadge sourceType={anchor.sourceType} />
+        {(status?.listing || status?.policyNote || status?.dormant) && (
+          <div className="flex flex-wrap gap-1.5">
+            {status?.listing && (
+              <span
+                className={`rounded-pill px-2 py-0.5 text-[11px] font-medium ${
+                  status.listing === 'unsafe' ? 'bg-warning-soft text-warning' : 'bg-surface-muted text-ink-muted'
+                }`}
+              >
+                {LISTING_LABEL[status.listing]}
+              </span>
+            )}
+            {status?.policyNote && (
+              <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-muted">
+                {status.policyNote}
+              </span>
+            )}
+            {status?.dormant && (
+              <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-faint">
+                Checked every 6h
+              </span>
+            )}
+          </div>
+        )}
+        {status?.problem && (
+          <span className="flex items-center gap-1 text-xs font-medium text-danger">
+            <WarningCircle size={13} weight="bold" aria-hidden="true" className="flex-shrink-0" />
+            <span className="truncate">{status.problem}</span>
+          </span>
+        )}
         <span className="tabular flex items-center gap-1.5 text-sm text-ink-muted">
           <Vault size={14} className="text-ink-faint" aria-hidden="true" />
           {formatStakeXlm(anchor.stake)}
@@ -61,8 +93,17 @@ export function AnchorCard({
       </div>
 
       <div className="flex flex-shrink-0 flex-col items-center gap-2">
-        <ScoreValue score={anchor.score} size={52} />
-        <Sparkline history={anchor.scoreHistory} currentScore={anchor.score} anchorId={anchor.anchorId} />
+        {enoughData ? (
+          <>
+            <ScoreValue score={anchor.score} size={52} />
+            <Sparkline history={anchor.scoreHistory} currentScore={anchor.score} anchorId={anchor.anchorId} />
+          </>
+        ) : (
+          <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-ink-faint">
+            <span className="font-heading text-lg text-ink-muted">—</span>
+            Not enough checks yet
+          </span>
+        )}
         {trend === 'Degrading' && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-danger">
             <TrendDown size={12} weight="bold" aria-hidden="true" /> Degrading

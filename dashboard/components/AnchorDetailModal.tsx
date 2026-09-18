@@ -6,6 +6,7 @@ import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
 import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
+import { hasEnoughData, listingExplanation } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
@@ -91,7 +92,13 @@ export function AnchorDetailModal({
         <div className="mb-5 grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-xs text-ink-muted">Score</span>
-            <ScoreValue score={anchor.score} size={44} />
+            {hasEnoughData(anchor) ? (
+              <ScoreValue score={anchor.score} size={44} />
+            ) : (
+              <span className="text-sm text-ink-faint">
+                Not enough checks yet ({anchor.health?.observations ?? 0} of 3)
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-ink-muted">Stake</span>
@@ -168,6 +175,26 @@ export function AnchorDetailModal({
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+
+        {anchor.status && (
+          <div className="mt-4 flex flex-col gap-1 text-sm text-ink-muted">
+            {anchor.status.checkedAt && (
+              <span>
+                Latest check {formatRelativeTime(anchor.status.checkedAt)}:{' '}
+                {anchor.status.reachable === undefined ? (
+                  <span className="font-medium text-ink">inconclusive (our side)</span>
+                ) : anchor.status.reachable ? (
+                  <span className="font-medium text-success">API answering</span>
+                ) : (
+                  <span className="font-medium text-danger">{anchor.status.problem}</span>
+                )}
+                {anchor.status.policyNote && ` · ${anchor.status.policyNote}`}
+                {anchor.status.dormant && ' · silent for a week, so checked every 6 hours'}
+              </span>
+            )}
+            {listingExplanation(anchor) && <span>{listingExplanation(anchor)}</span>}
+          </div>
+        )}
 
         {anchor.health && (
           <div className="mt-4 flex flex-col gap-1 text-sm text-ink-muted">
