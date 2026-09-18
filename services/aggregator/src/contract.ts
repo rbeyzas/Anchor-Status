@@ -50,6 +50,11 @@ export async function submitReport(report: NormalizedReport): Promise<void> {
   // function; TS can't know its shape statically since it's fetched from
   // the on-chain spec at runtime.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const assembled = await (client as any).submit_report(args);
+  const c = client as any;
+  // With evidence, the hash is published in the on-chain report event, so the
+  // score change and the document proving it are tied together.
+  const assembled = report.evidence_hash
+    ? await c.submit_report_with_evidence({ ...args, evidence: Buffer.from(report.evidence_hash, 'hex') })
+    : await c.submit_report(args);
   await assembled.signAndSend();
 }

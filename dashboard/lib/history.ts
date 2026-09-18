@@ -18,7 +18,7 @@ interface ArchiveFile {
   anchors: Record<
     string,
     {
-      scoreHistory: Array<{ timestamp: string; score: number }>;
+      scoreHistory: Array<{ timestamp: string; score: number; evidence?: string }>;
       slashEvents: Array<{ timestamp: string; amountStroops: string }>;
     }
   >;
@@ -28,7 +28,8 @@ export async function fetchArchive(): Promise<ArchiveFile | null> {
   if (!ARCHIVE_URL) return null;
   try {
     const res = await fetch(ARCHIVE_URL, {
-      cache: 'no-store',
+      // Cached with the page; `no-store` would force every request dynamic.
+      next: { revalidate: 60 },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

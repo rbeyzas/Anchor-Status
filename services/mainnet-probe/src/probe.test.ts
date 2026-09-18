@@ -46,6 +46,16 @@ describe('probeAnchor', () => {
     expect(Object.keys(r.stages)).toEqual(['toml', 'info', 'challenge', 'token', 'initiate']);
   });
 
+  it('keeps the anchor-signed SEP-10 challenge as evidence', async () => {
+    const r = await probe(fakeAnchor());
+    const { Transaction } = await import('@stellar/stellar-sdk');
+    const tx = new Transaction(r.transcript!.sep10_challenge!.xdr, r.transcript!.sep10_challenge!.network_passphrase);
+    const signed = tx.signatures.some((sig) => anchorKey.verify(tx.hash(), sig.signature));
+    expect(signed).toBe(true);
+    expect(r.transcript!.stellar_toml!.signing_key).toBe(anchorKey.publicKey());
+    expect(r.transcript!.probe_account).toMatch(/^G/);
+  });
+
   it('fails at toml when stellar.toml is unreachable', async () => {
     const r = await probe(fakeAnchor({ '/.well-known/stellar.toml': () => new Response('', { status: 503 }) }));
     expect(r).toMatchObject({ success: false, failed_stage: 'toml' });

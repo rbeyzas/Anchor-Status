@@ -163,11 +163,12 @@ fn submit_report_success_updates_score_and_pushes_to_registry() {
     let anchor_id = Symbol::new(&env, "anchor_1");
     register_and_stake(&h, &anchor_id, 0);
 
+    // 1 second: a fast answer on the mainnet API curve (full marks within 2s).
     let new_score = h.oracle.submit_report(
         &reporter,
         &anchor_id,
         &true,
-        &10,
+        &1,
         &env.ledger().timestamp(),
         &SourceType::RealMainnet,
     );
@@ -342,4 +343,73 @@ fn upgrade_requires_the_admin() {
     env.set_auths(&[]);
     let result = h.oracle.try_upgrade(&BytesN::from_array(&env, &[0u8; 32]));
     assert!(result.is_err());
+}
+
+/// The `evidence` field of the last `report_submitted` event, as raw XDR.
+fn last_report_evidence(env: &Env) -> Option<xdr::ScVal> {
+    let wanted = xdr::ScVal::Symbol(xdr::ScSymbol("report_submitted".try_into().unwrap()));
+    let key = xdr::ScVal::Symbol(xdr::ScSymbol("evidence".try_into().unwrap()));
+    env.events().all().events().iter().rev().find_map(|event| {
+        let xdr::ContractEventBody::V0(body) = &event.body;
+        if body.topics.first() != Some(&wanted) {
+            return None;
+        }
+        match &body.data {
+            xdr::ScVal::Map(Some(map)) => map.iter().find(|e| e.key == key).map(|e| e.val.clone()),
+            _ => None,
+        }
+    })
+}
+
+#[test]
+fn report_with_evidence_publishes_the_hash_and_scores_like_a_plain_report() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+    let now = env.ledger().timestamp();
+
+    let hash = BytesN::from_array(&env, &[7u8; 32]);
+    let score = h.oracle.submit_report_with_evidence(&reporter, &anchor_id, &false, &0, &now, &SourceType::RealTestnet, &hash);
+
+    assert_eq!(score, 65, "same EMA as submit_report: 100 * 0.65 after one failure");
+    assert_eq!(
+        last_report_evidence(&env),
+        Some(xdr::ScVal::Bytes(xdr::ScBytes([7u8; 32].to_vec().try_into().unwrap())))
+    );
+}
+
+#[test]
+fn plain_report_publishes_no_evidence() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+    let now = env.ledger().timestamp();
+
+    h.oracle.submit_report(&reporter, &anchor_id, &true, &10, &now, &SourceType::RealTestnet);
+    assert_eq!(last_report_evidence(&env), Some(xdr::ScVal::Void));
+}
+
+#[test]
+fn evidence_does_not_bypass_reporter_authorization() {
+    let env = Env::default();
+    let h = setup(&env);
+    let stranger = Address::generate(&env);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+    let result = h.oracle.try_submit_report_with_evidence(
+        &stranger,
+        &anchor_id,
+        &true,
+        &10,
+        &env.ledger().timestamp(),
+        &SourceType::RealTestnet,
+        &BytesN::from_array(&env, &[1u8; 32]),
+    );
+    assert_eq!(result, Err(Ok(Error::NotAuthorizedReporter)));
 }

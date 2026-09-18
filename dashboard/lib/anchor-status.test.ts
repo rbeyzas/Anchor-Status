@@ -68,3 +68,23 @@ describe('status labels', () => {
     expect(merged[1].status).toBeUndefined();
   });
 });
+
+describe('latestEvidence', () => {
+  it('links the newest report that carries evidence', async () => {
+    const { latestEvidence } = await import('./status-labels');
+    const a = anchor({
+      scoreHistory: [
+        { timestamp: '2026-09-18T10:00:00Z', score: 90, evidence: 'aa'.repeat(32) },
+        { timestamp: '2026-09-18T11:00:00Z', score: 95, evidence: 'bb'.repeat(32) },
+        { timestamp: '2026-09-18T12:00:00Z', score: 96 },
+      ],
+    });
+    expect(latestEvidence(a)?.hash).toBe('bb'.repeat(32));
+    expect(latestEvidence(a)?.url).toMatch(/\/evidence\/b{64}\.json$/);
+  });
+
+  it('has nothing to link for reports made without evidence', async () => {
+    const { latestEvidence } = await import('./status-labels');
+    expect(latestEvidence(anchor({ scoreHistory: [{ timestamp: 't', score: 1 }] }))).toBeUndefined();
+  });
+});

@@ -24,6 +24,8 @@ services/testnet-probe/results/
 services/passive-monitor/output/
 services/mainnet-probe/output/
 services/mainnet-probe/results/
+services/mainnet-probe/evidence/
+services/testnet-probe/evidence/
 services/aggregator/state.json
 
 # os / editor

@@ -6,6 +6,7 @@ import { config } from './config.js';
 import { HttpError } from './http.js';
 import { probeAnchor, type MainnetProbeResult, type ProbeTarget } from './probe.js';
 import { buildStatus, lastProbedAt, loadStatus, saveStatus } from './status.js';
+import { writeEvidence } from './evidence.js';
 
 /** Resolves to a timeout failure if the whole probe of one anchor overruns,
  * so a hung anchor can't hold up the round. */
@@ -100,6 +101,29 @@ async function main() {
   if ((await ourNetworkIsDown()) || allUnreachable) {
     console.warn('[mainnet-probe] our own network looks down; recording failures as inconclusive');
     for (const r of results) if (!r.success) r.inconclusive = true;
+  }
+
+  // Publish one evidence document per conclusive result; its hash goes into
+  // the result, and from there into the on-chain report event.
+  for (const r of results) {
+    const { transcript, ...rest } = r;
+    delete r.transcript;
+    if (r.inconclusive) continue;
+    r.evidence_hash = writeEvidence(config.evidenceDir, {
+      kind: 'mainnet-probe',
+      network: 'mainnet',
+      anchor_id: rest.anchor_id,
+      domain: rest.domain,
+      started_at: rest.timestamp,
+      verdict: {
+        success: rest.success,
+        settlement_seconds: rest.settlement_seconds,
+        ...(rest.failed_stage ? { failed_stage: rest.failed_stage } : {}),
+        ...(rest.error ? { error: rest.error } : {}),
+      },
+      stages: rest.stages,
+      ...(transcript ?? {}),
+    });
   }
 
   appendResults(config.resultsDir, results);

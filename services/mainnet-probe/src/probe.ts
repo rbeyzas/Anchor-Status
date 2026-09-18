@@ -1,6 +1,7 @@
 import { Keypair, Transaction } from '@stellar/stellar-sdk';
 import { HttpError, timedFetch, type Fetch } from './http.js';
 import { fetchAnchorToml, type AnchorToml } from './toml.js';
+import { sha256Hex } from './evidence.js';
 
 export type StageName = 'toml' | 'info' | 'challenge' | 'token' | 'initiate';
 
@@ -26,6 +27,23 @@ export interface MainnetProbeResult {
   /** Set by the runner when the failure was ours, not the anchor's. Never submitted. */
   inconclusive?: boolean;
   stages: Partial<Record<StageName, StageResult>>;
+  /** Raw material for the evidence document; the runner publishes it and
+   * replaces it with `evidence_hash` before the result is logged. */
+  transcript?: ProbeTranscript;
+  /** SHA-256 of the published evidence document. */
+  evidence_hash?: string;
+}
+
+/** What an outside party needs to check a probe independently. */
+export interface ProbeTranscript {
+  /** Throwaway wallet key the probe signed in as. */
+  probe_account?: string;
+  stellar_toml?: { sha256: string; signing_key?: string; web_auth_endpoint?: string; transfer_server?: string };
+  info_sha256?: string;
+  /** The SEP-10 challenge exactly as the anchor returned it, signed with its
+   * SIGNING_KEY: proof, checkable by anyone, that the anchor's auth server
+   * answered within the challenge's time bounds. */
+  sep10_challenge?: { xdr: string; network_passphrase: string };
 }
 
 export interface ProbeTarget {
@@ -84,6 +102,7 @@ export function firstDepositAsset(info: unknown): string | undefined {
 export async function probeAnchor(target: ProbeTarget, opts: ProbeOptions): Promise<MainnetProbeResult> {
   const startedAt = (opts.now ?? (() => new Date()))();
   const stages: Partial<Record<StageName, StageResult>> = {};
+  const transcript: ProbeTranscript = {};
   let totalMs = 0;
   const record = (stage: StageName, ms: number, extra: Omit<StageResult, 'ms'> = { ok: true }) => {
     stages[stage] = { ...extra, ms };
@@ -99,6 +118,7 @@ export async function probeAnchor(target: ProbeTarget, opts: ProbeOptions): Prom
     settlement_seconds: totalMs / 1000,
     ...(failed ? { failed_stage: failed.stage, error: failed.message } : {}),
     stages,
+    transcript,
   });
 
   try {
@@ -107,6 +127,12 @@ export async function probeAnchor(target: ProbeTarget, opts: ProbeOptions): Prom
     try {
       const t = await fetchAnchorToml(opts.fetchImpl, target.domain, opts.requestTimeoutMs);
       toml = t.value;
+      transcript.stellar_toml = {
+        sha256: t.sha256,
+        ...(toml.signingKey ? { signing_key: toml.signingKey } : {}),
+        ...(toml.webAuthEndpoint ? { web_auth_endpoint: toml.webAuthEndpoint } : {}),
+        ...((toml.sep24 ?? toml.sep6) ? { transfer_server: toml.sep24 ?? toml.sep6 } : {}),
+      };
       record('toml', t.ms);
     } catch (err) {
       stages.toml = { ok: false, error: message(err) };
@@ -122,7 +148,9 @@ export async function probeAnchor(target: ProbeTarget, opts: ProbeOptions): Prom
     let depositAsset: string | undefined;
     try {
       const { value: res, ms } = await timedFetch(opts.fetchImpl, `${transferServer}/info`, {}, opts.requestTimeoutMs);
-      const info = await res.json();
+      const text = await res.text();
+      const info = JSON.parse(text);
+      transcript.info_sha256 = sha256Hex(text);
       depositAsset = firstDepositAsset(info);
       record('info', ms);
     } catch (err) {
@@ -139,13 +167,16 @@ export async function probeAnchor(target: ProbeTarget, opts: ProbeOptions): Prom
       return result(true);
     }
     const wallet = Keypair.random();
+    transcript.probe_account = wallet.publicKey();
     let challengeTx: Transaction;
     try {
       const url = new URL(toml.webAuthEndpoint);
       url.searchParams.set('account', wallet.publicKey());
       const { value: res, ms } = await timedFetch(opts.fetchImpl, url.toString(), {}, opts.requestTimeoutMs);
       const body = (await res.json()) as { transaction: string; network_passphrase?: string };
-      challengeTx = new Transaction(body.transaction, body.network_passphrase ?? opts.networkPassphrase);
+      const passphrase = body.network_passphrase ?? opts.networkPassphrase;
+      challengeTx = new Transaction(body.transaction, passphrase);
+      transcript.sep10_challenge = { xdr: body.transaction, network_passphrase: passphrase };
       const signedByAnchor = challengeTx.signatures.some((sig) =>
         Keypair.fromPublicKey(toml.signingKey!).verify(challengeTx.hash(), sig.signature),
       );

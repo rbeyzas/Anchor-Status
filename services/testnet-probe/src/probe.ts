@@ -8,6 +8,7 @@ import { initiateInteractiveDeposit, pollUntilTerminal } from './sep24.js';
 import { fetchAnchorToml } from './toml.js';
 import { addTrustline } from './trustline.js';
 import type { ProbeResult } from './types.js';
+import { writeEvidence } from './evidence.js';
 
 /** True when the run failed on our side (browser missing or unlaunchable,
  * Friendbot down) rather than on the anchor's. Blaming an anchor for our
@@ -19,16 +20,38 @@ export function isProbeEnvironmentError(message: string): boolean {
   );
 }
 
+/** Publishes the evidence for a conclusive run and returns its hash. */
+function publishEvidence(result: ProbeResult, evidence: Record<string, unknown>): string {
+  return writeEvidence(config.evidenceDir, {
+    kind: 'testnet-probe',
+    network: 'testnet',
+    anchor_id: result.anchor_id,
+    domain: result.domain,
+    started_at: result.timestamp,
+    verdict: {
+      success: result.success,
+      settlement_seconds: result.settlement_seconds,
+      final_transaction_status: result.final_transaction_status,
+      ...(result.error ? { error: result.error } : {}),
+    },
+    ...evidence,
+  });
+}
+
 export async function runProbe(): Promise<ProbeResult> {
   const startedAt = new Date();
   const startMs = Date.now();
+  // Filled in as the run goes, so a failure still publishes what it reached.
+  const evidence: Record<string, unknown> = {};
 
   try {
     console.log(`[testnet-probe] funding a fresh testnet account via ${config.friendbotUrl}`);
     const keypair = await createAndFundAccount(config.friendbotUrl);
+    evidence.probe_account = keypair.publicKey();
 
     console.log(`[testnet-probe] fetching stellar.toml from ${config.anchorDomain}`);
     const toml = await fetchAnchorToml(config.anchorDomain);
+    evidence.stellar_toml = { signing_key: toml.signingKey };
 
     const currency = toml.currencies.find((c) => c.code === config.assetCode);
     if (!currency) {
@@ -38,7 +61,8 @@ export async function runProbe(): Promise<ProbeResult> {
     await addTrustline(config.horizonTestnetUrl, keypair, currency.code, currency.issuer, config.networkPassphrase);
 
     console.log('[testnet-probe] performing SEP-10 authentication');
-    const token = await authenticateSep10(toml, keypair, config.networkPassphrase);
+    const { token, challenge } = await authenticateSep10(toml, keypair, config.networkPassphrase);
+    evidence.sep10_challenge = challenge;
 
     console.log(`[testnet-probe] initiating SEP-24 interactive deposit (${config.assetCode} ${config.depositAmount})`);
     const deposit = await initiateInteractiveDeposit(
@@ -47,6 +71,7 @@ export async function runProbe(): Promise<ProbeResult> {
       config.assetCode,
       config.depositAmount,
     );
+    evidence.sep24_transaction_id = deposit.id;
 
     console.log(`[testnet-probe] driving interactive flow at ${deposit.url}`);
     const interacted = await completeInteractiveFlow(deposit.url, config.depositAmount, config.interactiveTimeoutMs, config.headless);
@@ -89,6 +114,8 @@ export async function runProbe(): Promise<ProbeResult> {
       timestamp: startedAt.toISOString(),
       final_transaction_status: finalTx.status,
     };
+    if (finalTx.stellar_transaction_id) evidence.stellar_transaction_id = finalTx.stellar_transaction_id;
+    result.evidence_hash = publishEvidence(result, evidence);
     console.log(`[testnet-probe] done: ${success ? 'SUCCESS' : 'FAILURE'} in ${settlementSeconds.toFixed(1)}s (status=${finalTx.status})`);
     return result;
   } catch (err) {
@@ -106,6 +133,8 @@ export async function runProbe(): Promise<ProbeResult> {
       final_transaction_status: null,
       error: (err as Error).message,
     };
+    // An anchor-side failure is a claim too, and gets the same evidence.
+    if (!environmentFailure) result.evidence_hash = publishEvidence(result, evidence);
     console.error(
       `[testnet-probe] failed after ${settlementSeconds.toFixed(1)}s: ${result.error}` +
         (environmentFailure ? ' (our environment, recorded as inconclusive)' : ''),

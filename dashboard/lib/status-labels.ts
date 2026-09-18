@@ -34,3 +34,16 @@ export function listingExplanation(anchor: AnchorViewModel): string | undefined 
         : 'we have not been able to check it conclusively yet';
   return `StellarExpert's directory ${source}; ${measured}.`;
 }
+
+const EVIDENCE_BASE_URL = process.env.NEXT_PUBLIC_EVIDENCE_BASE_URL ?? 'http://37.221.76.23/evidence/';
+
+/** The newest score point that carries published evidence, if any. */
+export function latestEvidence(anchor: AnchorViewModel): { hash: string; url: string; timestamp: string } | undefined {
+  for (let i = anchor.scoreHistory.length - 1; i >= 0; i--) {
+    const point = anchor.scoreHistory[i];
+    if (point.evidence) {
+      return { hash: point.evidence, url: `${EVIDENCE_BASE_URL}${point.evidence}.json`, timestamp: point.timestamp };
+    }
+  }
+  return undefined;
+}

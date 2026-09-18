@@ -86,10 +86,14 @@ export function AnchorCard({
             <span className="truncate">{status.problem}</span>
           </span>
         )}
-        <span className="tabular flex items-center gap-1.5 text-sm text-ink-muted">
-          <Vault size={14} className="text-ink-faint" aria-hidden="true" />
-          {formatStakeXlm(anchor.stake)}
-        </span>
+        {/* Stake is optional and nothing scores on it; "0 XLM" on every card
+            only added noise. Shown when an operator has actually staked. */}
+        {anchor.stake > 0 && (
+          <span className="tabular flex items-center gap-1.5 text-sm text-ink-muted">
+            <Vault size={14} className="text-ink-faint" aria-hidden="true" />
+            {formatStakeXlm(anchor.stake)} staked
+          </span>
+        )}
       </div>
 
       <div className="flex flex-shrink-0 flex-col items-center gap-2">

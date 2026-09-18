@@ -2,8 +2,7 @@ import { contract, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { stroopsToXlm } from './format';
 import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchArchive, mergeArchiveInto } from './history';
-import { MOCK_ANCHORS } from './mock-data';
-import type { AnchorHealth, AnchorViewModel, DashboardData, RiskReason, ScorePoint, SlashEvent, SourceType, Trend } from './types';
+import type { AnchorHealth, AnchorViewModel, DashboardData, RiskReason, ScorePoint, SourceType, Trend, UnreadableAnchor } from './types';
 
 const RPC_URL = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org';
 const NETWORK_PASSPHRASE =
@@ -90,73 +89,37 @@ interface RawAnchorInfo {
   last_updated: bigint;
 }
 
-async function fetchScoreHistory(server: rpc.Server, anchorId: string): Promise<ScorePoint[]> {
+/** Every `report_submitted` event in the queryable window, grouped by
+ * anchor — one paginated query for all anchors instead of one per anchor,
+ * which with ~100 anchors meant ~100 extra RPC calls per page view. */
+async function fetchAllScoreHistory(server: rpc.Server): Promise<Map<string, ScorePoint[]>> {
   const latest = await server.getLatestLedger();
   const startLedger = Math.max(1, latest.sequence - MAX_QUERYABLE_LEDGERS_BACK);
+  const filters: rpc.Api.EventFilter[] = [
+    {
+      type: 'contract',
+      contractIds: [ORACLE_CONTRACT_ID],
+      topics: [[xdr.ScVal.scvSymbol('report_submitted').toXDR('base64'), '*']],
+    },
+  ];
 
-  const topicSymbol = xdr.ScVal.scvSymbol('report_submitted').toXDR('base64');
-  const topicAnchorId = xdr.ScVal.scvSymbol(anchorId).toXDR('base64');
-
-  try {
-    const response = await getEventsWithRetentionFallback(
-      server,
-      startLedger,
-      [
-        {
-          type: 'contract',
-          contractIds: [ORACLE_CONTRACT_ID],
-          topics: [[topicSymbol, topicAnchorId]],
-        },
-      ],
-      1000,
-    );
-
-    return response.events
-      .map((event) => {
-        const data = scValToNative(event.value) as { new_score: number };
-        return { timestamp: event.ledgerClosedAt, score: Number(data.new_score) };
-      })
-      .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  } catch (err) {
-    console.warn(`[dashboard] failed to fetch score history for ${anchorId}:`, err);
-    return [];
+  const byAnchor = new Map<string, ScorePoint[]>();
+  let response = await getEventsWithRetentionFallback(server, startLedger, filters, 1000);
+  for (let page = 0; page < 20; page++) {
+    for (const event of response.events) {
+      const anchorId = event.topic[1] ? String(scValToNative(event.topic[1])) : undefined;
+      if (!anchorId) continue;
+      const data = scValToNative(event.value) as { new_score: number; evidence?: Uint8Array | null };
+      const points = byAnchor.get(anchorId) ?? [];
+      const evidence = data.evidence ? Buffer.from(data.evidence).toString('hex') : undefined;
+      points.push({ timestamp: event.ledgerClosedAt, score: Number(data.new_score), ...(evidence ? { evidence } : {}) });
+      byAnchor.set(anchorId, points);
+    }
+    if (response.events.length < 1000 || !response.cursor) break;
+    response = await server.getEvents({ cursor: response.cursor, filters, limit: 1000 });
   }
-}
-
-async function fetchSlashEvents(server: rpc.Server, anchorId: string): Promise<SlashEvent[]> {
-  const latest = await server.getLatestLedger();
-  const startLedger = Math.max(1, latest.sequence - MAX_QUERYABLE_LEDGERS_BACK);
-
-  const topicSymbol = xdr.ScVal.scvSymbol('slash').toXDR('base64');
-  const topicAnchorId = xdr.ScVal.scvSymbol(anchorId).toXDR('base64');
-
-  try {
-    const response = await getEventsWithRetentionFallback(
-      server,
-      startLedger,
-      [
-        {
-          type: 'contract',
-          contractIds: [REGISTRY_CONTRACT_ID],
-          topics: [[topicSymbol, topicAnchorId]],
-        },
-      ],
-      1000,
-    );
-
-    return response.events.flatMap((event) => {
-      // SlashEvent has named fields (amount, reason), so this is an object,
-      // not a [amount, reason] tuple — reading index 0 yielded undefined and
-      // rendered the slash amount as NaN.
-      const data = scValToNative(event.value) as { amount?: bigint } | [bigint, string];
-      const amount = Array.isArray(data) ? data[0] : data?.amount;
-      if (typeof amount !== 'bigint' && typeof amount !== 'number') return [];
-      return [{ timestamp: event.ledgerClosedAt, amount: stroopsToXlm(amount) }];
-    });
-  } catch (err) {
-    console.warn(`[dashboard] failed to fetch slash events for ${anchorId}:`, err);
-    return [];
-  }
+  for (const points of byAnchor.values()) points.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return byAnchor;
 }
 
 interface RawAnchorHealth {
@@ -193,28 +156,47 @@ async function fetchHealth(oracle: contract.Client, anchorId: string): Promise<A
   }
 }
 
+/** One retry after a short pause: public RPC nodes shed load with the
+ * occasional 429/5xx, which is not a reason to call an anchor unreadable. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function withRetry<T = any>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    await new Promise((r) => setTimeout(r, 750));
+    return fn();
+  }
+}
+
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return out;
+}
+
 async function fetchAnchor(
-  server: rpc.Server,
   registry: contract.Client,
   oracle: contract.Client,
   anchorId: string,
+  history: ScorePoint[],
 ): Promise<AnchorViewModel> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const infoTx = await (registry as any).get_anchor_info({ anchor_id: anchorId });
   // get_anchor_info returns Result<AnchorInfo, Error> on the contract side,
-  // so the JS client wraps a success as `{ value: AnchorInfo }` rather than
-  // unwrapping it the way it does for a plain (non-Result) return type.
-  const info = infoTx.result.value as RawAnchorInfo;
-
+  // so the JS client wraps a success as `{ value: AnchorInfo }`. Its `score`
+  // is the one the oracle pushes on every report, so no get_score call.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scoreTx = await (oracle as any).get_score({ anchor_id: anchorId });
-  const currentScore = Number(scoreTx.result);
-
-  const [scoreHistory, slashEvents, health] = await Promise.all([
-    fetchScoreHistory(server, anchorId),
-    fetchSlashEvents(server, anchorId),
-    fetchHealth(oracle, anchorId),
-  ]);
+  const info = (await withRetry(() => (registry as any).get_anchor_info({ anchor_id: anchorId }))).result
+    .value as RawAnchorInfo;
+  const health = await fetchHealth(oracle, anchorId);
+  const score = Number(info.score);
+  const lastUpdated = new Date(Number(info.last_updated) * 1000).toISOString();
 
   return {
     anchorId,
@@ -222,54 +204,58 @@ async function fetchAnchor(
     domain: info.domain,
     sourceType: info.source_type.tag,
     stake: stroopsToXlm(info.stake),
-    score: currentScore,
-    scoreHistory:
-      scoreHistory.length > 0
-        ? scoreHistory
-        : [{ timestamp: new Date(Number(info.last_updated) * 1000).toISOString(), score: currentScore }],
-    slashEvents,
-    lastUpdated: new Date(Number(info.last_updated) * 1000).toISOString(),
+    score,
+    scoreHistory: history.length > 0 ? history : [{ timestamp: lastUpdated, score }],
+    // Only the previous oracle slashed; its events come from the archive.
+    slashEvents: [],
+    lastUpdated,
     health,
   };
 }
 
-async function fetchLiveDashboardData(): Promise<AnchorViewModel[]> {
+async function fetchLiveDashboardData(): Promise<{ anchors: AnchorViewModel[]; unreadable: UnreadableAnchor[] }> {
   assertLiveConfigPresent();
   const server = new rpc.Server(RPC_URL);
   const registry = await getRegistryClient();
   const oracle = await getOracleClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const listTx = await (registry as any).list_anchors();
-  // "testanc" is a leftover placeholder from initial contract deployment
-  // (domain example.com, never reported on) — AnchorRegistry has no
-  // unregister function, so it's filtered out here instead.
-  const anchorIds = (listTx.result as string[]).filter((id) => id !== 'testanc');
+  const listTx = await withRetry(() => (registry as any).list_anchors());
+  const anchorIds = listTx.result as string[];
+  const history = await fetchAllScoreHistory(server).catch((err) => {
+    console.warn('[dashboard] failed to fetch score history:', err);
+    return new Map<string, ScorePoint[]>();
+  });
 
-  return Promise.all(anchorIds.map((id) => fetchAnchor(server, registry, oracle, id)));
+  // A failure reading one anchor affects that anchor only.
+  const results = await mapWithConcurrency(anchorIds, 8, async (id) => {
+    try {
+      return { ok: true as const, anchor: await fetchAnchor(registry, oracle, id, history.get(id) ?? []) };
+    } catch (err) {
+      return { ok: false as const, unreadable: { anchorId: id, error: (err as Error).message.split('\n')[0] } };
+    }
+  });
+  return {
+    anchors: results.flatMap((r) => (r.ok ? [r.anchor] : [])),
+    unreadable: results.flatMap((r) => (r.ok ? [] : [r.unreadable])),
+  };
 }
 
-/** Tries a live testnet read; falls back to a deterministic mock fixture
- * (with dataSource: 'mock') if config is missing or the RPC call fails —
- * e.g. before contracts are deployed, or in an environment without
- * network access to soroban-testnet.stellar.org. */
+/** Reads the contracts from Soroban RPC. There is no fallback data: if the
+ * chain can't be read, the page says so and shows nothing, rather than
+ * anything that looks like a real score but isn't. */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [anchors, archive, status] = await Promise.all([
-      fetchLiveDashboardData(),
-      fetchArchive(),
-      fetchAnchorStatus(),
-    ]);
-    if (anchors.length === 0) {
-      throw new Error('AnchorRegistry.list_anchors() returned no anchors');
+    const [live, archive, status] = await Promise.all([fetchLiveDashboardData(), fetchArchive(), fetchAnchorStatus()]);
+    if (live.anchors.length === 0 && live.unreadable.length > 0) {
+      throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
     }
-    // The archive carries history older than the RPC's ~12h event window.
-    return { anchors: mergeStatusInto(mergeArchiveInto(anchors, archive), status), dataSource: 'live' };
-  } catch (err) {
     return {
-      anchors: MOCK_ANCHORS,
-      dataSource: 'mock',
-      liveError: (err as Error).message,
+      anchors: mergeStatusInto(mergeArchiveInto(live.anchors, archive), status),
+      unreadable: live.unreadable,
+      dataSource: 'live',
     };
+  } catch (err) {
+    return { anchors: [], unreadable: [], dataSource: 'unavailable', liveError: (err as Error).message.split('\n')[0] };
   }
 }

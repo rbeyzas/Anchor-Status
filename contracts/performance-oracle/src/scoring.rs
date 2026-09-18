@@ -42,27 +42,39 @@ fn source_weight_permille(source_type: &SourceType) -> u64 {
     }
 }
 
-/// Converts a single report into a 0-100 "observation score": a failure is
-/// always 0; a success decays linearly from 100 (settled within 60s) down
-/// to a floor of 40 (settled at/after 600s) — a slow success is still far
-/// better than an outright failure, but speed matters.
-pub fn observation_score(success: bool, settlement_seconds: u64) -> u32 {
+const OBSERVATION_FLOOR: u64 = 40;
+
+/// Linear decay from 100 (at or under `fast` seconds) to OBSERVATION_FLOOR
+/// (at or over `slow`). A slow success is still far better than a failure,
+/// but speed matters.
+fn decay(seconds: u64, fast: u64, slow: u64) -> u32 {
+    if seconds <= fast {
+        100
+    } else if seconds >= slow {
+        OBSERVATION_FLOOR as u32
+    } else {
+        let drop = (100 - OBSERVATION_FLOOR) * (seconds - fast) / (slow - fast);
+        (100 - drop) as u32
+    }
+}
+
+/// Converts one report into a 0-100 observation. A failure is always 0.
+/// A success is scored on a speed curve that fits what the source measures:
+///
+/// - `RealTestnet` / `SimulatedMock` time a whole deposit, from start to the
+///   anchor's payout: full marks within 60s, floor at 600s.
+/// - `RealMainnet` times the anchor's API answering a wallet (stellar.toml,
+///   /info, SEP-10, deposit start), where healthy anchors take 1–3 seconds:
+///   full marks within 2s, floor at 20s. On the deposit curve every working
+///   API scored 100, so a 1-second anchor and a 50-second one were
+///   indistinguishable.
+pub fn observation_score(success: bool, settlement_seconds: u64, source_type: &SourceType) -> u32 {
     if !success {
         return 0;
     }
-    const FAST_THRESHOLD: u64 = 60;
-    const SLOW_THRESHOLD: u64 = 600;
-    const FLOOR: u64 = 40;
-
-    if settlement_seconds <= FAST_THRESHOLD {
-        100
-    } else if settlement_seconds >= SLOW_THRESHOLD {
-        FLOOR as u32
-    } else {
-        let range = SLOW_THRESHOLD - FAST_THRESHOLD;
-        let elapsed = settlement_seconds - FAST_THRESHOLD;
-        let decay = (100 - FLOOR) * elapsed / range;
-        (100 - decay) as u32
+    match source_type {
+        SourceType::RealMainnet => decay(settlement_seconds, 2, 20),
+        SourceType::RealTestnet | SourceType::SimulatedMock => decay(settlement_seconds, 60, 600),
     }
 }
 
@@ -181,27 +193,44 @@ mod tests {
 
     #[test]
     fn observation_score_failure_is_zero() {
-        assert_eq!(observation_score(false, 5), 0);
-        assert_eq!(observation_score(false, 10_000), 0);
+        assert_eq!(observation_score(false, 5, &SourceType::RealTestnet), 0);
+        assert_eq!(observation_score(false, 10_000, &SourceType::RealMainnet), 0);
+    }
+
+    #[test]
+    fn mainnet_api_speed_is_scored_on_its_own_curve() {
+        // Healthy APIs answer in a second or two...
+        assert_eq!(observation_score(true, 1, &SourceType::RealMainnet), 100);
+        assert_eq!(observation_score(true, 2, &SourceType::RealMainnet), 100);
+        // ...a slower one now scores lower instead of also getting 100...
+        assert!(observation_score(true, 5, &SourceType::RealMainnet) < 100);
+        assert!(observation_score(true, 12, &SourceType::RealMainnet) < observation_score(true, 5, &SourceType::RealMainnet));
+        // ...and one that takes 20s+ is at the floor.
+        assert_eq!(observation_score(true, 20, &SourceType::RealMainnet), 40);
+    }
+
+    #[test]
+    fn a_20_second_deposit_is_still_full_marks_on_testnet() {
+        assert_eq!(observation_score(true, 20, &SourceType::RealTestnet), 100);
     }
 
     #[test]
     fn observation_score_fast_success_is_100() {
-        assert_eq!(observation_score(true, 0), 100);
-        assert_eq!(observation_score(true, 60), 100);
+        assert_eq!(observation_score(true, 0, &SourceType::RealTestnet), 100);
+        assert_eq!(observation_score(true, 60, &SourceType::RealTestnet), 100);
     }
 
     #[test]
     fn observation_score_slow_success_floors_at_40() {
-        assert_eq!(observation_score(true, 600), 40);
-        assert_eq!(observation_score(true, 10_000), 40);
+        assert_eq!(observation_score(true, 600, &SourceType::RealTestnet), 40);
+        assert_eq!(observation_score(true, 10_000, &SourceType::RealTestnet), 40);
     }
 
     #[test]
     fn observation_score_decays_monotonically() {
-        let a = observation_score(true, 100);
-        let b = observation_score(true, 300);
-        let c = observation_score(true, 500);
+        let a = observation_score(true, 100, &SourceType::RealTestnet);
+        let b = observation_score(true, 300, &SourceType::RealTestnet);
+        let c = observation_score(true, 500, &SourceType::RealTestnet);
         assert!(a > b);
         assert!(b > c);
         assert!(c >= 40);
@@ -230,7 +259,7 @@ mod tests {
         let mut h = health;
         let mut score = DEFAULT_SCORE;
         for &ok in outcomes {
-            let obs = observation_score(ok, 10);
+            let obs = observation_score(ok, 10, &SourceType::RealTestnet);
             score = ema_update(score, obs, &SourceType::RealTestnet);
             h = update_health(h, ok, obs, score, 0);
         }

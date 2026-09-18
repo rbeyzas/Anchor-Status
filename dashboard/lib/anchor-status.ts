@@ -23,7 +23,8 @@ interface StatusFile {
 export async function fetchAnchorStatus(): Promise<StatusFile | null> {
   if (!STATUS_URL) return null;
   try {
-    const res = await fetch(STATUS_URL, { cache: 'no-store', signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetch(STATUS_URL, { // Cached with the page; `no-store` would force every request dynamic.
+      next: { revalidate: 60 }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const parsed = (await res.json()) as StatusFile;
     if (typeof parsed?.anchors !== 'object' || parsed.anchors === null) throw new Error('unrecognized status format');

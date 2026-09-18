@@ -6,7 +6,7 @@ import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
 import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
-import { hasEnoughData, listingExplanation } from '@/lib/status-labels';
+import { hasEnoughData, latestEvidence, listingExplanation } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
@@ -30,6 +30,7 @@ export function AnchorDetailModal({
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  const evidence = latestEvidence(anchor);
   const historyTimestamps = anchor.scoreHistory.map((p) => p.timestamp);
   const chartData = anchor.scoreHistory.map((p) => ({
     label: formatChartAxisLabel(p.timestamp, historyTimestamps),
@@ -101,8 +102,13 @@ export function AnchorDetailModal({
             )}
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-xs text-ink-muted">Stake</span>
-            <span className="tabular font-heading font-semibold text-ink">{formatStakeXlm(anchor.stake)}</span>
+            <span className="text-xs text-ink-muted">Checks behind the score</span>
+            <span className="tabular font-heading font-semibold text-ink">
+              {anchor.health ? anchor.health.observations : '—'}
+            </span>
+            {anchor.stake > 0 && (
+              <span className="tabular text-xs text-ink-muted">{formatStakeXlm(anchor.stake)} staked</span>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-xs text-ink-muted">Last updated</span>
@@ -208,6 +214,21 @@ export function AnchorDetailModal({
               )}
             </span>
             <span className="tabular">{describeHealth(anchor.health)}</span>
+          </div>
+        )}
+
+        {evidence && (
+          <div className="mt-4 rounded-card border border-border px-4 py-3 text-sm text-ink-muted">
+            <span className="font-medium text-ink">Don&apos;t take our word for it.</span> The latest report (
+            {formatRelativeTime(evidence.timestamp)}) was published on-chain with the hash of its{' '}
+            <a href={evidence.url} target="_blank" rel="noreferrer" className="font-medium text-accent underline">
+              evidence
+            </a>
+            : the anchor&apos;s own signed SEP-10 challenge and, for testnet deposits, the payout transaction on the
+            ledger. Check it independently:
+            <code className="mt-2 block overflow-x-auto rounded bg-surface-muted px-2 py-1 font-mono text-xs text-ink">
+              cd services/mainnet-probe && npm run verify -- {evidence.hash}
+            </code>
           </div>
         )}
 

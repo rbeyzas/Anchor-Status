@@ -47,6 +47,7 @@ export function normalizeMainnetProbeResult(result: MainnetProbeResult): Normali
     timestamp: result.timestamp,
     source_type: 'RealMainnet',
     dedup_id: `RealMainnet:probe:${result.anchor_id}:${result.timestamp}`,
+    ...(result.evidence_hash ? { evidence_hash: result.evidence_hash } : {}),
   };
 }
 
@@ -58,6 +59,7 @@ export function normalizeTestnetProbeResult(result: TestnetProbeResult): Normali
     timestamp: result.timestamp,
     source_type: 'RealTestnet',
     dedup_id: `RealTestnet:${result.anchor_id}:${result.timestamp}`,
+    ...(result.evidence_hash ? { evidence_hash: result.evidence_hash } : {}),
   };
 }
 

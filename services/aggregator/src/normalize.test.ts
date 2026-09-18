@@ -99,3 +99,26 @@ describe('normalizeMockAnchorLogEntry', () => {
     expect(dedupKey(report)).toBe('SimulatedMock:mock_anchor_1:2026-03-01T00:00:00.000Z');
   });
 });
+
+describe('evidence hashes', () => {
+  it('carries the evidence hash through to the report', async () => {
+    const { normalizeMainnetProbeResult, normalizeTestnetProbeResult } = await import('./normalize.js');
+    const hash = 'ab'.repeat(32);
+    expect(
+      normalizeMainnetProbeResult({ anchor_id: 'a', success: true, settlement_seconds: 1, timestamp: 't', evidence_hash: hash })
+        .evidence_hash,
+    ).toBe(hash);
+    expect(
+      normalizeTestnetProbeResult({
+        anchor_id: 'a',
+        domain: 'd',
+        source_type: 'RealTestnet',
+        success: true,
+        settlement_seconds: 20,
+        timestamp: 't',
+        final_transaction_status: 'completed',
+        evidence_hash: hash,
+      }).evidence_hash,
+    ).toBe(hash);
+  });
+});

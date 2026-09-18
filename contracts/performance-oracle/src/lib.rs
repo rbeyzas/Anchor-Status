@@ -100,82 +100,25 @@ impl PerformanceOracle {
         timestamp: u64,
         source_type: SourceType,
     ) -> Result<u32, Error> {
-        reporter.require_auth();
+        record_report(env, reporter, anchor_id, success, settlement_seconds, timestamp, source_type, None)
+    }
 
-        let reporter_key = DataKey::Reporter(reporter);
-        let authorized_source: SourceType = env
-            .storage()
-            .persistent()
-            .get(&reporter_key)
-            .ok_or(Error::NotAuthorizedReporter)?;
-        bump_persistent(&env, &reporter_key);
-        if authorized_source != source_type {
-            return Err(Error::ReporterWrongSourceType);
-        }
-
-        let now = env.ledger().timestamp();
-        if timestamp > now + MAX_FUTURE_SKEW_SECONDS {
-            return Err(Error::ReportTimestampInFuture);
-        }
-        if now.saturating_sub(timestamp) > MAX_REPORT_AGE_SECONDS {
-            return Err(Error::ReportTimestampTooOld);
-        }
-
-        let score_key = DataKey::Score(anchor_id.clone());
-        let old_score: u32 = env
-            .storage()
-            .persistent()
-            .get(&score_key)
-            .unwrap_or(scoring::DEFAULT_SCORE);
-
-        let observation = scoring::observation_score(success, settlement_seconds);
-        let new_score = scoring::ema_update(old_score, observation, &source_type);
-        env.storage().persistent().set(&score_key, &new_score);
-        bump_persistent(&env, &score_key);
-
-        // Trend and risk floors live in contract state, not in event
-        // history, so detecting them never depends on how long an RPC
-        // node keeps events.
-        let health_key = DataKey::Health(anchor_id.clone());
-        let previous: AnchorHealth = env
-            .storage()
-            .persistent()
-            .get(&health_key)
-            .unwrap_or_else(scoring::new_health);
-        let previous_reason = previous.risk_reason;
-        let health = scoring::update_health(previous, success, observation, new_score, timestamp);
-        env.storage().persistent().set(&health_key, &health);
-        bump_persistent(&env, &health_key);
-
-        let registry_address: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::RegistryAddress)
-            .ok_or(Error::NotInitialized)?;
-        let registry = AnchorRegistryClient::new(&env, &registry_address);
-        registry.update_score(&anchor_id, &new_score);
-        bump_instance(&env);
-
-        ReportSubmittedEvent {
-            anchor_id: anchor_id.clone(),
-            source_type,
-            success,
-            settlement_seconds,
-            new_score,
-        }
-        .publish(&env);
-
-        if health.risk_reason != previous_reason {
-            RiskStatusChangedEvent {
-                anchor_id,
-                risk_reason: health.risk_reason,
-                score: new_score,
-                trend: health.trend,
-            }
-            .publish(&env);
-        }
-
-        Ok(new_score)
+    /// Same as `submit_report`, plus the SHA-256 of the evidence document the
+    /// reporter published for this observation. The hash is emitted in the
+    /// `report_submitted` event, so the claim and its evidence are tied
+    /// together on-chain.
+    #[allow(clippy::too_many_arguments)]
+    pub fn submit_report_with_evidence(
+        env: Env,
+        reporter: Address,
+        anchor_id: Symbol,
+        success: bool,
+        settlement_seconds: u64,
+        timestamp: u64,
+        source_type: SourceType,
+        evidence: BytesN<32>,
+    ) -> Result<u32, Error> {
+        record_report(env, reporter, anchor_id, success, settlement_seconds, timestamp, source_type, Some(evidence))
     }
 
     /// Admin-only: replaces this contract's code in place. The contract ID
@@ -211,4 +154,94 @@ impl PerformanceOracle {
     pub fn get_reporter_source_type(env: Env, reporter: Address) -> Option<SourceType> {
         env.storage().persistent().get(&DataKey::Reporter(reporter))
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_report(
+    env: Env,
+    reporter: Address,
+    anchor_id: Symbol,
+    success: bool,
+    settlement_seconds: u64,
+    timestamp: u64,
+    source_type: SourceType,
+    evidence: Option<BytesN<32>>,
+) -> Result<u32, Error> {
+    reporter.require_auth();
+
+    let reporter_key = DataKey::Reporter(reporter);
+    let authorized_source: SourceType = env
+        .storage()
+        .persistent()
+        .get(&reporter_key)
+        .ok_or(Error::NotAuthorizedReporter)?;
+    bump_persistent(&env, &reporter_key);
+    if authorized_source != source_type {
+        return Err(Error::ReporterWrongSourceType);
+    }
+
+    let now = env.ledger().timestamp();
+    if timestamp > now + MAX_FUTURE_SKEW_SECONDS {
+        return Err(Error::ReportTimestampInFuture);
+    }
+    if now.saturating_sub(timestamp) > MAX_REPORT_AGE_SECONDS {
+        return Err(Error::ReportTimestampTooOld);
+    }
+
+    let score_key = DataKey::Score(anchor_id.clone());
+    let old_score: u32 = env
+        .storage()
+        .persistent()
+        .get(&score_key)
+        .unwrap_or(scoring::DEFAULT_SCORE);
+
+    let observation = scoring::observation_score(success, settlement_seconds, &source_type);
+    let new_score = scoring::ema_update(old_score, observation, &source_type);
+    env.storage().persistent().set(&score_key, &new_score);
+    bump_persistent(&env, &score_key);
+
+    // Trend and risk floors live in contract state, not in event
+    // history, so detecting them never depends on how long an RPC
+    // node keeps events.
+    let health_key = DataKey::Health(anchor_id.clone());
+    let previous: AnchorHealth = env
+        .storage()
+        .persistent()
+        .get(&health_key)
+        .unwrap_or_else(scoring::new_health);
+    let previous_reason = previous.risk_reason;
+    let health = scoring::update_health(previous, success, observation, new_score, timestamp);
+    env.storage().persistent().set(&health_key, &health);
+    bump_persistent(&env, &health_key);
+
+    let registry_address: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::RegistryAddress)
+        .ok_or(Error::NotInitialized)?;
+    let registry = AnchorRegistryClient::new(&env, &registry_address);
+    registry.update_score(&anchor_id, &new_score);
+    bump_instance(&env);
+
+    ReportSubmittedEvent {
+        anchor_id: anchor_id.clone(),
+        source_type,
+        success,
+        settlement_seconds,
+        new_score,
+        evidence,
+    }
+    .publish(&env);
+
+    if health.risk_reason != previous_reason {
+        RiskStatusChangedEvent {
+            anchor_id,
+            risk_reason: health.risk_reason,
+            score: new_score,
+            trend: health.trend,
+        }
+        .publish(&env);
+    }
+
+    Ok(new_score)
 }

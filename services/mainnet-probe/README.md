@@ -70,4 +70,25 @@ Results are appended, one JSON line per anchor, to
 `results/probe-YYYY-MM-DD.jsonl` (`MAINNET_PROBE_RESULTS_DIR`). Nothing is
 rewritten; `aggregator` reads the last three days.
 
+## Evidence — `npm run verify -- <sha256>`
+
+Every conclusive probe (mainnet and testnet) publishes an evidence document
+named by its own SHA-256, and that hash goes on-chain in the
+`report_submitted` event (`submit_report_with_evidence`). The claim and its
+proof are tied together, and nobody has to trust the reporter:
+
+| Check | Against |
+| --- | --- |
+| The document matches the on-chain hash | the bytes themselves |
+| The anchor signed the SEP-10 challenge | the anchor's own `SIGNING_KEY` |
+| The signature dates from the check | the challenge's time bounds |
+| The challenge was issued to the probe's throwaway account | the challenge's source account |
+| The anchor still publishes that key | its live `stellar.toml` |
+| The anchor paid the probe (testnet deposits) | the ledger — a classic payment or a Stellar Asset Contract transfer |
+
+`npm run verify -- <hash>` runs all of them; documents are served at
+`http://37.221.76.23/evidence/<hash>.json` (`EVIDENCE_BASE_URL`). A mainnet
+probe moves no funds, so it has no payout to check — the anchor-signed
+challenge is what proves its API answered.
+
 Tests: `npm test` (network-free; a fake anchor issues real SEP-10 challenges).

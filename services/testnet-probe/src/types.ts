@@ -8,6 +8,8 @@ export interface ProbeResult {
   settlement_seconds: number;
   timestamp: string; // ISO 8601, when the probe was initiated
   final_transaction_status: string | null;
+  /** SHA-256 of the published evidence document for this run. */
+  evidence_hash?: string;
   /** True when the probe itself failed (e.g. headless UI never rendered)
    * before the anchor could succeed or fail. Never submitted on-chain. */
   inconclusive?: boolean;

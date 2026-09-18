@@ -30,4 +30,7 @@ export const config = {
   // a visible browser, which is useful for debugging a new anchor's UI.
   headless: process.env.PROBE_HEADLESS !== 'false',
   resultsPath: path.join(__dirname, '..', 'results', 'probe-log.json'),
+  // Content-addressed evidence documents; on the collector host this is the
+  // same published directory mainnet-probe writes to.
+  evidenceDir: path.resolve(repoRoot, process.env.EVIDENCE_DIR ?? 'services/testnet-probe/evidence'),
 };

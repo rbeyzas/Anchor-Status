@@ -25,6 +25,8 @@ export const config = {
   // Latest verdict per anchor, with its directory label: what the dashboard
   // shows next to each anchor. Served next to the history archive.
   statusPath: resolve(process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json'),
+  // Content-addressed evidence documents (<sha256>.json), published as-is.
+  evidenceDir: resolve(process.env.EVIDENCE_DIR ?? 'services/mainnet-probe/evidence'),
   // Anchors not seen answering for a week are still probed, just this often.
   dormantIntervalMs: Number(process.env.MAINNET_DORMANT_INTERVAL_HOURS ?? '6') * 60 * 60 * 1000,
   // Anchors registered by hand (existing ids win over derived ones).

@@ -73,8 +73,9 @@ export async function fetchAnchorEvents(
 
   return {
     scoreHistory: scoreRes.events.map((event) => {
-      const data = scValToNative(event.value) as { new_score: number };
-      return { timestamp: event.ledgerClosedAt, score: Number(data.new_score) };
+      const data = scValToNative(event.value) as { new_score: number; evidence?: Uint8Array | null };
+      const evidence = data.evidence ? Buffer.from(data.evidence).toString('hex') : undefined;
+      return { timestamp: event.ledgerClosedAt, score: Number(data.new_score), ...(evidence ? { evidence } : {}) };
     }),
     slashEvents: slashRes.events.flatMap((event) => {
       const amount = slashAmountStroops(scValToNative(event.value));

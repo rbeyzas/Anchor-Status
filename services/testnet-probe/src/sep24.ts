@@ -9,6 +9,8 @@ export interface Sep24Transaction {
   status: string;
   status_eta?: number;
   more_info_url?: string;
+  /** Set once the anchor has paid out: the ledger transaction anyone can check. */
+  stellar_transaction_id?: string;
 }
 
 /** Starts a real SEP-24 interactive deposit. Returns the interactive KYC/amount URL and transaction id. */

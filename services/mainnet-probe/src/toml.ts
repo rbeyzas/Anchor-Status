@@ -1,4 +1,5 @@
 import { parse as parseToml } from 'smol-toml';
+import { sha256Hex } from './evidence.js';
 import { timedFetch, type Fetch, type Timed } from './http.js';
 
 export interface AnchorToml {
@@ -24,7 +25,11 @@ export function parseAnchorToml(text: string): AnchorToml {
   };
 }
 
-export async function fetchAnchorToml(fetchImpl: Fetch, domain: string, timeoutMs: number): Promise<Timed<AnchorToml>> {
+export async function fetchAnchorToml(
+  fetchImpl: Fetch,
+  domain: string,
+  timeoutMs: number,
+): Promise<Timed<AnchorToml> & { sha256: string }> {
   // `Accept: text/plain` gets a 406 from some anchors; */* is what toml
   // servers actually expect (see testnet-probe/src/toml.ts).
   const { value: res, ms } = await timedFetch(
@@ -33,7 +38,8 @@ export async function fetchAnchorToml(fetchImpl: Fetch, domain: string, timeoutM
     { headers: { Accept: '*/*' } },
     timeoutMs,
   );
-  return { value: parseAnchorToml(await res.text()), ms };
+  const text = await res.text();
+  return { value: parseAnchorToml(text), ms, sha256: sha256Hex(text) };
 }
 
 export const offersTransfer = (t: AnchorToml) => Boolean(t.sep24 || t.sep6);

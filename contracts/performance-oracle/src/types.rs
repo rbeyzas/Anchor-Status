@@ -1,5 +1,5 @@
 use anchor_registry::SourceType;
-use soroban_sdk::{contractevent, contracttype, Address, Symbol};
+use soroban_sdk::{contractevent, contracttype, Address, BytesN, Symbol};
 
 #[derive(Clone)]
 #[contracttype]
@@ -71,6 +71,11 @@ pub struct ReportSubmittedEvent {
     pub success: bool,
     pub settlement_seconds: u64,
     pub new_score: u32,
+    /// SHA-256 of the published evidence document behind this report, if
+    /// the reporter supplied one. Anyone can fetch the document, hash it,
+    /// and check it against this value — and then check what the document
+    /// itself proves (an anchor-signed SEP-10 challenge, a settlement tx).
+    pub evidence: Option<BytesN<32>>,
 }
 
 /// Published only when an anchor's risk status changes, so consumers see

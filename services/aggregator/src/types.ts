@@ -11,6 +11,8 @@ export interface NormalizedReport {
   source_type: SourceType;
   /** Best-effort unique id for dedup; falls back to `${anchor_id}:${timestamp}` if absent. */
   dedup_id?: string;
+  /** SHA-256 (hex) of the published evidence document; sent on-chain with the report. */
+  evidence_hash?: string;
 }
 
 // --- Raw shapes read from each source's own output file ---
@@ -39,6 +41,7 @@ export interface TestnetProbeResult {
    * before the anchor could succeed or fail. Never submitted on-chain. */
   inconclusive?: boolean;
   error?: string;
+  evidence_hash?: string;
 }
 
 /** One line of mainnet-probe's daily JSON-lines log. */
@@ -50,6 +53,7 @@ export interface MainnetProbeResult {
   failed_stage?: string;
   /** Our own failure (e.g. our network was down). Never submitted on-chain. */
   inconclusive?: boolean;
+  evidence_hash?: string;
 }
 
 export interface MockAnchorLogEntry {

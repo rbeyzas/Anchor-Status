@@ -4,6 +4,8 @@ export interface ScorePoint {
   /** ISO 8601 timestamp. */
   timestamp: string;
   score: number;
+  /** SHA-256 (hex) of the evidence document published with the report. */
+  evidence?: string;
 }
 
 export interface SlashEvent {
@@ -60,12 +62,20 @@ export interface AnchorViewModel {
   status?: AnchorStatusView;
 }
 
-export type DataSource = 'live' | 'mock';
+/** 'unavailable': the chain could not be read, and nothing is shown. */
+export type DataSource = 'live' | 'unavailable';
+
+/** A registered anchor whose on-chain record could not be read this time. */
+export interface UnreadableAnchor {
+  anchorId: string;
+  error: string;
+}
 
 export interface DashboardData {
   anchors: AnchorViewModel[];
   dataSource: DataSource;
-  /** Set when dataSource === 'mock' because a live RPC read failed. */
+  unreadable: UnreadableAnchor[];
+  /** Why the chain could not be read, when dataSource === 'unavailable'. */
   liveError?: string;
 }
 

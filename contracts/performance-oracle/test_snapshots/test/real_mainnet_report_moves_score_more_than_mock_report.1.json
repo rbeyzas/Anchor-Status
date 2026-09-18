@@ -1274,6 +1274,12 @@
               "map": [
                 {
                   "key": {
+                    "symbol": "evidence"
+                  },
+                  "val": "void"
+                },
+                {
+                  "key": {
                     "symbol": "new_score"
                   },
                   "val": {

@@ -20,7 +20,7 @@ export async function authenticateSep10(
   toml: StellarTomlInfo,
   keypair: Keypair,
   networkPassphrase: string,
-): Promise<string> {
+): Promise<{ token: string; challenge: { xdr: string; network_passphrase: string } }> {
   const challengeUrl = new URL(toml.webAuthEndpoint);
   challengeUrl.searchParams.set('account', keypair.publicKey());
 
@@ -56,5 +56,7 @@ export async function authenticateSep10(
     throw new Error(`SEP-10 token exchange failed (HTTP ${tokenRes.status}): ${body}`);
   }
   const { token } = (await tokenRes.json()) as TokenResponse;
-  return token;
+  // The challenge as the anchor sent it (before our signature): signed with
+  // its SIGNING_KEY, it is independent proof the anchor answered.
+  return { token, challenge: { xdr: challenge.transaction, network_passphrase: challenge.network_passphrase } };
 }

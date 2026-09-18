@@ -2,6 +2,8 @@ export interface ScorePoint {
   /** ISO 8601, from the ledger close time. */
   timestamp: string;
   score: number;
+  /** SHA-256 (hex) of the evidence document published with this report. */
+  evidence?: string;
 }
 
 export interface SlashEvent {

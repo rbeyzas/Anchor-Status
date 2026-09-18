@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Anchor as AnchorIcon, WarningCircle } from '@phosphor-icons/react';
-import type { AnchorViewModel, DataSource, SourceType } from '@/lib/types';
+import type { AnchorViewModel, DataSource, SourceType, UnreadableAnchor } from '@/lib/types';
 import { statusRank } from '@/lib/status-labels';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
@@ -21,10 +21,12 @@ export function Dashboard({
   anchors,
   dataSource,
   liveError,
+  unreadable,
 }: {
   anchors: AnchorViewModel[];
   dataSource: DataSource;
   liveError?: string;
+  unreadable: UnreadableAnchor[];
 }) {
   const [filter, setFilter] = useState<FilterValue>('all');
   const [selected, setSelected] = useState<AnchorViewModel | null>(null);
@@ -61,28 +63,39 @@ export function Dashboard({
           <div className="flex items-center gap-2">
             <span
               className={`hidden items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-medium sm:inline-flex ${
-                dataSource === 'live' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'
+                dataSource === 'live' ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'
               }`}
             >
               <span
                 className={`h-1.5 w-1.5 rounded-full ${
-                  dataSource === 'live' ? 'bg-success animate-pulse-dot' : 'bg-warning animate-pulse-dot'
+                  dataSource === 'live' ? 'bg-success animate-pulse-dot' : 'bg-danger'
                 }`}
                 aria-hidden="true"
               />
-              {dataSource === 'live' ? 'Testnet live' : 'Demo data'}
+              {dataSource === 'live' ? 'Testnet live' : 'Chain unreachable'}
             </span>
             <ThemeToggle />
           </div>
         </div>
 
-        {dataSource === 'mock' && (
+        {dataSource === 'unavailable' && (
+          <p className="glass-panel flex items-start gap-2.5 rounded-card px-4 py-3 text-sm text-danger">
+            <WarningCircle size={18} weight="bold" className="mt-0.5 flex-shrink-0" aria-hidden="true" />
+            <span>
+              Could not read the contracts from Soroban RPC just now
+              {liveError ? ` (${liveError})` : ''}. Nothing is shown rather than stale or
+              made-up scores — try again in a minute.
+            </span>
+          </p>
+        )}
+
+        {unreadable.length > 0 && (
           <p className="glass-panel flex items-start gap-2.5 rounded-card px-4 py-3 text-sm text-warning">
             <WarningCircle size={18} weight="bold" className="mt-0.5 flex-shrink-0" aria-hidden="true" />
             <span>
-              Showing demo data — could not connect to the testnet contracts
-              {liveError ? ` (${liveError})` : ''}. For live data, check the contract
-              IDs and RPC access in the root <code className="rounded bg-surface-muted px-1 py-0.5 font-mono text-xs">.env</code> file.
+              {unreadable.length} registered anchor{unreadable.length === 1 ? '' : 's'} could not be read from
+              the chain this time and {unreadable.length === 1 ? 'is' : 'are'} not shown:{' '}
+              <span className="font-mono text-xs">{unreadable.map((u) => u.anchorId).join(', ')}</span>
             </span>
           </p>
         )}
