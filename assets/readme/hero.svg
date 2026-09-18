@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="340" viewBox="0 0 1200 340" role="img" aria-labelledby="hero-title hero-desc">
   <title id="hero-title">Anchor Reliability Oracle Network</title>
-  <desc id="hero-desc">A Soroban SEP-24 reliability oracle that turns real mainnet activity, real testnet probes, and controlled mock anchors into one on-chain score with automatic slashing.</desc>
+  <desc id="hero-desc">A Soroban SEP-24 reliability oracle that turns real mainnet activity, real testnet probes, and controlled mock anchors into one on-chain score, trend and risk flag.</desc>
 
   <defs>
     <radialGradient id="glow-accent" cx="0" cy="0" r="1">
@@ -40,7 +40,7 @@
 
     <text x="64" y="216" font-size="16" fill="#9EA6B8">Scores Stellar SEP-24 anchors from three independent sources —</text>
     <text x="64" y="240" font-size="16" fill="#9EA6B8">mainnet, testnet, and controlled mocks — into one on-chain score</text>
-    <text x="64" y="264" font-size="16" fill="#9EA6B8">that automatically slashes stake when reliability drops.</text>
+    <text x="64" y="264" font-size="16" fill="#9EA6B8">that publishes a risk flag when reliability drops.</text>
 
     <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6B7280">
       <text x="64" y="300">Soroban / Rust</text>

@@ -6,10 +6,12 @@ and visualizes it (read-only — never signs a transaction).
 
 - 4 filters at the top: All / Live mainnet / Live testnet / Simulated.
 - Each anchor is a card: name, source badge, stake, a large score with a
-  sparkline, and a "Recent slashing" tag when the score dropped more
-  than 15 points in the last 24 hours.
-- Clicking a card opens a detailed score-history line chart (slashing
-  moments marked with a `ReferenceLine`).
+  sparkline, the oracle's trend (Improving / Degrading), and a badge with
+  the oracle's risk reason when it flags the anchor. Against an oracle
+  without health tracking it falls back to a "Sharp drop in 24h" tag.
+- Clicking a card opens a detailed score-history line chart and a health
+  summary (recent success rate, failure streak, number of checks).
+  Slashes from the previous oracle version are marked as legacy.
 - **Visual direction**: a dark-first "premium web3" interface — glass
   panel cards (`.glass-panel`, backdrop-blur), an SVG ring gauge for the
   score (`ScoreValue`), Phosphor icons, `framer-motion` entrance/hover
@@ -31,8 +33,10 @@ testnet Soroban RPC:
    source_type, stake, last update) and `PerformanceOracle.get_score()`
    (current score).
 3. Score history via `PerformanceOracle`'s `report_submitted` events,
-   and slashing markers via `AnchorRegistry`'s `slash` events, both
-   through `rpc.Server.getEvents()` filtered on the `anchor_id` topic.
+   and legacy slash markers via `AnchorRegistry`'s `slash` events (only
+   the previous oracle emitted these), both through
+   `rpc.Server.getEvents()` filtered on the `anchor_id` topic. Trend and
+   risk come from `PerformanceOracle.get_health()`.
 
 **Important — event query window**: on the public
 `soroban-testnet.stellar.org` RPC, the range `getEvents` will *accept*
@@ -66,7 +70,7 @@ testnet access.
 npm install
 npm run dev          # auto-loads the root .env (via dotenv-cli)
 npm run build         # production build
-npm test               # network-free unit tests (analysis.ts — the "Recent slashing" logic)
+npm test               # network-free unit tests (drop detection, health labels, archive merge)
 npm run typecheck
 ```
 

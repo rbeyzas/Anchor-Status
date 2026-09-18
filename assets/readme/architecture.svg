@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="arch-title arch-desc">
   <title id="arch-title">How the oracle pipeline works</title>
-  <desc id="arch-desc">Three collector services normalize into an aggregator, which reports to the PerformanceOracle Soroban contract; it scores and cross-calls AnchorRegistry to update scores and slash stake; the dashboard reads both contracts read-only over Soroban RPC.</desc>
+  <desc id="arch-desc">Three collector services normalize into an aggregator, which reports to the PerformanceOracle Soroban contract; it scores, tracks trend and risk, and cross-calls AnchorRegistry to update scores; the dashboard reads both contracts read-only over Soroban RPC.</desc>
 
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
@@ -61,7 +61,7 @@
       <text x="20" y="30" font-size="10.5" font-weight="600" letter-spacing="1.5" fill="#6B7280" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">SOROBAN CONTRACT</text>
       <text x="20" y="54" font-size="17" font-weight="700" fill="#ECEEF5">PerformanceOracle</text>
       <text x="20" y="76" font-size="12.5" fill="#9EA6B8">Weighted EMA score per source,</text>
-      <text x="20" y="92" font-size="12.5" fill="#9EA6B8">triggers slashing below threshold</text>
+      <text x="20" y="92" font-size="12.5" fill="#9EA6B8">flags risk: trend + score floor</text>
     </g>
     <g transform="translate(620,376)">
       <rect width="280" height="96" rx="12" fill="#161A24" stroke="#282E3D"/>
@@ -72,7 +72,7 @@
     </g>
     <path d="M580,414 L620,414" fill="none" stroke="#FB7185" stroke-width="1.5" marker-end="url(#arrow)"/>
     <path d="M620,438 L580,438" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
-    <text x="600" y="490" font-size="12" fill="#FB7185" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">update_score() / slash()</text>
+    <text x="600" y="490" font-size="12" fill="#FB7185" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">update_score()</text>
 
     <path d="M760,472 L760,500" fill="none" stroke="#3A404F" stroke-width="1.5" marker-end="url(#arrow)"/>
 

@@ -31,7 +31,7 @@ start the dashboard.
 - **Layer 3 — SimulatedMock** (`services/mock-anchors`): 4 fully
   controlled mock anchors. We script their behavior
   (`behavior_profiles/anchor-N.json`) ourselves, which is what lets us
-  demonstrate deterministic, repeatable slashing scenarios.
+  demonstrate deterministic, repeatable risk-detection scenarios.
 
 ### 2) Open the dashboard
 
@@ -53,10 +53,13 @@ filtering and the active button highlighting.
 
 ### 4) Click an anchor to open its detail view
 
-Show the full score-history chart. If a slash has happened, point out
-the dashed red `ReferenceLine` marking exactly when.
+Show the full score-history chart and, under it, the anchor's on-chain
+health: its trend, its recent success rate, any failure streak, and how
+many checks back the score. Any dashed red `ReferenceLine` is a *legacy*
+slash from the previous oracle version, which slashed automatically; the
+current one never does.
 
-### 5) Show a live slashing moment (the actual "wow" moment)
+### 5) Show risk detection live (the actual "wow" moment)
 
 `mock_anchor_3`'s behavior profile
 (`services/mock-anchors/behavior_profiles/anchor-3.json`) defines its
@@ -71,12 +74,15 @@ happens **roughly 20 real minutes after the mock anchors start**:
    by hand a few times) — each run reads `mock-anchors`'s new logs and
    writes them to `PerformanceOracle.submit_report()` on testnet.
 3. As you approach the 20-minute mark, keep the dashboard open and watch
-   the `mock_anchor_3` card: its score drops from amber to red and a
-   "Recent slashing" tag appears.
-4. Click the card and show the sudden drop and the new dashed red
-   `ReferenceLine` (the slash moment) in the detail chart.
+   the `mock_anchor_3` card: its trend turns to *Degrading* before the
+   score itself crosses the floor — that early warning is the point — and
+   then a risk badge appears (an outage, a mostly-failing window, or a
+   score below 55).
+4. Click the card and show the drop, the trend, and the recent success
+   rate in the detail view. Point out that the stake did not move: the
+   oracle publishes risk, it never penalizes.
 5. Optionally also show `mock_anchor_4` — unreliable from the start, the
-   contrasting "slashed almost immediately" scenario.
+   contrasting "flagged almost immediately" scenario.
 
 To speed this up, raise `TIME_ACCELERATION` before starting
 `services/mock-anchors/scripts/run-all.sh` (e.g. `4320` = 1 minute = 3
@@ -84,9 +90,10 @@ days → triggers in ~7 minutes). Lower it to slow things down.
 
 ### 6) Closing
 
-- Emphasize that `AnchorRegistry`/`PerformanceOracle` run on testnet with
-  a real stake/slash mechanism, and that the dashboard discovers anchors
-  on-chain via `list_anchors()`.
+- Emphasize that `AnchorRegistry`/`PerformanceOracle` run on testnet as a
+  neutral measurement layer — trend and risk floor live in contract
+  state, nobody's stake is ever touched — and that the dashboard
+  discovers anchors on-chain via `list_anchors()`.
 - Reiterate that the whole system (aside from mainnet's read-only leg)
   runs on testnet — no real money ever moves.
 

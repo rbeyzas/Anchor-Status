@@ -4,7 +4,7 @@
 
 ## Where we are (hackathon, September 2026)
 
-- `AnchorRegistry` and `PerformanceOracle` are deployed on testnet, with reporter authorization per source type, stake custody and automatic slashing.
+- `AnchorRegistry` and `PerformanceOracle` are deployed on testnet, with reporter authorization per source type, optional stake custody, and an on-chain trend and risk floor per anchor. The oracle publishes; it never slashes.
 - Three collectors run: mainnet activity (read-only), live SEP-10 + SEP-24 testnet probes, and four controlled reference anchors.
 - Ramp: users connect with Stellar Wallets Kit and deposit or withdraw through the highest-scoring anchor via SEP-10 and SEP-24. Anchors below the safety bar are never offered.
 
@@ -15,7 +15,7 @@
 | **M1: TRY live on testnet** | Hackathon + 2 weeks | Register the event's TRY anchor on-chain and route the ramp's default TRY flow through it. Run the probe continuously on a hosted schedule. Add a Turkish UI. | 20+ real users complete a TRY deposit on testnet; probe success rate is tracked |
 | **M2: Anchor onboarding** | +1 month | Self-serve anchor registration and staking in the UI. Anchors can dispute a report. Add SEP-6 and SEP-31 probes alongside SEP-24. | 3+ anchors stake collateral voluntarily |
 | **M3: Wallet SDK** | +2 months | `@anchor-status/routing` npm package plus a read API, so any wallet can call "best anchor for TRY/EUR/…". Add passkey smart-wallet onboarding. | 1 wallet partner integrates routing |
-| **M4: Mainnet** | +3–4 months | Security review of both contracts, a multi-reporter quorum (no single reporter key can move a score), mainnet deploy with USDC stake | Live mainnet routing; first real slash handled end-to-end |
+| **M4: Mainnet** | +3–4 months | Security review of both contracts, a multi-reporter quorum (no single reporter key can move a score), mainnet deploy with USDC stake | Live mainnet routing; first real risk flag published end-to-end |
 
 ## Known limitations we are addressing
 

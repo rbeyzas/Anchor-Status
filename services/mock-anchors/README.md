@@ -11,7 +11,7 @@ environment-variable sets (port, asset issuer, behavior profile) — see
 |---|---|---|
 | mock_anchor_1 | 8001 | `behavior_profiles/anchor-1.json` — reliable, fast |
 | mock_anchor_2 | 8002 | `behavior_profiles/anchor-2.json` — decent, slower |
-| mock_anchor_3 | 8003 | `behavior_profiles/anchor-3.json` — degrades after simulated day 20 (the slashing demo) |
+| mock_anchor_3 | 8003 | `behavior_profiles/anchor-3.json` — degrades after simulated day 20 (the risk-detection demo) |
 | mock_anchor_4 | 8004 | `behavior_profiles/anchor-4.json` — unreliable from the start |
 
 Each `behavior_profile.json`:
