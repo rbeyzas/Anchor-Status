@@ -12,7 +12,16 @@ export AGGREGATOR_SKIP_MOCK="${AGGREGATOR_SKIP_MOCK:-true}"
 
 log() { echo "[collect $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 
-log "passive-monitor (mainnet, read-only)"
+log "mainnet-probe: discover anchors (once a day) and register new ones on-chain"
+(cd services/mainnet-probe && npm run --silent discover -- --daily) || log "anchor discovery failed"
+(cd services/mainnet-probe && npm run --silent register) || log "anchor registration failed"
+
+log "mainnet-probe (SEP-1/6/10/24 reachability, no funds moved)"
+(cd services/mainnet-probe && npm run --silent probe) || log "mainnet-probe failed"
+
+# Kept for the activity dimension (payment volume/recency); no longer
+# submitted as a score, since volume is not reliability.
+log "passive-monitor (mainnet payment activity, read-only)"
 (cd services/passive-monitor && npm run --silent start) || log "passive-monitor failed"
 
 log "testnet-probe (real SEP-10 + SEP-24 deposit)"

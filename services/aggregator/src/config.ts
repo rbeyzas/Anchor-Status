@@ -33,6 +33,18 @@ export const config = {
     'services/passive-monitor/output/base-profiles.json',
   ),
   testnetProbeLogPath: path.resolve(repoRoot, 'services/testnet-probe/results/probe-log.json'),
+  mainnetProbeResultsDir: path.resolve(
+    repoRoot,
+    process.env.MAINNET_PROBE_RESULTS_DIR ?? 'services/mainnet-probe/results',
+  ),
+  // passive-monitor's payment-frequency profiles encoded transaction volume
+  // as a latency, so a busy anchor outscored a reliable quiet one. Mainnet
+  // scores now come from mainnet-probe; set "true" only to restore the old
+  // volume-based signal.
+  submitPassiveMonitor: process.env.AGGREGATOR_SUBMIT_PASSIVE_MONITOR === 'true',
+  // PerformanceOracle rejects reports older than 2 days; skipping them here
+  // avoids a failed transaction per stale report on every run.
+  maxReportAgeMs: 47 * 60 * 60 * 1000,
   mockAnchorsLogsDir: path.resolve(repoRoot, 'services/mock-anchors/logs'),
   // Set to "true" to submit only real mainnet/testnet reports.
   skipMock: process.env.AGGREGATOR_SKIP_MOCK === 'true',

@@ -22,6 +22,8 @@ services/mock-anchors/state/
 services/mock-anchors/logs/
 services/testnet-probe/results/
 services/passive-monitor/output/
+services/mainnet-probe/output/
+services/mainnet-probe/results/
 services/aggregator/state.json
 
 # os / editor

@@ -30,7 +30,7 @@ if [ -z "${ANCHOR_DEPLOY_LOCKED:-}" ]; then
   exec env ANCHOR_DEPLOY_LOCKED=1 flock -w 1800 "$LOCK" "$0" "$@"
 fi
 BRANCH="${DEPLOY_BRANCH:-main}"
-SERVICES=(passive-monitor testnet-probe aggregator history-archiver)
+SERVICES=(mainnet-probe passive-monitor testnet-probe aggregator history-archiver)
 
 cd "$REPO_DIR"
 log() { echo "[autodeploy $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }

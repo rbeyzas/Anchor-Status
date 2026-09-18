@@ -78,12 +78,13 @@ export function AnchorDetailModal({
 
         {anchor.sourceType === 'RealMainnet' && (
           <div className="mb-5 rounded-card border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-ink-muted">
-            Recent transfers for this anchor are currently
-            <span className="font-medium text-ink"> read-only </span>
-            monitored on mainnet (Horizon, last 7 days). A real SEP-24 transfer
-            test against this anchor (like testnet-probe runs against testnet
-            anchors) is still under development — a test that moves real
-            money on mainnet is deliberately not performed.
+            Every 20 minutes we check this anchor&apos;s live mainnet API the way a
+            wallet would: its stellar.toml, its transfer server, and a SEP-10
+            sign-in, then we start a deposit and
+            <span className="font-medium text-ink"> abandon it before any money moves</span>.
+            The score reflects whether that works and how fast — not how much
+            traffic the anchor has. An anchor that only serves registered
+            wallets still counts as reachable.
           </div>
         )}
 

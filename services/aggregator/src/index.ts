@@ -1,17 +1,22 @@
 import { config } from './config.js';
 import { submitReport } from './contract.js';
 import { dedupKey } from './normalize.js';
-import { readMockAnchorReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
+import { readMainnetProbeReports, readMockAnchorReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
 import { loadState, saveState } from './state.js';
 import type { NormalizedReport } from './types.js';
 
 async function main() {
-  const reports: NormalizedReport[] = [
-    ...readPassiveMonitorReports(config.passiveMonitorProfilesPath),
+  const all: NormalizedReport[] = [
+    ...readMainnetProbeReports(config.mainnetProbeResultsDir),
+    ...(config.submitPassiveMonitor ? readPassiveMonitorReports(config.passiveMonitorProfilesPath) : []),
     ...readTestnetProbeReports(config.testnetProbeLogPath),
     ...(config.skipMock ? [] : readMockAnchorReports(config.mockAnchorsLogsDir)),
   ];
-  console.log(`[aggregator] read ${reports.length} report(s) across all sources`);
+  const cutoff = Date.now() - config.maxReportAgeMs;
+  const reports = all.filter((r) => new Date(r.timestamp).getTime() >= cutoff);
+  console.log(
+    `[aggregator] read ${all.length} report(s) across all sources, ${all.length - reports.length} too old to submit`,
+  );
 
   const submitted = loadState(config.statePath);
   const pending = reports.filter((r) => !submitted.has(dedupKey(r)));

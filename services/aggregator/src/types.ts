@@ -41,6 +41,17 @@ export interface TestnetProbeResult {
   error?: string;
 }
 
+/** One line of mainnet-probe's daily JSON-lines log. */
+export interface MainnetProbeResult {
+  anchor_id: string;
+  success: boolean;
+  settlement_seconds: number;
+  timestamp: string;
+  failed_stage?: string;
+  /** Our own failure (e.g. our network was down). Never submitted on-chain. */
+  inconclusive?: boolean;
+}
+
 export interface MockAnchorLogEntry {
   anchor_id: string;
   success: boolean;

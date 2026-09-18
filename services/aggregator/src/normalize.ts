@@ -1,4 +1,5 @@
 import type {
+  MainnetProbeResult,
   MockAnchorLogEntry,
   NormalizedReport,
   PassiveMonitorProfile,
@@ -33,6 +34,19 @@ export function normalizePassiveMonitorProfile(profile: PassiveMonitorProfile): 
     timestamp: profile.generated_at,
     source_type: 'RealMainnet',
     dedup_id: `RealMainnet:${profile.anchor_id}:${profile.generated_at}`,
+  };
+}
+
+/** A mainnet-probe run: whether the anchor's public SEP-1/6/10/24 surface
+ * answered, and how long its API took. Volume plays no part. */
+export function normalizeMainnetProbeResult(result: MainnetProbeResult): NormalizedReport {
+  return {
+    anchor_id: result.anchor_id,
+    success: result.success,
+    settlement_seconds: result.settlement_seconds,
+    timestamp: result.timestamp,
+    source_type: 'RealMainnet',
+    dedup_id: `RealMainnet:probe:${result.anchor_id}:${result.timestamp}`,
   };
 }
 

@@ -14,7 +14,7 @@
 
 Anyone can *claim* a Stellar SEP-24 anchor is reliable. This project measures it, on-chain, from evidence a wallet or user can't fake:
 
-- **Real mainnet activity** — does the anchor actually process payments today?
+- **Real mainnet reachability** — does the anchor's live API actually answer a wallet today? Every live SEP-6/24 anchor on mainnet is discovered automatically and checked without moving funds.
 - **Real testnet behavior** — does a live SEP-10 + SEP-24 deposit against it actually complete?
 - **Controlled reference anchors** — a known-good and known-bad anchor, so the scoring math itself can be validated against ground truth.
 
@@ -36,7 +36,7 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 
 | Source type | Produced by | What "success" means |
 | --- | --- | --- |
-| `RealMainnet` | `services/passive-monitor` | The anchor's distribution account shows real payment activity in the last 7 days (Horizon, read-only) |
+| `RealMainnet` | `services/mainnet-probe` | The anchor's live stellar.toml, transfer server `/info` and SEP-10 challenge all answer, and a SEP-24 deposit can be started (then abandoned — no funds move). An anchor declining an anonymous wallet by policy still counts as reachable |
 | `RealTestnet` | `services/testnet-probe` | A real SEP-10 auth + SEP-24 interactive deposit against the anchor actually reaches a terminal state |
 | `SimulatedMock` | `services/mock-anchors` | A scripted, seeded behavior profile (success rate, latency, optional time-based degradation) |
 
@@ -46,7 +46,8 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 | --- | --- | --- |
 | [`contracts/anchor-registry`](contracts/anchor-registry) | Rust / Soroban | Anchor identity, optional stake, score of record |
 | [`contracts/performance-oracle`](contracts/performance-oracle) | Rust / Soroban | Weighted scoring, trend and risk floor, cross-contract calls into `anchor-registry` |
-| [`services/passive-monitor`](services/passive-monitor) | Node / TypeScript | Read-only mainnet Horizon scan |
+| [`services/mainnet-probe`](services/mainnet-probe) | Node / TypeScript | Discovers every live SEP-6/24 anchor on mainnet and probes its public API without moving funds |
+| [`services/passive-monitor`](services/passive-monitor) | Node / TypeScript | Read-only mainnet payment activity (kept as data; not scored — volume is not reliability) |
 | [`services/testnet-probe`](services/testnet-probe) | Node / TypeScript / Playwright | Live SEP-10 + SEP-24 test against a real testnet anchor |
 | [`services/mock-anchors`](services/mock-anchors) | Python / Django / django-polaris | Four fully-controlled SEP-24 anchors with scripted behavior |
 | [`services/aggregator`](services/aggregator) | Node / TypeScript | Normalizes and submits reports from all three sources |
@@ -180,10 +181,12 @@ access to the host — the host authenticates to GitHub with a read-only
 deploy key. A push-from-your-laptop hook was tried first and quietly skipped
 every commit made on anyone else's machine.
 
-One round is [`scripts/collect.sh`](scripts/collect.sh): `passive-monitor`,
-`testnet-probe`, `aggregator` (with `AGGREGATOR_SKIP_MOCK=true`, so only
-real sources are submitted), then `history-archiver`. `flock` skips a tick
-rather than stacking rounds when a probe runs long.
+One round is [`scripts/collect.sh`](scripts/collect.sh): `mainnet-probe`
+(anchor discovery once a day, registration of any new anchor, then a probe
+of every tracked anchor), `passive-monitor`, `testnet-probe`, `aggregator`
+(with `AGGREGATOR_SKIP_MOCK=true`, so only real sources are submitted), then
+`history-archiver`. `flock` skips a tick rather than stacking rounds when a
+probe runs long.
 
 **Nothing accumulated lives in the deployed tree.** Everything that must
 survive a redeploy sits in `/var/lib/anchor-status`:
@@ -193,6 +196,8 @@ survive a redeploy sits in `/var/lib/anchor-status`:
 | `history.json` | Every score point and risk transition ever observed (plus slash events from the previous oracle, which slashed) | Soroban RPC only serves events for ~12 hours, so this is the only long-term record |
 | `aggregator-state.json` | Dedup keys for reports already submitted | A reset would resubmit tens of thousands of reports |
 | `probe-results/probe-log.json` | Every testnet probe run | The `RealTestnet` evidence trail |
+| `mainnet-probe/probe-YYYY-MM-DD.jsonl` | Every mainnet probe run, stage by stage, appended per day | The `RealMainnet` evidence trail |
+| `mainnet-anchors.json` | Every anchor discovery has ever found | Anchors are only added, never dropped: one that goes down must keep being measured |
 
 [`services/history-archiver`](services/history-archiver) re-reads the RPC's
 event window each round and merges it into `history.json` by
