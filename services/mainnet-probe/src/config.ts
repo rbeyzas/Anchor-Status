@@ -28,9 +28,11 @@ export const config = {
   // Discovery: rated assets from StellarExpert, 200 per page.
   discoveryPages: Number(process.env.MAINNET_DISCOVERY_PAGES ?? '10'),
 
-  // Per-request and per-anchor budgets. One slow anchor never holds up the rest.
-  requestTimeoutMs: Number(process.env.MAINNET_PROBE_REQUEST_TIMEOUT_MS ?? '12000'),
-  anchorTimeoutMs: Number(process.env.MAINNET_PROBE_ANCHOR_TIMEOUT_MS ?? '45000'),
+  // Per-request and per-anchor budgets. One slow anchor never holds up the
+  // rest. 20s per request is about what a wallet waits before giving up;
+  // 12s flagged sofizpay's deposit start as an outage when it was just slow.
+  requestTimeoutMs: Number(process.env.MAINNET_PROBE_REQUEST_TIMEOUT_MS ?? '20000'),
+  anchorTimeoutMs: Number(process.env.MAINNET_PROBE_ANCHOR_TIMEOUT_MS ?? '90000'),
   concurrency: Number(process.env.MAINNET_PROBE_CONCURRENCY ?? '6'),
 
   mainnetPassphrase: 'Public Global Stellar Network ; September 2015',
