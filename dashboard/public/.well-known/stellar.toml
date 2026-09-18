@@ -1,0 +1,14 @@
+# SEP-1 file for anchor-status.vercel.app.
+#
+# SIGNING_KEY identifies the Anchor Reliability probe as a wallet for SEP-10
+# client attribution (client_domain). Anchors that only serve known wallets
+# can see exactly who is signing in: an automated reliability check that
+# starts deposits and never completes them.
+
+VERSION = "2.0.0"
+SIGNING_KEY = "GB4LRKMBNZCVFHA3N35X5YXMURAG42YRWYG5CGD2KZQLFDFXZNCCLVO2"
+
+[DOCUMENTATION]
+ORG_NAME = "Anchor Reliability Oracle Network"
+ORG_URL = "https://anchor-status.vercel.app"
+ORG_DESCRIPTION = "A neutral, on-chain reliability score for Stellar anchors. Its probes sign in through SEP-10 and start SEP-24 deposits to check that an anchor works; they never complete a transfer or move funds."
