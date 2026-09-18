@@ -708,7 +708,7 @@
                       "symbol": "fast_score"
                     },
                     "val": {
-                      "u32": 50
+                      "u32": 0
                     }
                   },
                   {
@@ -760,7 +760,7 @@
                       "symbol": "slow_score"
                     },
                     "val": {
-                      "u32": 92
+                      "u32": 0
                     }
                   },
                   {
@@ -770,7 +770,7 @@
                     "val": {
                       "vec": [
                         {
-                          "symbol": "Degrading"
+                          "symbol": "Stable"
                         }
                       ]
                     }
@@ -816,7 +816,7 @@
                       "symbol": "fast_score"
                     },
                     "val": {
-                      "u32": 50
+                      "u32": 0
                     }
                   },
                   {
@@ -868,7 +868,7 @@
                       "symbol": "slow_score"
                     },
                     "val": {
-                      "u32": 92
+                      "u32": 0
                     }
                   },
                   {
@@ -878,7 +878,7 @@
                     "val": {
                       "vec": [
                         {
-                          "symbol": "Degrading"
+                          "symbol": "Stable"
                         }
                       ]
                     }

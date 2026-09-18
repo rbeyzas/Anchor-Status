@@ -4,7 +4,7 @@ use super::*;
 use anchor_registry::{AnchorRegistry, AnchorRegistryClient};
 use soroban_sdk::{
     testutils::{Address as _, Events, Ledger},
-    token, xdr, Env, String,
+    token, xdr, BytesN, Env, String,
 };
 use types::{RiskReason, Trend};
 
@@ -332,5 +332,14 @@ fn direct_update_score_call_without_being_the_oracle_contract_fails() {
     // unit tests (run with mock_all_auths) cannot exercise on their own.
     env.set_auths(&[]);
     let result = h.registry.try_update_score(&anchor_id, &1);
+    assert!(result.is_err());
+}
+
+#[test]
+fn upgrade_requires_the_admin() {
+    let env = Env::default();
+    let h = setup(&env);
+    env.set_auths(&[]);
+    let result = h.oracle.try_upgrade(&BytesN::from_array(&env, &[0u8; 32]));
     assert!(result.is_err());
 }

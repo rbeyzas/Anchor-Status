@@ -971,7 +971,7 @@
                       "symbol": "slow_score"
                     },
                     "val": {
-                      "u32": 40
+                      "u32": 0
                     }
                   },
                   {
@@ -981,7 +981,7 @@
                     "val": {
                       "vec": [
                         {
-                          "symbol": "Degrading"
+                          "symbol": "Stable"
                         }
                       ]
                     }

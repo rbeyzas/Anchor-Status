@@ -680,7 +680,7 @@
                       "symbol": "fast_score"
                     },
                     "val": {
-                      "u32": 1
+                      "u32": 0
                     }
                   },
                   {
@@ -732,7 +732,7 @@
                       "symbol": "slow_score"
                     },
                     "val": {
-                      "u32": 58
+                      "u32": 0
                     }
                   },
                   {
@@ -742,7 +742,7 @@
                     "val": {
                       "vec": [
                         {
-                          "symbol": "Degrading"
+                          "symbol": "Stable"
                         }
                       ]
                     }

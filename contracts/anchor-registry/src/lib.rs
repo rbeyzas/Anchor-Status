@@ -13,7 +13,7 @@ pub use errors::Error;
 pub use client::AnchorRegistryClient;
 pub use types::{AnchorInfo, SourceType};
 
-use soroban_sdk::{contract, contractimpl, token, Address, Env, String, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol, Vec};
 use types::{DataKey, WithdrawalRequest};
 
 /// How long, in seconds, an operator must wait between requesting a stake
@@ -252,6 +252,20 @@ impl AnchorRegistry {
         env.storage().persistent().set(&key, &info);
         bump_persistent(&env, &key);
         bump_instance(&env);
+        Ok(())
+    }
+
+    /// Admin-only: replaces this contract's code in place. The contract ID
+    /// and all stored state are kept, so a fix no longer means redeploying
+    /// under a new ID and re-pointing every service and the dashboard.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        admin.require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
         Ok(())
     }
 

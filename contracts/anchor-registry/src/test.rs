@@ -304,3 +304,12 @@ fn register_anchor_extends_the_record_ttl() {
     });
     assert!(ttl >= PERSISTENT_LIFETIME_THRESHOLD, "anchor record TTL was not extended: {ttl}");
 }
+
+#[test]
+fn upgrade_requires_the_admin() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    env.set_auths(&[]);
+    let result = client.try_upgrade(&soroban_sdk::BytesN::from_array(&env, &[0u8; 32]));
+    assert!(result.is_err());
+}

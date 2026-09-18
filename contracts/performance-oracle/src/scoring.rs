@@ -147,8 +147,17 @@ pub fn update_health(
     score: u32,
     timestamp: u64,
 ) -> AnchorHealth {
-    health.fast_score = ema_with_weight(health.fast_score, observation, FAST_WEIGHT_PERMILLE);
-    health.slow_score = ema_with_weight(health.slow_score, observation, SLOW_WEIGHT_PERMILLE);
+    if health.observations == 0 {
+        // Seed both EMAs from the first real observation. Starting them at
+        // DEFAULT_SCORE made every anchor whose true level is below 100 read
+        // as "Degrading" for hours, while the slow EMA drifted down from an
+        // arbitrary starting point rather than from anything the anchor did.
+        health.fast_score = observation;
+        health.slow_score = observation;
+    } else {
+        health.fast_score = ema_with_weight(health.fast_score, observation, FAST_WEIGHT_PERMILLE);
+        health.slow_score = ema_with_weight(health.slow_score, observation, SLOW_WEIGHT_PERMILLE);
+    }
     health.trend = trend(health.fast_score, health.slow_score);
 
     health.consecutive_failures = if success {
@@ -268,6 +277,18 @@ mod tests {
         let h = feed(new_health(), &[false; 10]);
         let h = feed(h, &[true; 2]);
         assert_eq!(h.trend, Trend::Improving);
+    }
+
+    #[test]
+    fn a_steady_anchor_below_100_does_not_read_as_degrading_from_the_start() {
+        // A healthy-but-slow anchor reporting 40 every time is not getting
+        // worse; the trend must stay Stable from its very first report.
+        let mut h = new_health();
+        for _ in 0..5 {
+            h = update_health(h, true, 40, 80, 0);
+            assert_eq!(h.trend, Trend::Stable);
+        }
+        assert_eq!((h.fast_score, h.slow_score), (40, 40));
     }
 
     #[test]
