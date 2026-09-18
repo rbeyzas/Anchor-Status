@@ -3,56 +3,60 @@
 @tailwind utilities;
 
 :root {
-  /* Light mode — kept for accessibility/contrast, not the default look. */
-  --color-surface: 250 251 253;
-  --color-surface-muted: 241 243 247;
-  --color-surface-glass: 255 255 255;
-  --color-border: 224 227 233;
-  --color-border-strong: 203 209 219;
-  --color-ink: 15 18 24;
-  --color-ink-muted: 90 99 112;
-  --color-ink-faint: 140 148 160;
+  /* Notion-style daylight: warm-neutral paper canvas, white cards, near-black
+     ink, and exactly one structural accent (blue). Status tones are
+     darkened variants of the sticker palette so small text stays readable. */
+  --color-surface: 246 245 244; /* canvas-soft #f6f5f4 */
+  --color-surface-muted: 236 235 233;
+  --color-surface-glass: 255 255 255; /* card surface */
+  --color-border: 230 230 230; /* hairline #e6e6e6 */
+  --color-border-strong: 208 206 203;
+  --color-ink: 15 15 15;
+  --color-ink-muted: 97 93 89; /* stone #615d59 */
+  --color-ink-faint: 130 126 121;
 
-  --color-accent: 37 99 235; /* blue-600 — RealTestnet */
-  --color-accent-soft: 219 234 254;
+  --color-accent: 0 117 222; /* Notion blue #0075de */
+  --color-accent-soft: 225 238 251;
+  --color-secondary: 33 49 131; /* deep indigo #213183 — hero night band */
 
-  --color-success: 5 150 105; /* emerald-600 — RealMainnet / high score */
-  --color-success-soft: 209 250 229;
+  --color-success: 22 128 46;
+  --color-success-soft: 220 243 224;
 
-  --color-warning: 180 83 9; /* amber-700 — mid score */
-  --color-warning-soft: 254 243 199;
+  --color-warning: 190 75 0;
+  --color-warning-soft: 253 236 219;
 
-  --color-danger: 190 18 60; /* rose-700 — low score / slashing */
-  --color-danger-soft: 254 226 226;
+  --color-danger: 200 36 36;
+  --color-danger-soft: 252 226 224;
 
-  --color-neutral: 71 85 105; /* slate-600 — SimulatedMock */
-  --color-neutral-soft: 226 232 240;
+  --color-neutral: 97 93 89;
+  --color-neutral-soft: 236 235 233;
 }
 
 .dark {
-  --color-surface: 6 8 13;
-  --color-surface-muted: 11 14 20;
-  --color-surface-glass: 22 26 36;
-  --color-border: 40 46 61;
-  --color-border-strong: 63 71 92;
-  --color-ink: 236 238 245;
-  --color-ink-muted: 158 166 184;
-  --color-ink-faint: 100 108 126;
+  --color-surface: 25 25 24;
+  --color-surface-muted: 38 38 37;
+  --color-surface-glass: 32 32 31;
+  --color-border: 52 52 50;
+  --color-border-strong: 80 80 77;
+  --color-ink: 245 244 242;
+  --color-ink-muted: 168 164 158;
+  --color-ink-faint: 120 116 110;
 
-  --color-accent: 56 189 248; /* sky-400 — RealTestnet */
-  --color-accent-soft: 12 41 58;
+  --color-accent: 98 174 240; /* sticker sky, legible on dark */
+  --color-accent-soft: 20 40 66;
+  --color-secondary: 27 38 104;
 
-  --color-success: 52 211 153; /* emerald-400 — RealMainnet / high score */
-  --color-success-soft: 8 41 34;
+  --color-success: 96 200 116;
+  --color-success-soft: 20 44 26;
 
-  --color-warning: 251 191 36; /* amber-400 — mid score */
-  --color-warning-soft: 46 33 8;
+  --color-warning: 240 150 80;
+  --color-warning-soft: 52 34 16;
 
-  --color-danger: 251 113 133; /* rose-400 — low score / slashing */
-  --color-danger-soft: 46 12 20;
+  --color-danger: 245 122 112;
+  --color-danger-soft: 58 24 22;
 
-  --color-neutral: 148 163 184; /* slate-400 — SimulatedMock */
-  --color-neutral-soft: 26 31 42;
+  --color-neutral: 168 164 158;
+  --color-neutral-soft: 40 40 38;
 }
 
 html {
@@ -79,8 +83,7 @@ body {
   }
 }
 
-/* Fixed backdrop: soft radial glow field + faint technical grid.
-   Dark mode leans into it; light mode keeps it near-invisible. */
+/* Fixed backdrop: flat canvas, no texture. */
 .bg-field {
   position: fixed;
   inset: 0;
@@ -89,52 +92,14 @@ body {
   background-color: rgb(var(--color-surface));
 }
 
-.bg-field::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 15% 8%, rgb(var(--color-accent) / 0.16), transparent 40%),
-    radial-gradient(circle at 85% 78%, rgb(var(--color-success) / 0.12), transparent 42%);
-  opacity: 1;
-}
-
-.dark .bg-field::before {
-  background-image:
-    radial-gradient(circle at 12% 6%, rgb(var(--color-accent) / 0.22), transparent 38%),
-    radial-gradient(circle at 88% 82%, rgb(var(--color-success) / 0.14), transparent 40%);
-}
-
-.bg-field::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgb(var(--color-border) / 0.5) 1px, transparent 1px),
-    linear-gradient(90deg, rgb(var(--color-border) / 0.5) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: linear-gradient(to bottom, transparent, black 12%, black 55%, transparent 92%);
-  opacity: 0.35;
-}
-
-.dark .bg-field::after {
-  opacity: 0.5;
-}
-
-/* Glass card surface used by cards, panels, modals, chips. */
+/* Card surface used by cards, panels, modals, chips: white with a hairline. */
 .glass-panel {
-  background-color: rgb(var(--color-surface-glass) / 0.6);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: rgb(var(--color-surface-glass));
   border: 1px solid rgb(var(--color-border));
 }
 
-.dark .glass-panel {
-  background-color: rgb(var(--color-surface-glass) / 0.55);
-}
-
-.text-glow-accent {
-  text-shadow: 0 0 18px rgb(var(--color-accent) / 0.35);
+.hairline {
+  border-color: rgb(var(--color-border));
 }
 
 .tabular {
@@ -163,4 +128,72 @@ body {
   background-color: rgb(var(--color-border-strong));
   border-radius: 999px;
   border: 2px solid transparent;
+}
+
+/* Slow rotation for decorative orbits (see components/backgrounds). */
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.orbit-spin {
+  transform-box: view-box;
+  transform-origin: 400px 400px;
+  animation: orbit-spin linear infinite;
+}
+
+/* Buttons: flat, solid pills. One blue for the primary action. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  border-radius: 9999px;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-md {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+/* Primary: fixed brand blue in both themes so white text always passes AA. */
+.btn-primary {
+  background-color: #0075de;
+  color: #fff;
+}
+.btn-primary:hover {
+  background-color: #005bab;
+}
+/* Secondary on the light canvas. */
+.btn-outline {
+  background-color: rgb(var(--color-surface-glass));
+  color: rgb(var(--color-ink));
+  border: 1px solid rgb(var(--color-border-strong));
+}
+.btn-outline:hover {
+  background-color: rgb(var(--color-surface-muted));
+}
+/* On the indigo band: white primary, outlined secondary. */
+.btn-white {
+  background-color: #fff;
+  color: #213183;
+}
+.btn-white:hover {
+  background-color: #e8ebfa;
+}
+.btn-ghost-dark {
+  color: #fff;
+  border: 1px solid rgb(255 255 255 / 0.4);
+}
+.btn-ghost-dark:hover {
+  background-color: rgb(255 255 255 / 0.1);
 }

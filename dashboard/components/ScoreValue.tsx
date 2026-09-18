@@ -53,7 +53,7 @@ export function ScoreValue({
           strokeWidth={4}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${circumference - dash}`}
-          style={{ transition: 'stroke-dasharray 500ms ease-out', filter: `drop-shadow(0 0 6px rgb(${stroke} / 0.55))` }}
+          style={{ transition: 'stroke-dasharray 500ms ease-out' }}
         />
       </svg>
       <span

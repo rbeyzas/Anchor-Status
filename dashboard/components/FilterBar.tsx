@@ -37,7 +37,7 @@ export function FilterBar({
             onClick={() => onChange(filter.value)}
             className={`inline-flex cursor-pointer items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 ${
               isActive
-                ? 'bg-accent text-white shadow-glow-accent dark:text-[#04131f]'
+                ? 'bg-ink text-surface'
                 : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
             }`}
           >

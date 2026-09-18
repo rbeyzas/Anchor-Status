@@ -1,23 +1,17 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
+import { Geist_Mono, Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 
-const heading = Space_Grotesk({
+// One family, as in the reference: Inter carries display, body and UI.
+// Tight negative tracking at display sizes is applied where it is used.
+const sans = Inter({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
-  variable: '--font-heading',
-  display: 'swap',
-});
-
-const body = Inter({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
   variable: '--font-body',
   display: 'swap',
 });
 
-const mono = JetBrains_Mono({
+const mono = Geist_Mono({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-mono',
@@ -25,16 +19,16 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Anchor Reliability Oracle Network',
+  title: 'Anchor Status: which anchor will hold?',
   description:
-    'Stellar SEP-24 anchor reliability — from live mainnet, live testnet, and simulated sources.',
+    'Stellar SEP-24 anchor reliability, from live mainnet, live testnet, and simulated sources.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${heading.variable} ${body.variable} ${mono.variable}`}
+      className={`${sans.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <body className="min-h-screen font-body antialiased">

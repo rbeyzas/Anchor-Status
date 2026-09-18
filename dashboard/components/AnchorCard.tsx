@@ -104,7 +104,7 @@ export function AnchorCard({
           </>
         ) : (
           <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-ink-faint">
-            <span className="font-heading text-lg text-ink-muted">—</span>
+            <span className="font-heading text-lg text-ink-muted">-</span>
             Not enough checks yet
           </span>
         )}

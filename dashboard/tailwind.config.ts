@@ -6,7 +6,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        heading: ['var(--font-heading)', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-body)', 'system-ui', 'sans-serif'],
         body: ['var(--font-body)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
@@ -20,6 +20,15 @@ const config: Config = {
         'ink-muted': 'rgb(var(--color-ink-muted) / <alpha-value>)',
         'ink-faint': 'rgb(var(--color-ink-faint) / <alpha-value>)',
         accent: 'rgb(var(--color-accent) / <alpha-value>)',
+        secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
+        sticker: {
+          sky: '#62aef0',
+          purple: '#d6b6f6',
+          pink: '#ff64c8',
+          orange: '#dd5b00',
+          teal: '#2a9d99',
+          green: '#1aae39',
+        },
         'accent-soft': 'rgb(var(--color-accent-soft) / <alpha-value>)',
         success: 'rgb(var(--color-success) / <alpha-value>)',
         'success-soft': 'rgb(var(--color-success-soft) / <alpha-value>)',
@@ -31,15 +40,16 @@ const config: Config = {
         'neutral-soft': 'rgb(var(--color-neutral-soft) / <alpha-value>)',
       },
       borderRadius: {
-        card: '18px',
+        card: '12px',
         pill: '999px',
       },
       boxShadow: {
-        glow: '0 0 0 1px rgb(var(--color-border) / 0.6), 0 8px 30px -10px rgb(var(--color-accent) / 0.25)',
-        'glow-success': '0 0 24px -4px rgb(var(--color-success) / 0.45)',
-        'glow-accent': '0 0 24px -4px rgb(var(--color-accent) / 0.45)',
-        'glow-danger': '0 0 24px -4px rgb(var(--color-danger) / 0.45)',
-        card: '0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 12px 40px -18px rgb(0 0 0 / 0.55)',
+        // Notion-style layered micro-shadows: many near-transparent stops.
+        glow: '0 0 0 1px rgb(0 0 0 / 0.05), 0 4px 18px rgb(0 0 0 / 0.04), 0 23px 52px rgb(0 0 0 / 0.08)',
+        'glow-success': '0 2px 8px rgb(0 0 0 / 0.03), 0 4px 18px rgb(0 0 0 / 0.05)',
+        'glow-accent': '0 2px 8px rgb(0 0 0 / 0.03), 0 4px 18px rgb(0 0 0 / 0.05)',
+        'glow-danger': '0 0 0 1px rgb(var(--color-danger) / 0.2)',
+        card: '0 0.175px 1px rgb(0 0 0 / 0.01), 0 0.8px 2.9px rgb(0 0 0 / 0.02), 0 2px 7.8px rgb(0 0 0 / 0.027), 0 4px 18px rgb(0 0 0 / 0.04)',
       },
       backgroundImage: {
         'grid-fade':

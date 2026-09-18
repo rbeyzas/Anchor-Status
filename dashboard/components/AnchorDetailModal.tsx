@@ -84,7 +84,7 @@ export function AnchorDetailModal({
             wallet would: its stellar.toml, its transfer server, and a SEP-10
             sign-in, then we start a deposit and
             <span className="font-medium text-ink"> abandon it before any money moves</span>.
-            The score reflects whether that works and how fast — not how much
+            The score reflects whether that works and how fast, not how much
             traffic the anchor has. An anchor that only serves registered
             wallets still counts as reachable.
           </div>
@@ -104,7 +104,7 @@ export function AnchorDetailModal({
           <div className="flex flex-col gap-1">
             <span className="text-xs text-ink-muted">Checks behind the score</span>
             <span className="tabular font-heading font-semibold text-ink">
-              {anchor.health ? anchor.health.observations : '—'}
+              {anchor.health ? anchor.health.observations : '-'}
             </span>
             {anchor.stake > 0 && (
               <span className="tabular text-xs text-ink-muted">{formatStakeXlm(anchor.stake)} staked</span>
@@ -235,7 +235,7 @@ export function AnchorDetailModal({
         {anchor.slashEvents.length > 0 && (
           <div className="mt-4 text-sm text-ink-muted">
             <span className="font-medium text-danger">{anchor.slashEvents.length} legacy slashing event{anchor.slashEvents.length === 1 ? '' : 's'}</span>{' '}
-            — marked with dashed red lines. They come from an earlier version of the oracle, which slashed stake
+            Marked with dashed red lines. They come from an earlier version of the oracle, which slashed stake
             automatically and was triggered here by bugs in our own probe. The oracle now only publishes a score and never
             moves anyone&apos;s stake.
           </div>
