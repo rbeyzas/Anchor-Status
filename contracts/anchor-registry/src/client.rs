@@ -9,7 +9,7 @@
 //! collide with performance-oracle's own same-named exports (e.g. `init`).
 //! `#[contractclient]` on a plain trait generates only the typed call
 //! wrapper, with no exports, so it's safe to use from a dependent contract.
-use soroban_sdk::{contractclient, Address, Env, String, Symbol};
+use soroban_sdk::{contractclient, Address, Env, Symbol};
 
 use crate::errors::Error;
 use crate::types::AnchorInfo;
@@ -24,5 +24,4 @@ pub trait AnchorRegistryInterface {
     ) -> Result<(), Error>;
     fn update_score(env: Env, anchor_id: Symbol, new_score: u32) -> Result<(), Error>;
     fn get_anchor_info(env: Env, anchor_id: Symbol) -> Result<AnchorInfo, Error>;
-    fn slash(env: Env, anchor_id: Symbol, amount: i128, reason: String) -> Result<(), Error>;
 }

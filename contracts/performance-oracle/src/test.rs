@@ -3,9 +3,10 @@
 use super::*;
 use anchor_registry::{AnchorRegistry, AnchorRegistryClient};
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
-    token, Env,
+    testutils::{Address as _, Events, Ledger},
+    token, xdr, Env, String,
 };
+use types::{RiskReason, Trend};
 
 struct Harness<'a> {
     env: Env,
@@ -199,8 +200,21 @@ fn real_mainnet_report_moves_score_more_than_mock_report() {
     assert!(score_after_real < score_after_mock);
 }
 
+/// Counts `risk_status_changed` events emitted by the most recent invocation.
+fn risk_events(env: &Env) -> u32 {
+    let wanted = xdr::ScVal::Symbol(xdr::ScSymbol("risk_status_changed".try_into().unwrap()));
+    env.events()
+        .all()
+        .events()
+        .iter()
+        .filter(|event| match &event.body {
+            xdr::ContractEventBody::V0(body) => body.topics.first() == Some(&wanted),
+        })
+        .count() as u32
+}
+
 #[test]
-fn repeated_failures_drop_score_below_threshold_and_trigger_slash() {
+fn repeated_failures_flag_risk_without_touching_stake() {
     let env = Env::default();
     let h = setup(&env);
     let reporter = Address::generate(&env);
@@ -208,48 +222,115 @@ fn repeated_failures_drop_score_below_threshold_and_trigger_slash() {
     let anchor_id = Symbol::new(&env, "anchor_1");
     register_and_stake(&h, &anchor_id, 1_000_000);
 
-    let stake_before = h.registry.get_anchor_info(&anchor_id).stake;
-    assert_eq!(stake_before, 1_000_000);
-
-    let mut last_score = 100u32;
     let now = env.ledger().timestamp();
+    let mut last_score = 100u32;
     for _ in 0..10 {
         last_score = h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &now, &SourceType::RealMainnet);
-        if last_score <= scoring::SLASH_THRESHOLD {
-            break;
-        }
     }
 
-    assert!(last_score <= scoring::SLASH_THRESHOLD);
+    assert!(last_score <= scoring::RISK_SCORE_FLOOR);
+    assert_ne!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::None);
+    // The oracle is a neutral measurement: a collapsing score is published,
+    // never turned into a penalty.
     let info_after = h.registry.get_anchor_info(&anchor_id);
-    assert!(
-        info_after.stake < stake_before,
-        "expected stake to be slashed once score crossed the threshold"
-    );
+    assert_eq!(info_after.stake, 1_000_000, "stake must never move on a bad score");
     assert_eq!(info_after.score, last_score);
 }
 
 #[test]
-fn direct_slash_call_without_being_the_oracle_contract_fails() {
+fn three_failures_in_a_row_flag_an_outage_before_the_score_crosses_the_floor() {
+    let env = Env::default();
+    let h = setup(&env);
+    // A mock source moves the headline score slowly (15% weight), so after
+    // three failures it is still above the floor — only the consecutive-
+    // failure rule can catch the outage this early.
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::SimulatedMock);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+
+    let now = env.ledger().timestamp();
+    let mut score = 0;
+    for _ in 0..3 {
+        score = h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &now, &SourceType::SimulatedMock);
+    }
+
+    assert!(score > scoring::RISK_SCORE_FLOOR, "score {score} should still be above the floor");
+    assert_eq!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::ConsecutiveFailures);
+}
+
+#[test]
+fn a_short_recovery_does_not_clear_a_mostly_failing_window() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+
+    let now = env.ledger().timestamp();
+    for _ in 0..8 {
+        h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &now, &SourceType::RealTestnet);
+    }
+    let mut score = 0;
+    for _ in 0..3 {
+        score = h.oracle.submit_report(&reporter, &anchor_id, &true, &10, &now, &SourceType::RealTestnet);
+    }
+
+    // Three fast successes pull the EMA back over the floor...
+    assert!(score > scoring::RISK_SCORE_FLOOR, "score {score} should have recovered past the floor");
+    // ...but 3 of the last 11 reports is still a failing anchor.
+    let health = h.oracle.get_health(&anchor_id);
+    assert_eq!(health.risk_reason, RiskReason::LowSuccessRate);
+    assert_eq!(health.trend, Trend::Improving);
+}
+
+#[test]
+fn risk_event_is_published_on_transitions_only() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    register_and_stake(&h, &anchor_id, 0);
+    let now = env.ledger().timestamp();
+
+    // env.events().all() only reports the most recent invocation's events,
+    // so count after each call.
+    let mut transitions = 0;
+    for _ in 0..6 {
+        h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &now, &SourceType::RealTestnet);
+        transitions += risk_events(&env);
+    }
+    // Healthy -> ScoreBelowFloor -> ConsecutiveFailures: two changes, not six.
+    assert_eq!(transitions, 2);
+}
+
+#[test]
+fn health_of_an_unreported_anchor_is_the_initial_state() {
+    let env = Env::default();
+    let h = setup(&env);
+    let health = h.oracle.get_health(&Symbol::new(&env, "never_seen"));
+    assert_eq!(health.observations, 0);
+    assert_eq!(health.risk_reason, RiskReason::None);
+    assert_eq!(health.trend, Trend::Stable);
+}
+
+#[test]
+fn direct_update_score_call_without_being_the_oracle_contract_fails() {
     let env = Env::default();
     let h = setup(&env);
     let anchor_id = Symbol::new(&env, "anchor_1");
-    register_and_stake(&h, &anchor_id, 1_000_000);
+    register_and_stake(&h, &anchor_id, 0);
 
-    // `setup()` calls mock_all_auths() for the registration/staking calls
-    // above. Clear that before the call under test: a direct call to
-    // registry.slash() from the test root (not from within the
+    // `setup()` calls mock_all_auths() for the registration call above.
+    // Clear that before the call under test: a direct call to
+    // registry.update_score() from the test root (not from within the
     // PerformanceOracle contract's own execution) then has no valid
-    // authorization — it is neither signed nor a genuine contract
-    // invocation by the stored oracle address — and must fail. This is
-    // the real enforcement of "only PerformanceOracle can call slash",
-    // which anchor-registry's own unit tests (run with mock_all_auths)
-    // cannot exercise on their own.
+    // authorization and must fail. This is the real enforcement of "only
+    // PerformanceOracle can write a score", which anchor-registry's own
+    // unit tests (run with mock_all_auths) cannot exercise on their own.
     env.set_auths(&[]);
-    let result = h.registry.try_slash(
-        &anchor_id,
-        &100,
-        &String::from_str(&env, "not really the oracle"),
-    );
+    let result = h.registry.try_update_score(&anchor_id, &1);
     assert!(result.is_err());
 }

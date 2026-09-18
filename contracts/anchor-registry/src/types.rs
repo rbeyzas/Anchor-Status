@@ -1,4 +1,4 @@
-use soroban_sdk::{contractevent, contracttype, Address, String, Symbol};
+use soroban_sdk::{contracttype, Address, String, Symbol};
 
 /// Where an anchor's performance data comes from. The same three
 /// variants (`RealMainnet`, `RealTestnet`, `SimulatedMock`) are used
@@ -33,15 +33,6 @@ pub struct WithdrawalRequest {
     pub amount: i128,
     /// Ledger timestamp (unix seconds) after which the withdrawal may execute.
     pub unlock_time: u64,
-}
-
-#[contractevent(topics = ["slash"])]
-#[derive(Clone, Debug, PartialEq)]
-pub struct SlashEvent {
-    #[topic]
-    pub anchor_id: Symbol,
-    pub amount: i128,
-    pub reason: String,
 }
 
 #[derive(Clone)]

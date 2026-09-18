@@ -2,7 +2,7 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
+    testutils::{storage::Persistent as _, Address as _, Ledger},
     Env, String,
 };
 
@@ -228,58 +228,6 @@ fn withdraw_stake_without_request_fails() {
 }
 
 #[test]
-fn slash_from_oracle_succeeds() {
-    let env = Env::default();
-    let (client, _admin, oracle, token_address, _tc) = setup(&env);
-    let operator = Address::generate(&env);
-    let anchor_id = Symbol::new(&env, "anchor_1");
-    client.register_anchor(
-        &operator,
-        &anchor_id,
-        &String::from_str(&env, "Test Anchor"),
-        &String::from_str(&env, "testanchor.example.com"),
-        &SourceType::RealTestnet,
-    );
-    mint(&env, &token_address, &operator, 1_000_000);
-    client.stake(&anchor_id, &500_000);
-
-    // `mock_all_auths` satisfies require_auth for any address, including
-    // `oracle`, so this exercises slash()'s business logic (stake
-    // reduction, event, clamping). The actual on-chain guarantee — that
-    // only the real PerformanceOracle *contract* can satisfy
-    // `oracle_address.require_auth()` as a direct invoker — is exercised
-    // by performance-oracle's cross-contract integration tests (Faz 2),
-    // where a genuine contract-to-contract call is made without mocking.
-    let _ = &oracle;
-    client.slash(&anchor_id, &200_000, &String::from_str(&env, "low reliability score"));
-
-    let info = client.get_anchor_info(&anchor_id);
-    assert_eq!(info.stake, 300_000);
-}
-
-#[test]
-fn slash_caps_at_current_stake() {
-    let env = Env::default();
-    let (client, _admin, _oracle, token_address, _tc) = setup(&env);
-    let operator = Address::generate(&env);
-    let anchor_id = Symbol::new(&env, "anchor_1");
-    client.register_anchor(
-        &operator,
-        &anchor_id,
-        &String::from_str(&env, "Test Anchor"),
-        &String::from_str(&env, "testanchor.example.com"),
-        &SourceType::RealTestnet,
-    );
-    mint(&env, &token_address, &operator, 1_000_000);
-    client.stake(&anchor_id, &100_000);
-
-    client.slash(&anchor_id, &999_999, &String::from_str(&env, "reason"));
-
-    let info = client.get_anchor_info(&anchor_id);
-    assert_eq!(info.stake, 0);
-}
-
-#[test]
 fn update_score_success() {
     let env = Env::default();
     let (client, _admin, _oracle, _token, _tc) = setup(&env);
@@ -331,4 +279,28 @@ fn double_init_fails() {
 
     let result = client.try_init(&admin, &oracle, &token_address);
     assert_eq!(result, Err(Ok(Error::AlreadyInitialized)));
+}
+
+#[test]
+fn register_anchor_extends_the_record_ttl() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let operator = Address::generate(&env);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    client.register_anchor(
+        &operator,
+        &anchor_id,
+        &String::from_str(&env, "Test Anchor"),
+        &String::from_str(&env, "testanchor.example.com"),
+        &SourceType::RealTestnet,
+    );
+
+    // Without an explicit bump the record would sit at the network's
+    // minimum persistent TTL and could be archived within days.
+    let ttl = env.as_contract(&client.address, || {
+        env.storage()
+            .persistent()
+            .get_ttl(&DataKey::Anchor(anchor_id.clone()))
+    });
+    assert!(ttl >= PERSISTENT_LIFETIME_THRESHOLD, "anchor record TTL was not extended: {ttl}");
 }

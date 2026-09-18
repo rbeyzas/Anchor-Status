@@ -14,11 +14,41 @@ pub use client::AnchorRegistryClient;
 pub use types::{AnchorInfo, SourceType};
 
 use soroban_sdk::{contract, contractimpl, token, Address, Env, String, Symbol, Vec};
-use types::{DataKey, SlashEvent, WithdrawalRequest};
+use types::{DataKey, WithdrawalRequest};
 
 /// How long, in seconds, an operator must wait between requesting a stake
 /// withdrawal and executing it. 7 days.
 pub const WITHDRAWAL_COOLDOWN_SECONDS: u64 = 60 * 60 * 24 * 7;
+
+// Storage TTLs, in ledgers (~5s each). Soroban archives any entry whose TTL
+// runs out; an archived anchor record makes every read fail until someone
+// restores it. Every write re-extends the entry, so an anchor that is still
+// being reported on can never expire. Kept well under the network's maximum
+// entry TTL.
+#[cfg(feature = "contract")]
+const DAY_IN_LEDGERS: u32 = 17_280;
+#[cfg(feature = "contract")]
+const INSTANCE_BUMP_AMOUNT: u32 = 30 * DAY_IN_LEDGERS;
+#[cfg(feature = "contract")]
+const INSTANCE_LIFETIME_THRESHOLD: u32 = INSTANCE_BUMP_AMOUNT - DAY_IN_LEDGERS;
+#[cfg(feature = "contract")]
+const PERSISTENT_BUMP_AMOUNT: u32 = 90 * DAY_IN_LEDGERS;
+#[cfg(feature = "contract")]
+const PERSISTENT_LIFETIME_THRESHOLD: u32 = PERSISTENT_BUMP_AMOUNT - 7 * DAY_IN_LEDGERS;
+
+#[cfg(feature = "contract")]
+fn bump_instance(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(INSTANCE_LIFETIME_THRESHOLD, INSTANCE_BUMP_AMOUNT);
+}
+
+#[cfg(feature = "contract")]
+fn bump_persistent(env: &Env, key: &DataKey) {
+    env.storage()
+        .persistent()
+        .extend_ttl(key, PERSISTENT_LIFETIME_THRESHOLD, PERSISTENT_BUMP_AMOUNT);
+}
 
 #[cfg(feature = "contract")]
 #[contract]
@@ -28,7 +58,7 @@ pub struct AnchorRegistry;
 #[contractimpl]
 impl AnchorRegistry {
     /// One-time setup. `oracle_address` is the only address ever allowed to
-    /// call `slash` / `update_score`. `token_address` is the SAC (e.g. the
+    /// call `update_score`. `token_address` is the SAC (e.g. the
     /// native XLM contract on testnet) used for staking.
     pub fn init(
         env: Env,
@@ -47,6 +77,7 @@ impl AnchorRegistry {
         env.storage()
             .instance()
             .set(&DataKey::TokenAddress, &token_address);
+        bump_instance(&env);
         Ok(())
     }
 
@@ -79,6 +110,7 @@ impl AnchorRegistry {
             last_updated: now,
         };
         env.storage().persistent().set(&key, &info);
+        bump_persistent(&env, &key);
 
         let mut ids: Vec<Symbol> = env
             .storage()
@@ -87,6 +119,7 @@ impl AnchorRegistry {
             .unwrap_or_else(|| Vec::new(&env));
         ids.push_back(anchor_id);
         env.storage().instance().set(&DataKey::AnchorIds, &ids);
+        bump_instance(&env);
 
         Ok(())
     }
@@ -123,6 +156,8 @@ impl AnchorRegistry {
         info.stake += amount;
         info.last_updated = env.ledger().timestamp();
         env.storage().persistent().set(&key, &info);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
         Ok(())
     }
 
@@ -147,9 +182,10 @@ impl AnchorRegistry {
             amount,
             unlock_time: env.ledger().timestamp() + WITHDRAWAL_COOLDOWN_SECONDS,
         };
-        env.storage()
-            .persistent()
-            .set(&DataKey::WithdrawalRequest(anchor_id), &request);
+        let req_key = DataKey::WithdrawalRequest(anchor_id);
+        env.storage().persistent().set(&req_key, &request);
+        bump_persistent(&env, &req_key);
+        bump_persistent(&env, &key);
         Ok(())
     }
 
@@ -185,47 +221,19 @@ impl AnchorRegistry {
         info.stake -= request.amount;
         info.last_updated = env.ledger().timestamp();
         env.storage().persistent().set(&key, &info);
+        bump_persistent(&env, &key);
         env.storage().persistent().remove(&req_key);
         Ok(())
     }
 
-    /// Slashes `amount` from an anchor's stake. Only callable by the
-    /// contract registered as `oracle_address` at init time — Soroban
-    /// auto-authorizes a contract's own address when it is the direct
-    /// invoker of the current call frame, so no signature is needed, but
-    /// only the real PerformanceOracle contract can satisfy this check.
-    pub fn slash(env: Env, anchor_id: Symbol, amount: i128, reason: String) -> Result<(), Error> {
-        if amount <= 0 {
-            return Err(Error::InvalidAmount);
-        }
-        let oracle_address: Address = env.storage().instance().get(&DataKey::OracleAddress).unwrap();
-        oracle_address.require_auth();
-
-        let key = DataKey::Anchor(anchor_id.clone());
-        let mut info: AnchorInfo = env
-            .storage()
-            .persistent()
-            .get(&key)
-            .ok_or(Error::AnchorNotFound)?;
-
-        let slashed = if amount > info.stake { info.stake } else { amount };
-        info.stake -= slashed;
-        info.last_updated = env.ledger().timestamp();
-        env.storage().persistent().set(&key, &info);
-
-        // `reason` is accepted for observability (surfaced via emitted event)
-        // even though it isn't persisted on the anchor record itself.
-        SlashEvent {
-            anchor_id,
-            amount: slashed,
-            reason,
-        }
-        .publish(&env);
-        Ok(())
-    }
-
-    /// Updates an anchor's reliability score. Only callable by the
-    /// PerformanceOracle contract (see `slash` for the auth mechanism).
+    /// Updates an anchor's reliability score. Only callable by the contract
+    /// registered as `oracle_address` at init time. Soroban auto-authorizes
+    /// a contract's own address when it is the direct invoker of the
+    /// current call frame, so no signature is needed — but only the real
+    /// PerformanceOracle contract can satisfy this check.
+    ///
+    /// There is deliberately no slashing entry point. The registry publishes
+    /// a neutral score; it never moves an operator's stake on its own.
     pub fn update_score(env: Env, anchor_id: Symbol, new_score: u32) -> Result<(), Error> {
         if new_score > 100 {
             return Err(Error::InvalidScore);
@@ -242,6 +250,8 @@ impl AnchorRegistry {
         info.score = new_score;
         info.last_updated = env.ledger().timestamp();
         env.storage().persistent().set(&key, &info);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
         Ok(())
     }
 
