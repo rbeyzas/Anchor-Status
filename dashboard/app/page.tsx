@@ -170,6 +170,9 @@ export default async function LandingPage() {
               </li>
             ))}
           </ol>
+          <Link href="/methodology" className="mt-8 inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline">
+            How each check is weighed, and how to verify a score <ArrowRight size={14} weight="bold" aria-hidden="true" />
+          </Link>
         </section>
 
         {/* Evidence */}

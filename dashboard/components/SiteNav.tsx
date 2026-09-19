@@ -13,8 +13,8 @@ export function SiteNav({ onDark = false, showCta = true }: { onDark?: boolean; 
         <Wordmark className={onDark ? 'text-white' : 'text-ink'} dot={onDark ? '#62aef0' : undefined} />
       </Link>
       <div className="flex items-center gap-3 sm:gap-5">
-        <Link href="/#method" className={`hidden text-sm transition-colors sm:inline ${link}`}>
-          Method
+        <Link href="/methodology" className={`text-sm transition-colors ${link}`}>
+          How we measure
         </Link>
         <Link href="/#evidence" className={`hidden text-sm transition-colors sm:inline ${link}`}>
           Evidence
