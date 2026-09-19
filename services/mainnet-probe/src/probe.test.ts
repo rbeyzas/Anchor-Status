@@ -37,7 +37,15 @@ function fakeAnchor(overrides: Record<string, Route> = {}): Fetch {
 }
 
 const probe = (fetchImpl: Fetch) =>
-  probeAnchor({ anchor_id: 'a', domain: DOMAIN }, { fetchImpl, requestTimeoutMs: 5000, networkPassphrase: Networks.PUBLIC });
+  probeAnchor(
+    { anchor_id: 'a', domain: DOMAIN },
+    {
+      fetchImpl,
+      requestTimeoutMs: 5000,
+      networkPassphrase: Networks.PUBLIC,
+      tlsCheck: async () => ({ ok: true, daysLeft: 60 }),
+    },
+  );
 
 describe('probeAnchor', () => {
   it('passes every stage against a healthy anchor, without completing a deposit', async () => {
@@ -137,6 +145,109 @@ describe('probeAnchor', () => {
       }),
     );
     expect(r.success).toBe(true);
+  });
+});
+
+describe('stages_expected', () => {
+  it('is all five stages for a SEP-24 anchor with SEP-10 and a deposit asset', async () => {
+    const r = await probe(fakeAnchor());
+    expect(r.stages_expected).toEqual(['toml', 'info', 'challenge', 'token', 'initiate']);
+  });
+
+  it('is toml, info and the SEP-10 pair for a SEP-6-only anchor with SEP-10', async () => {
+    const r = await probe(
+      fakeAnchor({
+        '/.well-known/stellar.toml': () =>
+          new Response(`WEB_AUTH_ENDPOINT = "https://${DOMAIN}/auth"\nSIGNING_KEY = "${anchorKey.publicKey()}"\nTRANSFER_SERVER = "https://${DOMAIN}/sep6"`),
+        '/sep6/info': () => Response.json({ deposit: { BTC: { enabled: true } } }),
+      }),
+    );
+    expect(r.stages_expected).toEqual(['toml', 'info', 'challenge', 'token']);
+  });
+
+  it('is only toml and info without SEP-10', async () => {
+    const r = await probe(
+      fakeAnchor({
+        '/.well-known/stellar.toml': () => new Response(`TRANSFER_SERVER = "https://${DOMAIN}/sep6"`),
+        '/sep6/info': () => Response.json({ deposit: { BTC: { enabled: true } } }),
+      }),
+    );
+    expect(r.stages_expected).toEqual(['toml', 'info']);
+  });
+
+  it('leaves out the deposit start when no deposit asset is enabled', async () => {
+    const r = await probe(fakeAnchor({ '/sep24/info': () => Response.json({ withdraw: { USDC: { enabled: true } } }) }));
+    expect(r.stages_expected).toEqual(['toml', 'info', 'challenge', 'token']);
+  });
+});
+
+describe('checks', () => {
+  it('records a healthy anchor as passing every check', async () => {
+    const r = await probe(
+      fakeAnchor({ '/.well-known/stellar.toml': () => new Response(toml(), { headers: { 'Access-Control-Allow-Origin': '*' } }) }),
+    );
+    expect(r.checks).toEqual({
+      toml_valid: true,
+      toml_cors: true,
+      sep10_advertised: true,
+      sep10_signature_valid: true,
+      info_valid: true,
+      tls_ok: true,
+      tls_days_left: 60,
+      signing_key: anchorKey.publicKey(),
+    });
+  });
+
+  it('notices a missing CORS header', async () => {
+    const r = await probe(fakeAnchor());
+    expect(r.checks!.toml_cors).toBe(false);
+  });
+
+  it('tells a challenge signed by someone else apart from an HTTP failure', async () => {
+    const impostor = Keypair.random();
+    const wrongKey = await probe(
+      fakeAnchor({
+        'GET /auth': (url) =>
+          Response.json({
+            transaction: WebAuth.buildChallengeTx(impostor, url.searchParams.get('account')!, DOMAIN, 300, Networks.PUBLIC, DOMAIN),
+            network_passphrase: Networks.PUBLIC,
+          }),
+      }),
+    );
+    expect(wrongKey.checks!.sep10_signature_valid).toBe(false);
+
+    const down = await probe(fakeAnchor({ 'GET /auth': () => new Response('', { status: 502 }) }));
+    expect(down.checks!.sep10_signature_valid).toBeUndefined();
+    expect(down.failed_stage).toBe('challenge');
+  });
+
+  it('marks /info without an enabled asset as invalid, without failing the probe', async () => {
+    const r = await probe(fakeAnchor({ '/sep24/info': () => Response.json({ deposit: { USDC: { enabled: false } } }) }));
+    expect(r.checks!.info_valid).toBe(false);
+  });
+
+  it('records the toml currencies', async () => {
+    const r = await probe(
+      fakeAnchor({
+        '/.well-known/stellar.toml': () =>
+          new Response(`${toml()}\n[[CURRENCIES]]\ncode = "ARST"\nissuer = "GISSUER"\nanchor_asset_type = "fiat"\nanchor_asset = "ARS"\nis_asset_anchored = true`),
+      }),
+    );
+    expect(r.assets).toEqual([{ code: 'ARST', issuer: 'GISSUER', anchor_asset_type: 'fiat', anchor_asset: 'ARS', is_asset_anchored: true }]);
+  });
+
+  it('keeps the TLS result out of the measured API time', async () => {
+    const r = await probeAnchor(
+      { anchor_id: 'a', domain: DOMAIN },
+      {
+        fetchImpl: fakeAnchor(),
+        requestTimeoutMs: 5000,
+        networkPassphrase: Networks.PUBLIC,
+        tlsCheck: () => new Promise((resolve) => setTimeout(() => resolve({ ok: false, daysLeft: 3, error: 'expires soon' }), 50)),
+      },
+    );
+    expect(r.checks).toMatchObject({ tls_ok: false, tls_days_left: 3, tls_error: 'expires soon' });
+    expect(r.settlement_seconds).toBeLessThan(0.05);
   });
 });
 

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Listing, MainnetAnchor } from './anchors.js';
+import type { AssetStatus } from './issuers.js';
 import type { MainnetProbeResult, StageName } from './probe.js';
 
 export interface AnchorStatus {
@@ -17,6 +18,9 @@ export interface AnchorStatus {
     /** Stages the anchor declined by policy (e.g. registered wallets only). */
     policy: StageName[];
   };
+  /** The assets its stellar.toml lists, each with whether the anchor
+   * issues it (the issuer's home_domain points back at it). */
+  assets?: AssetStatus[];
 }
 
 export interface StatusFile {
@@ -37,6 +41,7 @@ export function buildStatus(
   previous: StatusFile | null,
   now: Date,
   isDormant: (a: MainnetAnchor) => boolean,
+  assets: Map<string, AssetStatus[]> = new Map(),
 ): StatusFile {
   const byId = new Map(results.map((r) => [r.anchor_id, r]));
   const out: StatusFile = { generated_at: now.toISOString(), anchors: {} };
@@ -59,6 +64,8 @@ export function buildStatus(
           }
         : previous?.anchors[a.anchor_id]?.last_probe,
     };
+    const listed = assets.get(a.anchor_id) ?? previous?.anchors[a.anchor_id]?.assets;
+    if (listed) out.anchors[a.anchor_id].assets = listed;
   }
   return out;
 }

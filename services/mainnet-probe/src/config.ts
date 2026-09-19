@@ -25,6 +25,12 @@ export const config = {
   // Latest verdict per anchor, with its directory label: what the dashboard
   // shows next to each anchor. Served next to the history archive.
   statusPath: resolve(process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json'),
+  // Issuer accounts read from Horizon, cached for a day, beside the status.
+  issuersCachePath: path.join(
+    path.dirname(resolve(process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json')),
+    'issuers.json',
+  ),
+  horizonUrl: (process.env.HORIZON_MAINNET_URL ?? 'https://horizon.stellar.org').replace(/\/$/, ''),
   // Content-addressed evidence documents (<sha256>.json), published as-is.
   evidenceDir: resolve(process.env.EVIDENCE_DIR ?? 'services/mainnet-probe/evidence'),
   // Anchors not seen answering for a week are still probed, just this often.

@@ -61,14 +61,43 @@ transactions.
 `settlement_seconds` is the time the anchor's API took. Transaction volume
 plays no part in the score.
 
+Each result also records what the score card needs
+([`docs/SCORING.md`](../../docs/SCORING.md)):
+
+- `stages_expected`: the stages the anchor's own toml says a full check
+  reaches: `toml` and `info` always, `challenge` and `token` when it
+  publishes `WEB_AUTH_ENDPOINT` and `SIGNING_KEY`, `initiate` when it offers
+  SEP-24 deposits. Completed stages over these is how deep we could test,
+  which feeds the card's confidence.
+- `checks`: raw integrity observations. `toml_valid`, `toml_cors` (the
+  toml's `Access-Control-Allow-Origin`), `sep10_advertised`,
+  `sep10_signature_valid` (true or false only when a challenge came back,
+  so a wrong key is told apart from an HTTP failure), `info_valid` (at
+  least one enabled asset), `tls_ok` and `tls_days_left` (a separate TLS
+  connection, not counted in `settlement_seconds`; fails under 14 days),
+  and `signing_key`. The scorer decides pass, fail or n/a.
+
+The toml's `[[CURRENCIES]]` are checked against their issuers: Horizon's
+`home_domain` of each issuer account, cached for a day in `issuers.json`
+beside the status file. An asset whose issuer points back at the anchor is
+one it **issues**; that is what the Market pillar and the flow signals apply
+to. For an asset issued by someone else (USDC, say), the issuer's own
+domain's toml must list it; if that toml cannot be read at all (Circle's
+circle.com serves none), the asset is left unjudged rather than counted
+against the anchor. "On-chain since" is the issuer account's creation time
+from StellarExpert, because SDF's Horizon keeps only about a year of
+history.
+
 After each run the latest verdict per anchor — its directory label, whether
-it is dormant, and the stage and error of its last failure — is written to
-`status.json` (`MAINNET_STATUS_PATH`). The collector serves it next to the
-history archive and the dashboard shows it on each card.
+it is dormant, the stage and error of its last failure, and its listed
+assets with the issuer check — is written to `status.json`
+(`MAINNET_STATUS_PATH`). The collector serves it next to the history
+archive and the dashboard shows it on each card.
 
 Results are appended, one JSON line per anchor, to
 `results/probe-YYYY-MM-DD.jsonl` (`MAINNET_PROBE_RESULTS_DIR`). Nothing is
-rewritten; `aggregator` reads the last three days.
+rewritten; `aggregator` reads the last three days for reports and the last
+30 for score cards.
 
 ## Evidence — `npm run verify -- <sha256>`
 

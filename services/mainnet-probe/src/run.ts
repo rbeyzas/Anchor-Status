@@ -7,6 +7,7 @@ import { HttpError } from './http.js';
 import { probeAnchor, type MainnetProbeResult, type ProbeTarget } from './probe.js';
 import { buildStatus, lastProbedAt, loadStatus, saveStatus } from './status.js';
 import { writeEvidence } from './evidence.js';
+import { listDomainAssets, loadIssuerCache, lookupIssuer, saveIssuerCache, verifyAssets, type AssetStatus } from './issuers.js';
 
 /** Resolves to a timeout failure if the whole probe of one anchor overruns,
  * so a hung anchor can't hold up the round. */
@@ -122,12 +123,36 @@ async function main() {
         ...(rest.error ? { error: rest.error } : {}),
       },
       stages: rest.stages,
+      ...(rest.stages_expected ? { stages_expected: rest.stages_expected } : {}),
+      ...(rest.checks ? { checks: rest.checks } : {}),
       ...(transcript ?? {}),
     });
   }
 
+  // Which listed assets each anchor actually issues (SEP-1's two-way link),
+  // read from Horizon at most once a day per issuer.
+  const issuerCache = loadIssuerCache(config.issuersCachePath);
+  const assets = new Map<string, AssetStatus[]>();
+  for (const r of results) {
+    if (r.inconclusive || !r.assets) continue;
+    assets.set(
+      r.anchor_id,
+      await verifyAssets(
+        r.assets,
+        r.domain,
+        issuerCache,
+        now,
+        (issuer) => lookupIssuer(fetch, config.horizonUrl, issuer, new Date(), config.requestTimeoutMs),
+        (domain) => listDomainAssets(fetch, domain, new Date(), config.requestTimeoutMs),
+      ),
+    );
+  }
+  saveIssuerCache(config.issuersCachePath, issuerCache);
+  // The asset list belongs in the status file, not in every log line.
+  for (const r of results) delete r.assets;
+
   appendResults(config.resultsDir, results);
-  saveStatus(config.statusPath, buildStatus(anchors, results, previousStatus, now, dormant));
+  saveStatus(config.statusPath, buildStatus(anchors, results, previousStatus, now, dormant, assets));
   for (const r of results) {
     const verdict = r.inconclusive ? 'INCONCLUSIVE' : r.success ? 'OK' : `FAIL@${r.failed_stage}`;
     const policy = Object.entries(r.stages)
