@@ -6,7 +6,24 @@ import { SiteNav } from '@/components/SiteNav';
 import { SourceBadge } from '@/components/SourceBadge';
 import { Sparkline } from '@/components/Sparkline';
 import { StatusChip } from '@/components/StatusChip';
+import { ProbeTimeline } from '@/components/home/ProbeTimeline';
+import { ProofChain } from '@/components/home/ProofChain';
+import { ScoreJourney } from '@/components/home/ScoreJourney';
+import { StatStrip } from '@/components/home/StatStrip';
+import { Ticker } from '@/components/home/Ticker';
 import { formatRelativeTime } from '@/lib/format';
+import {
+  counters,
+  probeExample,
+  proofChain,
+  scoreJourney,
+  tickerItems,
+  type Counters,
+  type ProbeExample,
+  type ProofChain as Chain,
+  type ScoreJourney as Journey,
+  type TickerItem,
+} from '@/lib/home';
 import { getDashboardData } from '@/lib/soroban';
 import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
@@ -21,24 +38,42 @@ interface HomeSnapshot {
   top: AnchorViewModel[];
   mainnetCount: number;
   lastPublishedAt: string | null;
+  counters?: Counters;
+  probe?: ProbeExample;
+  journey?: Journey;
+  proof?: Chain;
+  ticker: TickerItem[];
 }
+
+const EMPTY: HomeSnapshot = { top: [], mainnetCount: 0, lastPublishedAt: null, ticker: [] };
 
 async function loadSnapshot(): Promise<HomeSnapshot> {
   try {
     const { anchors, dataSource } = await getDashboardData();
-    if (dataSource !== 'live') return { top: [], mainnetCount: 0, lastPublishedAt: null };
+    if (dataSource !== 'live') return EMPTY;
     const mainnet = anchors.filter((a) => a.sourceType === 'RealMainnet');
     // Only scores the dashboard would show: a card with enough confidence.
     const top = [...mainnet].filter(hasEnoughData).sort((a, b) => headlineScore(b) - headlineScore(a)).slice(0, 5);
-    const publishedTimes = mainnet.map((a) => a.card?.publishedAt).filter((t): t is string => Boolean(t));
-    const lastPublishedAt = publishedTimes.length
-      ? publishedTimes.reduce((latest, t) => (t > latest ? t : latest))
-      : null;
-    return { top, mainnetCount: mainnet.length, lastPublishedAt };
+    const c = counters(anchors);
+    const journey = scoreJourney(anchors);
+    return {
+      top,
+      mainnetCount: c.anchors,
+      lastPublishedAt: c.lastPublishedAt,
+      counters: c,
+      probe: probeExample(anchors),
+      journey,
+      // The same anchor as the walkthrough above it, when it has evidence.
+      proof: proofChain(anchors, journey?.anchorId),
+      ticker: tickerItems(anchors),
+    };
   } catch {
-    return { top: [], mainnetCount: 0, lastPublishedAt: null };
+    return EMPTY;
   }
 }
+
+const ORACLE_ID = process.env.NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID;
+const ORACLE_URL = ORACLE_ID ? `https://stellar.expert/explorer/testnet/contract/${ORACLE_ID}` : undefined;
 
 const STEPS = [
   {
@@ -46,6 +81,7 @@ const STEPS = [
     icon: Broadcast,
     sticker: 'bg-sticker-sky',
     title: 'Probe',
+    short: 'Every 20 minutes, the steps a wallet takes. No funds move.',
     body: 'Independent collectors call each anchor the way a wallet would: stellar.toml, transfer server, SEP-10 challenge, SEP-24 deposit. No funds move.',
   },
   {
@@ -53,6 +89,7 @@ const STEPS = [
     icon: ChartLineUp,
     sticker: 'bg-sticker-purple',
     title: 'Score',
+    short: 'Thirty days of checks become four pillars, one confidence, one score.',
     body: 'Thirty days of checks become a score card: availability, speed, integrity and, for anchors that issue their own asset, how well it holds its peg. A separate confidence says how much we measured; hard failures cap the score.',
   },
   {
@@ -60,6 +97,7 @@ const STEPS = [
     icon: Stamp,
     sticker: 'bg-sticker-teal',
     title: 'Publish',
+    short: 'The card goes on-chain with the hash of everything behind it.',
     body: 'The card goes on-chain with the hash of every input behind it, and the inputs are published. Anyone can recompute the score. The contract never touches an anchor’s stake.',
   },
 ];
@@ -83,7 +121,12 @@ const EVIDENCE = [
 ];
 
 export default async function LandingPage() {
-  const { top, mainnetCount, lastPublishedAt } = await loadSnapshot();
+  const { top, mainnetCount, lastPublishedAt, counters: stats, probe, journey, proof, ticker } = await loadSnapshot();
+  const visuals = [
+    probe && <ProbeTimeline example={probe} />,
+    journey && <ScoreJourney journey={journey} />,
+    proof && <ProofChain chain={proof} oracleUrl={ORACLE_URL} />,
+  ];
 
   return (
     <div className="as-grid-ground">
@@ -173,22 +216,40 @@ export default async function LandingPage() {
       </div>
 
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
+        {/* Live readings: the latest checks, and the chain's own counts. */}
+        {(ticker.length > 0 || stats) && (
+          <section aria-label="Live readings" className="flex flex-col gap-4">
+            <Ticker items={ticker} />
+            {stats && (
+              <StatStrip
+                anchors={stats.anchors}
+                reports={stats.reports}
+                cards={stats.cards}
+                lastPublished={stats.lastPublishedAt ? formatRelativeTime(stats.lastPublishedAt) : null}
+              />
+            )}
+          </section>
+        )}
+
         {/* Method */}
         <section id="method" className="scroll-mt-8 py-20 md:py-28">
           <h2 className="max-w-xl font-heading text-[44px] font-bold leading-[1.02] tracking-[-0.025em] text-as-ink">
             Measured three times, published once.
           </h2>
-          <ol className="mt-12 grid gap-4 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <li key={s.n} className="as-panel p-6">
-                <span className="flex h-11 w-11 items-center justify-center rounded-as-md bg-as-signal-soft text-as-signal">
-                  <s.icon size={22} weight="bold" aria-hidden="true" />
-                </span>
-                <h3 className="mt-5 font-heading text-[22px] font-bold tracking-[-0.011em] text-as-ink">
-                  <span className="as-mono mr-2 text-sm text-as-ink-faint">{s.n}</span>
-                  {s.title}
-                </h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-as-ink-muted">{s.body}</p>
+          <ol className="mt-12 flex flex-col gap-14">
+            {STEPS.map((s, i) => (
+              <li key={s.n} className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+                <div>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-as-md bg-as-signal-soft text-as-signal">
+                    <s.icon size={22} weight="bold" aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-4 font-heading text-[22px] font-bold tracking-[-0.011em] text-as-ink">
+                    <span className="as-mono mr-2 text-sm text-as-ink-faint">{s.n}</span>
+                    {s.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{visuals[i] ? s.short : s.body}</p>
+                </div>
+                <div className="min-w-0">{visuals[i]}</div>
               </li>
             ))}
           </ol>

@@ -1,4 +1,4 @@
-import type { AnchorStatusView, AnchorViewModel } from './types';
+import type { AnchorStatusView, AnchorViewModel, LastProbeView, ProbeStage } from './types';
 
 /** Latest mainnet-probe verdict per anchor, published by the collector next
  * to the history archive. Fetched server-side for the same reason: it is
@@ -13,6 +13,22 @@ interface LastProbe {
   failed_stage?: string;
   error?: string;
   policy: string[];
+  stages?: Array<{ stage: ProbeStage; ok: boolean; ms?: number; policy?: boolean }>;
+  stages_expected?: ProbeStage[];
+  settlement_seconds?: number;
+}
+
+/** The latest check step by step, when the collector published its stages
+ * (and it was conclusive: our own outage is not a picture of theirs). */
+export function lastProbeView(probe: LastProbe | undefined): LastProbeView | undefined {
+  if (!probe?.stages?.length || probe.inconclusive) return undefined;
+  return {
+    at: probe.timestamp,
+    success: probe.success,
+    stages: probe.stages,
+    expected: probe.stages_expected ?? probe.stages.map((s) => s.stage),
+    ...(probe.settlement_seconds !== undefined ? { seconds: probe.settlement_seconds } : {}),
+  };
 }
 
 interface StatusAsset {
@@ -103,6 +119,7 @@ export function mergeStatusInto(anchors: AnchorViewModel[], status: StatusFile |
             policyNote: policyNote(s.last_probe),
           }
         : {}),
+      ...(lastProbeView(s.last_probe) ? { lastProbe: lastProbeView(s.last_probe) } : {}),
       ...issuedAssets(s.assets),
       ...(s.alias_of
         ? { aliasOf: { anchorId: s.alias_of, domain: status.anchors[s.alias_of]?.domain ?? s.alias_of } }

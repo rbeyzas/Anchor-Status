@@ -22,6 +22,13 @@ and visualizes it (read-only — never signs a transaction).
   default, light kept), exposed to Tailwind as `as-*` colors, radii and
   shadows; `StatusChip`, `ScoreValue` (arc that draws in as its numeral
   counts up) and `Radar` (home hero ambience only) are the shared pieces.
+- Home page, every figure from live data (`lib/home.ts`): a ticker of the
+  latest checks, the chain's own counts (anchors, reports, cards, last
+  publish), one real check drawn step by step with its timings, the top
+  score card recomputed in four steps (shown only when the recomputation
+  lands exactly on the on-chain score), and the chain from that check's
+  evidence hash to the card. Whatever cannot be drawn from real data falls
+  back to text; nothing is filled in.
 - `/apply`: an anchor operator applies with a domain; the page lists what
   is checked, each application's results, and recent applications (see
   below).

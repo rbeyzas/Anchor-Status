@@ -834,3 +834,55 @@ body {
     display: none;
   }
 }
+
+/* ---------- Home: the check, the score, the proof ---------- */
+@media (max-width: 767px) {
+  /* Five steps side by side do not fit a phone: a vertical list, the
+     result line on the left instead of underneath. */
+  .as-probe {
+    grid-template-columns: 1fr;
+  }
+  .as-probe__step::after {
+    top: 0;
+    bottom: 0;
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+  .as-probe__cursor {
+    display: none;
+  }
+}
+
+/* A step in a left-to-right flow, with an arrow into the next one; the
+   arrow turns downward when the flow stacks. */
+.as-flow {
+  display: grid;
+  gap: 28px;
+}
+@media (min-width: 1024px) {
+  .as-flow--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.as-flow__node {
+  position: relative;
+  min-width: 0;
+}
+.as-flow__node + .as-flow__node::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  width: 1px;
+  height: 16px;
+  background: rgb(var(--as-hairline-strong));
+}
+@media (min-width: 1024px) {
+  .as-flow--4 .as-flow__node + .as-flow__node::before {
+    left: -22px;
+    top: 50%;
+    width: 16px;
+    height: 1px;
+  }
+}

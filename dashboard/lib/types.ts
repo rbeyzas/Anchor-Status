@@ -80,6 +80,19 @@ export interface AnchorStatusView {
   onChainSince?: string;
   /** Another domain of an operator we already measure under this entry. */
   aliasOf?: { anchorId: string; domain: string };
+  /** Each step of the latest check, in order, with its time. */
+  lastProbe?: LastProbeView;
+}
+
+export type ProbeStage = 'toml' | 'info' | 'challenge' | 'token' | 'initiate';
+
+export interface LastProbeView {
+  at: string;
+  success: boolean;
+  stages: Array<{ stage: ProbeStage; ok: boolean; ms?: number; policy?: boolean }>;
+  /** The steps its own stellar.toml says a full check reaches. */
+  expected: ProbeStage[];
+  seconds?: number;
 }
 
 export interface AnchorViewModel {
