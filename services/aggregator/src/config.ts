@@ -53,4 +53,22 @@ export const config = {
     repoRoot,
     process.env.AGGREGATOR_STATE_PATH ?? 'services/aggregator/state.json',
   ),
+
+  // --- Score cards (docs/SCORING.md) ---
+  // mainnet-probe's status file: the assets each anchor lists and issues.
+  mainnetStatusPath: path.resolve(
+    repoRoot,
+    process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json',
+  ),
+  // Where inputs bundles are published, beside the probes' own evidence.
+  evidenceDir: path.resolve(repoRoot, process.env.EVIDENCE_DIR ?? 'services/mainnet-probe/evidence'),
+  // passive-monitor's chain signals.
+  marketSamplesDir: path.resolve(
+    repoRoot,
+    process.env.PASSIVE_MONITOR_MARKET_DIR ?? 'services/passive-monitor/output/market',
+  ),
+  flowsPath: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_FLOWS_PATH ?? 'services/passive-monitor/output/flows.json'),
 };
+
+/** The last card published per anchor, beside the report dedup state. */
+export const scoreCardsStatePath = () => path.join(path.dirname(config.statePath), 'score-cards.json');

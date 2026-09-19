@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { submitReport } from './contract.js';
 import { dedupKey } from './normalize.js';
 import { readMainnetProbeReports, readMockAnchorReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
+import { runScoring } from './scoring/run.js';
 import { loadState, saveState } from './state.js';
 import type { NormalizedReport } from './types.js';
 
@@ -39,7 +40,14 @@ async function main() {
   }
 
   console.log(`[aggregator] done: ${succeeded} submitted, ${failed} failed, ${reports.length - pending.length} skipped (already sent)`);
-  if (failed > 0) {
+
+  // Score cards come after the reports, so a card never lands before the
+  // report that its window already counts.
+  const scoring = await runScoring().catch((err) => {
+    console.error(`[aggregator] scoring failed: ${(err as Error).message}`);
+    return { published: 0, failed: 1 };
+  });
+  if (failed > 0 || scoring.failed > 0) {
     process.exitCode = 1;
   }
 }

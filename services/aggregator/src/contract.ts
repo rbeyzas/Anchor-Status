@@ -1,6 +1,7 @@
 import { contract, Keypair } from '@stellar/stellar-sdk';
 import { config } from './config.js';
 import type { NormalizedReport, SourceType } from './types.js';
+import type { ScoreCard } from './scoring/types.js';
 
 const clientCache = new Map<string, Promise<contract.Client>>();
 
@@ -56,5 +57,38 @@ export async function submitReport(report: NormalizedReport): Promise<void> {
   const assembled = report.evidence_hash
     ? await c.submit_report_with_evidence({ ...args, evidence: Buffer.from(report.evidence_hash, 'hex') })
     : await c.submit_report(args);
+  await assembled.signAndSend();
+}
+
+/** Thrown when the deployed oracle predates score cards. */
+export class ScoreCardsUnsupported extends Error {}
+
+/**
+ * Publishes a score card with PerformanceOracle.publish_score_card, signed
+ * by the RealMainnet reporter (the contract checks it against the anchor's
+ * source type in the registry).
+ */
+export async function publishScoreCard(anchorId: string, card: ScoreCard, inputsHash: string): Promise<void> {
+  const client = await getReporterClient('RealMainnet');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c = client as any;
+  if (typeof c.publish_score_card !== 'function') throw new ScoreCardsUnsupported('the oracle has no publish_score_card yet');
+  const reporter = Keypair.fromSecret(config.reporterSecretKeys.RealMainnet()).publicKey();
+  const assembled = await c.publish_score_card({
+    reporter,
+    anchor_id: anchorId,
+    card: {
+      score: card.score,
+      availability: card.availability,
+      speed: card.speed,
+      integrity: card.integrity,
+      market: card.market ?? undefined,
+      confidence: card.confidence,
+      flags: card.flags,
+      window_end: BigInt(card.window_end),
+      methodology_version: card.methodology_version,
+      inputs_hash: Buffer.from(inputsHash, 'hex'),
+    },
+  });
   await assembled.signAndSend();
 }
