@@ -251,3 +251,14 @@ describe('selectToPublish', () => {
     expect(selectToPublish(many, {}, now)).toHaveLength(40);
   });
 });
+
+describe('readAliases', () => {
+  it('maps each alias to the anchor it is measured under', async () => {
+    const { readAliases } = await import('./load.js');
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'status-'));
+    const file = path.join(dir, 'status.json');
+    fs.writeFileSync(file, JSON.stringify({ anchors: { anclap_com: { alias_of: 'api_anclap_com' }, api_anclap_com: {}, moneygram: {} } }));
+    expect([...readAliases(file)]).toEqual([['anclap_com', 'api_anclap_com']]);
+    expect(readAliases(path.join(dir, 'missing.json')).size).toBe(0);
+  });
+});

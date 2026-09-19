@@ -5,6 +5,7 @@ import { mapWithConcurrency } from './concurrency.js';
 import { config } from './config.js';
 import { HttpError } from './http.js';
 import { probeAnchor, type MainnetProbeResult, type ProbeTarget } from './probe.js';
+import { assignAliases, operatorKey } from './aliases.js';
 import { buildStatus, lastProbedAt, loadStatus, saveStatus } from './status.js';
 import { writeEvidence } from './evidence.js';
 import { listDomainAssets, loadIssuerCache, lookupIssuer, saveIssuerCache, verifyAssets, type AssetStatus } from './issuers.js';
@@ -61,12 +62,16 @@ async function main() {
     registeredMainnetAnchors(config.registeredAnchorsPath).map((a) => ({ ...a, first_seen: now.toISOString() }));
   const previousStatus = loadStatus(config.statusPath);
   const dormant = (a: MainnetAnchor) => isDormant(a, now);
+  const aliased = (a: MainnetAnchor) => Boolean(previousStatus?.anchors[a.anchor_id]?.alias_of);
 
   // Every anchor is measured; dormant ones (silent for a week) only every
   // few hours, so ~80 dead directory entries don't turn each 20-minute round
-  // into 80 failing transactions.
+  // into 80 failing transactions. An alias (another domain in front of an
+  // anchor we already measure) is checked as rarely: only to notice if it
+  // ever stops being the same operator.
   const due = anchors.filter(
-    (a) => !dormant(a) || now.getTime() - lastProbedAt(previousStatus, a.anchor_id) >= config.dormantIntervalMs,
+    (a) =>
+      !(dormant(a) || aliased(a)) || now.getTime() - lastProbedAt(previousStatus, a.anchor_id) >= config.dormantIntervalMs,
   );
   console.log(
     `[mainnet-probe] probing ${due.length} of ${anchors.length} anchor(s) ` +
@@ -106,10 +111,13 @@ async function main() {
 
   // Publish one evidence document per conclusive result; its hash goes into
   // the result, and from there into the on-chain report event.
+  const operators = new Map<string, string>();
   for (const r of results) {
     const { transcript, ...rest } = r;
     delete r.transcript;
     if (r.inconclusive) continue;
+    const operator = operatorKey(transcript?.stellar_toml?.transfer_server, transcript?.stellar_toml?.signing_key);
+    if (operator) operators.set(r.anchor_id, operator);
     r.evidence_hash = writeEvidence(config.evidenceDir, {
       kind: 'mainnet-probe',
       network: 'mainnet',
@@ -152,7 +160,12 @@ async function main() {
   for (const r of results) delete r.assets;
 
   appendResults(config.resultsDir, results);
-  saveStatus(config.statusPath, buildStatus(anchors, results, previousStatus, now, dormant, assets));
+  const status = buildStatus(anchors, results, previousStatus, now, dormant, assets, operators);
+  assignAliases(status, anchors, dormant);
+  saveStatus(config.statusPath, status);
+  for (const [id, s] of Object.entries(status.anchors)) {
+    if (s.alias_of) console.log(`[mainnet-probe] ${id} is the same operator as ${s.alias_of}; measured under ${s.alias_of}`);
+  }
   for (const r of results) {
     const verdict = r.inconclusive ? 'INCONCLUSIVE' : r.success ? 'OK' : `FAIL@${r.failed_stage}`;
     const policy = Object.entries(r.stages)

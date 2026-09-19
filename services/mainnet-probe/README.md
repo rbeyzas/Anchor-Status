@@ -88,9 +88,15 @@ against the anchor. "On-chain since" is the issuer account's creation time
 from StellarExpert, because SDF's Horizon keeps only about a year of
 history.
 
+Two domains whose tomls name the same transfer server and the same
+`SIGNING_KEY` are one operator (anclap.com and api.anclap.com). One stays
+canonical and the others get `alias_of` in the status file: they are kept
+on the list, checked every few hours to notice if they ever diverge, and
+not reported or scored on their own (see `src/aliases.ts`).
+
 After each run the latest verdict per anchor — its directory label, whether
-it is dormant, the stage and error of its last failure, and its listed
-assets with the issuer check — is written to `status.json`
+it is dormant, the stage and error of its last failure, its listed assets
+with the issuer check, its operator and any alias — is written to `status.json`
 (`MAINNET_STATUS_PATH`). The collector serves it next to the history
 archive and the dashboard shows it on each card.
 

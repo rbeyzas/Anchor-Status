@@ -60,8 +60,13 @@ export function AnchorCard({
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate font-heading text-base font-semibold text-ink">{anchor.name}</span>
         <SourceBadge sourceType={anchor.sourceType} />
-        {(status?.listing || status?.policyNote || status?.dormant) && (
+        {(status?.listing || status?.policyNote || status?.dormant || status?.aliasOf) && (
           <div className="flex flex-wrap gap-1.5">
+            {status?.aliasOf && (
+              <span className="rounded-pill bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+                Same operator as {status.aliasOf.domain}
+              </span>
+            )}
             {status?.listing && (
               <span
                 className={`rounded-pill px-2 py-0.5 text-[11px] font-medium ${
@@ -76,7 +81,7 @@ export function AnchorCard({
                 {status.policyNote}
               </span>
             )}
-            {status?.dormant && (
+            {status?.dormant && !status?.aliasOf && (
               <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-faint">
                 Checked every 6h
               </span>
@@ -109,7 +114,11 @@ export function AnchorCard({
         ) : (
           <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-ink-faint">
             <span className="font-heading text-lg text-ink-muted">-</span>
-            {card || anchor.sourceType === 'RealMainnet' ? 'Not enough data yet' : 'Not enough checks yet'}
+            {status?.aliasOf
+              ? `Scored as ${status.aliasOf.domain}`
+              : card || anchor.sourceType === 'RealMainnet'
+                ? 'Not enough data yet'
+                : 'Not enough checks yet'}
           </span>
         )}
         {card && enoughData && <ConfidenceChip confidence={card.confidence} />}

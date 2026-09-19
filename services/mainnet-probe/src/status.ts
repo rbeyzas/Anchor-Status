@@ -21,6 +21,11 @@ export interface AnchorStatus {
   /** The assets its stellar.toml lists, each with whether the anchor
    * issues it (the issuer's home_domain points back at it). */
   assets?: AssetStatus[];
+  /** Its operator: transfer server and signing key (see aliases.ts). */
+  operator?: string;
+  /** Another tracked anchor with the same operator, which is measured and
+   * scored in its place. */
+  alias_of?: string;
 }
 
 export interface StatusFile {
@@ -42,6 +47,7 @@ export function buildStatus(
   now: Date,
   isDormant: (a: MainnetAnchor) => boolean,
   assets: Map<string, AssetStatus[]> = new Map(),
+  operators: Map<string, string> = new Map(),
 ): StatusFile {
   const byId = new Map(results.map((r) => [r.anchor_id, r]));
   const out: StatusFile = { generated_at: now.toISOString(), anchors: {} };
@@ -66,6 +72,10 @@ export function buildStatus(
     };
     const listed = assets.get(a.anchor_id) ?? previous?.anchors[a.anchor_id]?.assets;
     if (listed) out.anchors[a.anchor_id].assets = listed;
+    const operator = operators.get(a.anchor_id) ?? previous?.anchors[a.anchor_id]?.operator;
+    if (operator) out.anchors[a.anchor_id].operator = operator;
+    const aliasOf = previous?.anchors[a.anchor_id]?.alias_of;
+    if (aliasOf) out.anchors[a.anchor_id].alias_of = aliasOf;
   }
   return out;
 }

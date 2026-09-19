@@ -54,7 +54,16 @@ export function fillLegacySigningKeys(lines: ProbeLine[], evidenceDir: string): 
 }
 
 interface StatusFile {
-  anchors: Record<string, { assets?: AssetInfo[] }>;
+  anchors: Record<string, { assets?: AssetInfo[]; alias_of?: string }>;
+}
+
+/** Anchors that are another domain of an operator measured under a
+ * different id (anchor id → canonical id). They get no reports and no card
+ * of their own, or the operator would be counted twice. */
+export function readAliases(statusPath: string): Map<string, string> {
+  if (!fs.existsSync(statusPath)) return new Map();
+  const status = JSON.parse(fs.readFileSync(statusPath, 'utf-8')) as StatusFile;
+  return new Map(Object.entries(status.anchors).flatMap(([id, a]) => (a.alias_of ? [[id, a.alias_of] as [string, string]] : [])));
 }
 
 export function readAssets(statusPath: string): Map<string, AssetInfo[]> {

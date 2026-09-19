@@ -12,6 +12,8 @@ export const MIN_OBSERVATIONS_FOR_SCORE = 3;
  * show yet. Testnet and reference anchors keep the per-report score.
  */
 export function hasEnoughData(anchor: AnchorViewModel): boolean {
+  // Measured, and shown, under the other domain of the same operator.
+  if (anchor.status?.aliasOf) return false;
   if (anchor.card) return !isWithheld(anchor.card);
   if (anchor.sourceType === 'RealMainnet') return false;
   return !anchor.health || anchor.health.observations >= MIN_OBSERVATIONS_FOR_SCORE;

@@ -78,6 +78,8 @@ export interface AnchorStatusView {
   issuedAssets?: string[];
   /** Creation of its oldest issuer account. Context, never scored. */
   onChainSince?: string;
+  /** Another domain of an operator we already measure under this entry. */
+  aliasOf?: { anchorId: string; domain: string };
 }
 
 export interface AnchorViewModel {

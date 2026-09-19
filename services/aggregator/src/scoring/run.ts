@@ -3,7 +3,16 @@ import { config, scoreCardsStatePath } from '../config.js';
 import { publishScoreCard, ScoreCardsUnsupported } from '../contract.js';
 import { computeCard, flagNames } from './engine.js';
 import { buildInputs, floorToHour } from './inputs.js';
-import { contextFor, fillLegacySigningKeys, readAssets, readFlows, readMarketSamples, readProbeHistory, writeInputsBundle } from './load.js';
+import {
+  contextFor,
+  fillLegacySigningKeys,
+  readAliases,
+  readAssets,
+  readFlows,
+  readMarketSamples,
+  readProbeHistory,
+  writeInputsBundle,
+} from './load.js';
 import { loadPublished, savePublished, selectToPublish, writeSummary, type Candidate } from './publisher.js';
 import type { ScoreInputs } from './types.js';
 
@@ -26,7 +35,8 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
   const samples = await readMarketSamples(config.marketSamplesDir, windowEnd);
   const flows = readFlows(config.flowsPath);
 
-  const anchorIds = [...new Set(probes.map((p) => p.anchor_id))].sort();
+  const aliases = readAliases(config.mainnetStatusPath);
+  const anchorIds = [...new Set(probes.map((p) => p.anchor_id))].filter((id) => !aliases.has(id)).sort();
   const cards: ScoringResult['cards'] = [];
   for (const anchorId of anchorIds) {
     const inputs = buildInputs(anchorId, probes, windowEnd, contextFor(anchorId, assets, samples, flows));

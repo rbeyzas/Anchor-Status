@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { submitReport } from './contract.js';
 import { dedupKey } from './normalize.js';
 import { readMainnetProbeReports, readMockAnchorReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
+import { readAliases } from './scoring/load.js';
 import { runScoring } from './scoring/run.js';
 import { loadState, saveState } from './state.js';
 import type { NormalizedReport } from './types.js';
@@ -14,7 +15,12 @@ async function main() {
     ...(config.skipMock ? [] : readMockAnchorReports(config.mockAnchorsLogsDir)),
   ];
   const cutoff = Date.now() - config.maxReportAgeMs;
-  const reports = all.filter((r) => new Date(r.timestamp).getTime() >= cutoff);
+  // Another domain of an operator measured under a different id: its
+  // reports would count the same anchor twice.
+  const aliases = readAliases(config.mainnetStatusPath);
+  const reports = all.filter(
+    (r) => new Date(r.timestamp).getTime() >= cutoff && !(r.source_type === 'RealMainnet' && aliases.has(r.anchor_id)),
+  );
   console.log(
     `[aggregator] read ${all.length} report(s) across all sources, ${all.length - reports.length} too old to submit`,
   );

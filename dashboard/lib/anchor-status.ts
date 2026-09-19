@@ -24,7 +24,10 @@ interface StatusAsset {
 
 interface StatusFile {
   generated_at: string;
-  anchors: Record<string, { listing?: 'abandoned' | 'unsafe'; dormant: boolean; last_probe?: LastProbe; assets?: StatusAsset[] }>;
+  anchors: Record<
+    string,
+    { domain?: string; listing?: 'abandoned' | 'unsafe'; dormant: boolean; last_probe?: LastProbe; assets?: StatusAsset[]; alias_of?: string }
+  >;
 }
 
 /** The assets it issues itself, and when its oldest issuer account was
@@ -101,6 +104,9 @@ export function mergeStatusInto(anchors: AnchorViewModel[], status: StatusFile |
           }
         : {}),
       ...issuedAssets(s.assets),
+      ...(s.alias_of
+        ? { aliasOf: { anchorId: s.alias_of, domain: status.anchors[s.alias_of]?.domain ?? s.alias_of } }
+        : {}),
     };
     return { ...anchor, status: view };
   });

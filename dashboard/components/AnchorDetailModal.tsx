@@ -6,7 +6,7 @@ import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
 import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
-import { CONFIDENCE_LABEL, confidenceBand } from '@/lib/scorecard';
+import { CONFIDENCE_LABEL, confidenceBand, isWithheld } from '@/lib/scorecard';
 import { evidenceUrl, hasEnoughData, headlineScore, latestEvidence, listingExplanation } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { ConfidenceChip, FlagChips, PillarBars } from './ScoreCardParts';
@@ -98,7 +98,9 @@ export function AnchorDetailModal({
         <div className="mb-5 grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-xs text-ink-muted">Score</span>
-            {hasEnoughData(anchor) ? (
+            {anchor.status?.aliasOf ? (
+              <span className="text-sm text-ink-faint">Scored as {anchor.status.aliasOf.domain}</span>
+            ) : hasEnoughData(anchor) ? (
               <>
                 <ScoreValue score={score} size={44} />
                 {card && <ConfidenceChip confidence={card.confidence} />}
@@ -130,7 +132,16 @@ export function AnchorDetailModal({
           </div>
         </div>
 
-        {card && (
+        {anchor.status?.aliasOf && (
+          <p className="mb-5 rounded-card border border-border px-4 py-3 text-sm text-ink-muted">
+            This domain&apos;s stellar.toml names the same transfer server and signing key as{' '}
+            <span className="font-medium text-ink">{anchor.status.aliasOf.domain}</span>: one operator. It is measured
+            and scored once, under that entry, so that it is not counted twice. It stays on the list, and is still
+            checked every few hours in case that ever changes.
+          </p>
+        )}
+
+        {card && !anchor.status?.aliasOf && (
           <div className="mb-5 rounded-card border border-border px-4 py-4">
             <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
               <span className="text-sm font-medium text-ink">Score card</span>
@@ -186,71 +197,77 @@ export function AnchorDetailModal({
           </div>
         )}
 
-        <div className="h-64 w-full rounded-card border border-border bg-surface-muted/50 p-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
-              <defs>
-                <linearGradient id="detail-score-gradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(var(--color-accent))" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="rgb(var(--color-accent))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11, fill: 'rgb(var(--color-ink-muted))' }}
-                axisLine={{ stroke: 'rgb(var(--color-border))' }}
-                tickLine={false}
-                minTickGap={24}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fill: 'rgb(var(--color-ink-muted))' }}
-                axisLine={{ stroke: 'rgb(var(--color-border))' }}
-                tickLine={false}
-                width={32}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: 'rgb(var(--color-surface-glass))',
-                  border: '1px solid rgb(var(--color-border))',
-                  borderRadius: 10,
-                  fontSize: 12,
-                }}
-                labelStyle={{ color: 'rgb(var(--color-ink))' }}
-              />
-              {anchor.slashEvents.map((slash) => (
-                <ReferenceLine
-                  key={slash.timestamp}
-                  x={formatChartAxisLabel(slash.timestamp, historyTimestamps)}
-                  stroke="rgb(var(--color-danger))"
-                  strokeDasharray="4 4"
-                  label={{
-                    value: 'legacy slash',
-                    position: 'top',
-                    fontSize: 10,
-                    fill: 'rgb(var(--color-danger))',
-                  }}
+        {card && isWithheld(card) ? (
+          <p className="flex h-24 w-full items-center justify-center rounded-card border border-border bg-surface-muted/50 px-4 text-center text-sm text-ink-faint">
+            The score history appears once there is enough data to show the score itself.
+          </p>
+        ) : (
+          <div className="h-64 w-full rounded-card border border-border bg-surface-muted/50 p-2">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 12, right: 12, bottom: 0, left: -12 }}>
+                <defs>
+                  <linearGradient id="detail-score-gradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(var(--color-accent))" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="rgb(var(--color-accent))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--color-border))" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11, fill: 'rgb(var(--color-ink-muted))' }}
+                  axisLine={{ stroke: 'rgb(var(--color-border))' }}
+                  tickLine={false}
+                  minTickGap={24}
                 />
-              ))}
-              <Area
-                type="monotone"
-                dataKey="score"
-                stroke="none"
-                fill="url(#detail-score-gradient)"
-                isAnimationActive={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="score"
-                stroke="rgb(var(--color-accent))"
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 11, fill: 'rgb(var(--color-ink-muted))' }}
+                  axisLine={{ stroke: 'rgb(var(--color-border))' }}
+                  tickLine={false}
+                  width={32}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'rgb(var(--color-surface-glass))',
+                    border: '1px solid rgb(var(--color-border))',
+                    borderRadius: 10,
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: 'rgb(var(--color-ink))' }}
+                />
+                {anchor.slashEvents.map((slash) => (
+                  <ReferenceLine
+                    key={slash.timestamp}
+                    x={formatChartAxisLabel(slash.timestamp, historyTimestamps)}
+                    stroke="rgb(var(--color-danger))"
+                    strokeDasharray="4 4"
+                    label={{
+                      value: 'legacy slash',
+                      position: 'top',
+                      fontSize: 10,
+                      fill: 'rgb(var(--color-danger))',
+                    }}
+                  />
+                ))}
+                <Area
+                  type="monotone"
+                  dataKey="score"
+                  stroke="none"
+                  fill="url(#detail-score-gradient)"
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="rgb(var(--color-accent))"
+                  strokeWidth={2}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {anchor.status && (
           <div className="mt-4 flex flex-col gap-1 text-sm text-ink-muted">

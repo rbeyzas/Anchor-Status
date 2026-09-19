@@ -120,3 +120,18 @@ describe('latestEvidence', () => {
     expect(latestEvidence(anchor({ scoreHistory: [{ timestamp: 't', score: 1 }] }))).toBeUndefined();
   });
 });
+
+describe('aliases', () => {
+  it('names the entry an alias is measured under, and shows no score of its own', () => {
+    const [alias, canonical] = mergeStatusInto([anchor({ anchorId: 'anclap_com' }), anchor({ anchorId: 'api_anclap_com' })], {
+      generated_at: '',
+      anchors: {
+        anclap_com: { domain: 'anclap.com', dormant: true, alias_of: 'api_anclap_com' },
+        api_anclap_com: { domain: 'api.anclap.com', dormant: false },
+      },
+    });
+    expect(alias.status?.aliasOf).toEqual({ anchorId: 'api_anclap_com', domain: 'api.anclap.com' });
+    expect(hasEnoughData(alias)).toBe(false);
+    expect(canonical.status?.aliasOf).toBeUndefined();
+  });
+});
