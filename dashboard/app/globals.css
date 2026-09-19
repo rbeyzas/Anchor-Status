@@ -738,11 +738,29 @@ body {
   transform-origin: 400px 400px;
   animation: as-spin 24s linear infinite;
 }
-.as-radar__dot {
+/* A blip waits invisible until the beam reaches its angle (its delay),
+   flashes, then fades behind it. */
+.as-radar__blip {
   fill: rgb(var(--as-signal));
-  transform-box: view-box;
-  transform-origin: 400px 400px;
-  animation: as-spin 24s linear infinite;
+  opacity: 0;
+  animation: as-radar-blip 24s linear infinite;
+}
+@keyframes as-radar-blip {
+  0% {
+    opacity: 1;
+  }
+  5% {
+    opacity: 0.8;
+  }
+  16% {
+    opacity: 0.45;
+  }
+  45% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 .as-radar__cross {
   stroke: var(--as-grid-line);
@@ -754,10 +772,14 @@ body {
     display: none;
   }
   .as-radar__wedge,
-  .as-radar__dot,
+  .as-radar__blip,
   .as-hb__bar,
   .as-dot--beat {
     animation: none !important;
+  }
+  /* No beam to reveal them: the blips simply stand there. */
+  .as-radar__blip {
+    opacity: 0.4;
   }
 }
 
