@@ -260,6 +260,9 @@ export function AnchorDetailModal({
                     border: '1px solid rgb(var(--as-hairline))',
                     borderRadius: 10,
                     fontSize: 12,
+                    // Recharts' default is nowrap, which runs a long slash list off the panel.
+                    whiteSpace: 'normal',
+                    maxWidth: 240,
                   }}
                   labelStyle={{ color: 'rgb(var(--as-ink))' }}
                   formatter={(value, name) => [value, name === 'score' ? 'Score' : name]}
@@ -269,8 +272,14 @@ export function AnchorDetailModal({
                       <>
                         {label}
                         <span className="mt-1 block font-medium text-as-danger">
-                          {slashes.length} legacy slash{slashes.length === 1 ? '' : 'es'}: {slashes.map((sl) => `${formatStakeXlm(sl.amount)} at ${new Date(sl.timestamp).toISOString().slice(11, 16)} UTC`).join(', ')}
+                          {slashes.length} legacy slash{slashes.length === 1 ? '' : 'es'}
                         </span>
+                        {slashes.slice(0, 4).map((sl) => (
+                          <span key={sl.timestamp} className="tabular block text-as-ink-muted">
+                            {formatStakeXlm(sl.amount)} at {new Date(sl.timestamp).toISOString().slice(11, 16)} UTC
+                          </span>
+                        ))}
+                        {slashes.length > 4 && <span className="block text-as-ink-muted">and {slashes.length - 4} more</span>}
                       </>
                     ) : (
                       label
