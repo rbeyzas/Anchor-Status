@@ -178,10 +178,14 @@ minutes:
 
 Deployment is pull-based and deliberate: [`scripts/server-autodeploy.sh`](scripts/server-autodeploy.sh),
 run on the host, fetches the tracked branch, installs the dependencies of
-any service whose `package.json` changed, and rebuilds the Vercel dashboard
-when `dashboard/` changed. It holds the collection lock, so it never swaps
-files under a running round. The host authenticates to GitHub with a
-read-only deploy key.
+any service whose `package.json` changed. It holds the collection lock, so it
+never swaps files under a running round. The host authenticates to GitHub
+with a read-only deploy key.
+
+The dashboard deploys separately: the Vercel project `anchor-status-g9f7`
+(root directory `dashboard/`) is connected to this GitHub repo and builds
+every push to `main` on its own. Its server-side env vars
+(`ANCHOR_STATUS_URL`, `HISTORY_ARCHIVE_URL`) point at the collector host.
 
 One round is [`scripts/collect.sh`](scripts/collect.sh): `mainnet-probe`
 (anchor discovery once a day, registration of any new anchor, then a probe

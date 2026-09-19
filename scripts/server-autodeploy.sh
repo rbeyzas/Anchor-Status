@@ -16,7 +16,7 @@
 #     touched, and neither is the untracked .env;
 #   * holds the collection lock for the whole deploy, so it can never swap
 #     files under a running round;
-#   * rebuilds the Vercel dashboard only when dashboard/ changed.
+#   * leaves the dashboard to Vercel's Git integration (see the end).
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/anchor-status}"
@@ -75,19 +75,8 @@ if [ ! -L "$REPO_DIR/services/testnet-probe/results" ]; then
   ln -sfn /var/lib/anchor-status/probe-results "$REPO_DIR/services/testnet-probe/results"
 fi
 
-# The Vercel project is not connected to this Git repo (the repo lives in
-# another account), so a push does not rebuild the dashboard on its own.
-# Trigger it here instead, and only when dashboard/ actually changed.
-if [ -f /etc/anchor-status/vercel.env ] && [ "$local_sha" != "none" ] &&
-   ! git diff --quiet "$local_sha" "$remote_sha" -- dashboard/; then
-  # shellcheck disable=SC1091
-  . /etc/anchor-status/vercel.env
-  log "dashboard changed, deploying to Vercel"
-  if (cd "$REPO_DIR/dashboard" && vercel deploy --prod --yes --token "$VERCEL_TOKEN" >/dev/null 2>&1); then
-    log "Vercel deploy ok"
-  else
-    log "Vercel deploy FAILED (see: vercel deploy --prod in $REPO_DIR/dashboard)"
-  fi
-fi
+# The dashboard is not deployed from here: the Vercel project
+# (anchor-status-g9f7) is connected to the GitHub repo and builds every push
+# to main itself. A CLI deploy from this host would only race it.
 
 log "deployed ${remote_sha:0:8}"
