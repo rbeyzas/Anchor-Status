@@ -5,6 +5,7 @@
    If successful, who benefits from the solution and what is its potential impact?
    Is there evidence of market viability, including a clear target user or customer segment?
 2. Technical Implementation
+
    Assess the quality and completeness of the technical execution.
    Is the project deployed on Stellar Testnet with working functionality (not mocked or hardcoded)?
    Does the application work reliably from end to end?
@@ -12,6 +13,7 @@
    Is the system architecture appropriate for the problem and clearly documented?
    Scale Track only: Is a Mermaid architecture diagram included and does it accurately represent the system?
    Passkeys or smart wallets are considered a bonus, not a requirement.
+
 3. Ecosystem Fit
    Measure how deeply the project integrates with the Stellar ecosystem.
    Does the project integrate with an eligible Stellar protocol or ecosystem partner?
