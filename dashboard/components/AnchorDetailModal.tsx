@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -182,6 +183,17 @@ export function AnchorDetailModal({
                 </>
               )}
             </dl>
+            {context?.excluded?.length ? (
+              <p className="mt-3 text-xs text-as-ink-muted">
+                {context.excluded.reduce((n, e) => n + e.probes, 0)} check
+                {context.excluded.reduce((n, e) => n + e.probes, 0) === 1 ? '' : 's'} in this window were dropped: our
+                collector failed to reach anything those rounds, so they say nothing about this anchor.{' '}
+                <Link href="/methodology#incidents" className="font-medium text-as-signal underline">
+                  What went wrong
+                </Link>
+                .
+              </p>
+            ) : null}
             {anchor.status?.onChainSince && (
               <p className="mt-3 text-xs text-as-ink-muted">
                 Issues {anchor.status.issuedAssets?.join(', ')} on-chain since{' '}

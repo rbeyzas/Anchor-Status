@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { SCORE_INPUTS_SCHEMA, writeDocument } from '../evidence.js';
+import { applyIncidents, COLLECTOR_INCIDENTS } from './incidents.js';
 import type { AnchorContext, AssetInfo, FlowHistory, MarketSample, ProbeLine } from './inputs.js';
 import type { ScoreInputs } from './types.js';
 
@@ -27,10 +28,18 @@ async function readJsonLines<T>(file: string, into: T[]): Promise<void> {
   }
 }
 
-/** mainnet-probe's daily logs covering the 30 days that end at `windowEnd`. */
+/**
+ * mainnet-probe's daily logs covering the 30 days that end at `windowEnd`,
+ * with the rounds our own collector broke marked inconclusive.
+ */
 export async function readProbeHistory(dir: string, windowEnd: number): Promise<ProbeLine[]> {
   const lines: ProbeLine[] = [];
   for (const day of dates(windowEnd, 31)) await readJsonLines(path.join(dir, `probe-${day}.jsonl`), lines);
+  const excluded = applyIncidents(lines);
+  if (excluded.length > 0) {
+    const probes = excluded.reduce((n, e) => n + e.probes, 0);
+    console.log(`[aggregator] collector incidents: ${probes} probe(s) across ${excluded.length} anchor(s) dropped as inconclusive`);
+  }
   return lines;
 }
 
@@ -104,4 +113,13 @@ export function contextFor(
 /** Publishes the inputs as a content-addressed bundle; returns its hash. */
 export function writeInputsBundle(dir: string, inputs: ScoreInputs): string {
   return writeDocument(dir, { schema: SCORE_INPUTS_SCHEMA, ...inputs });
+}
+
+/** Publishes the incident list itself: a card that cites an incident is
+ * only checkable by someone who can read what the incident claimed. */
+export function writeIncidents(filePath: string, now: number): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ generated_at: new Date(now).toISOString(), incidents: COLLECTOR_INCIDENTS }, null, 2));
+  fs.renameSync(tmp, filePath);
 }

@@ -12,7 +12,14 @@ interface SummaryFile {
   generated_at: string;
   anchors: Record<
     string,
-    { inputs_hash: string; monitored_days: number; n30: number; coverage: number | null; market_na?: MarketNa }
+    {
+      inputs_hash: string;
+      monitored_days: number;
+      n30: number;
+      coverage: number | null;
+      market_na?: MarketNa;
+      excluded?: { incident: string; probes: number }[];
+    }
   >;
 }
 
@@ -44,6 +51,7 @@ export function mergeCardContext(anchors: AnchorViewModel[], summary: SummaryFil
       checks30d: s.n30,
       coverage: s.coverage,
       ...(s.market_na ? { marketNa: s.market_na } : {}),
+      ...(s.excluded?.length ? { excluded: s.excluded } : {}),
     };
     return { ...anchor, cardContext: context };
   });

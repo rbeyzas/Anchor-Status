@@ -14,6 +14,9 @@ export interface ProbeLine {
   timestamp: string;
   success: boolean;
   inconclusive?: boolean;
+  /** Set by `applyIncidents` when a collector incident, not the anchor,
+   * explains this failure: the id of the incident that dropped it. */
+  excluded_by?: string;
   failed_stage?: string;
   stages: Partial<Record<string, { ok: boolean; ms?: number; policy?: boolean; error?: string }>>;
   stages_expected?: string[];
@@ -241,10 +244,10 @@ export function dayDigest(probes: ProbeLine[]): string {
 export function buildInputs(anchorId: string, probes: ProbeLine[], windowEnd: number, ctx: AnchorContext): ScoreInputs | null {
   const since30 = windowEnd - 30 * DAY_MS;
   const since7 = windowEnd - 7 * DAY_MS;
-  const history = probes
-    .filter((p) => p.anchor_id === anchorId && !p.inconclusive)
-    .filter((p) => Date.parse(p.timestamp) > since30 && Date.parse(p.timestamp) <= windowEnd)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const inWindow = probes.filter(
+    (p) => p.anchor_id === anchorId && Date.parse(p.timestamp) > since30 && Date.parse(p.timestamp) <= windowEnd,
+  );
+  const history = inWindow.filter((p) => !p.inconclusive).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   if (history.length === 0) return null;
   const week = history.filter((p) => Date.parse(p.timestamp) > since7);
   const weekOk = week.filter((p) => p.success);
@@ -273,6 +276,12 @@ export function buildInputs(anchorId: string, probes: ProbeLine[], windowEnd: nu
     windowEnd,
   );
 
+  // What a collector incident took out of this window, so the card says so
+  // rather than quietly resting on a shorter history.
+  const dropped = new Map<string, number>();
+  for (const p of inWindow) if (p.excluded_by) dropped.set(p.excluded_by, (dropped.get(p.excluded_by) ?? 0) + 1);
+  const excluded = [...dropped].sort().map(([incident, count]) => ({ incident, probes: count }));
+
   const byDay = new Map<string, ProbeLine[]>();
   for (const p of history) {
     const day = p.timestamp.slice(0, 10);
@@ -297,6 +306,7 @@ export function buildInputs(anchorId: string, probes: ProbeLine[], windowEnd: nu
     fiat_issued_assets: issuedFiat.length,
     flows,
     days: Array.from(byDay, ([date, ps]) => ({ date, n: ps.length, ok: ps.filter((p) => p.success).length, digest: dayDigest(ps) })),
+    ...(excluded.length > 0 ? { excluded } : {}),
   };
 }
 

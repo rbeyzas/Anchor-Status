@@ -9,6 +9,9 @@ export interface CardSummary {
   n30: number;
   coverage: number | null;
   market_na?: string;
+  /** Probes this card's window lost to a collector incident, so the page
+   * can say so instead of showing a quietly shortened history. */
+  excluded?: { incident: string; probes: number }[];
 }
 
 /** The last card published per anchor. */

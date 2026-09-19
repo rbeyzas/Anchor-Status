@@ -383,6 +383,37 @@ confidence  = 100 · sufficiency · depth`}
       </Section>
 
       <Section
+        id="incidents"
+        title="When we are the ones who broke."
+        lead="A check that failed because our own collector could not reach anything says nothing about the anchor. Counting it would be a lie about somebody else’s service, so we drop those rounds and publish what happened."
+      >
+        <ul className="flex flex-col gap-3 text-[15px] text-as-ink-muted">
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">A round is only dropped for an anchor that answered us later.</span>{' '}
+            Each incident names a window and a later window in which the collector is known to have worked. An anchor that
+            never answered us keeps its failures: we cannot tell an outage of ours from an anchor that is genuinely gone,
+            so we do not pretend to.
+          </li>
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">A failure the anchor answered with always counts.</span> A 404 or a
+            500 came from the anchor’s own server, so our side of the connection worked. Only failures where we never got
+            an answer at all can be ours.
+          </li>
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">The list decides nothing by name.</span> It names rounds, never
+            anchors: which checks come out is worked out from the published probe log by a rule anyone can re-run. Dropping
+            checks also costs the anchor a little confidence, because confidence counts how much we actually measured.
+          </li>
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">Every card says so.</span> A card whose window lost checks lists the
+            incident in its published inputs bundle, and its page says how many. The incidents themselves are at{' '}
+            <code className="rounded bg-as-surface-2 px-1.5 py-0.5 font-mono text-xs text-as-ink">/incidents.json</code>,
+            beside the probe logs.
+          </li>
+        </ul>
+      </Section>
+
+      <Section
         id="verify"
         title="Don’t take our word for it."
         lead="Every score card goes on-chain with the SHA-256 of the inputs it was computed from, and the inputs are published. Nothing in the chain of evidence depends on trusting us."

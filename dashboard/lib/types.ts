@@ -60,6 +60,9 @@ export interface ScoreCardContext {
   /** Median share of the expected steps we could test; null if unknown. */
   coverage: number | null;
   marketNa?: MarketNa;
+  /** Checks dropped from this window because our own collector failed, not
+   * the anchor. Absent when nothing was dropped. */
+  excluded?: { incident: string; probes: number }[];
 }
 
 /** Off-chain context from mainnet-probe: how the directory lists the anchor,

@@ -11,6 +11,7 @@ import {
   readFlows,
   readMarketSamples,
   readProbeHistory,
+  writeIncidents,
   writeInputsBundle,
 } from './load.js';
 import { loadPublished, savePublished, selectToPublish, writeSummary, type Candidate } from './publisher.js';
@@ -65,6 +66,7 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
           n30: inputs.uptime.n30,
           coverage: inputs.coverage,
           ...(inputs.market_na ? { market_na: inputs.market_na } : {}),
+          ...(inputs.excluded ? { excluded: inputs.excluded } : {}),
         },
       };
       savePublished(statePath, state);
@@ -83,7 +85,9 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
       console.error(`[aggregator] failed to publish the card for ${anchorId}: ${(err as Error).message.split('\n')[0]}`);
     }
   }
-  // Beside mainnet-probe's status file; the collector host serves both.
-  writeSummary(path.join(path.dirname(config.mainnetStatusPath), 'score-summary.json'), state, now);
+  // Beside mainnet-probe's status file; the collector host serves them all.
+  const publicDir = path.dirname(config.mainnetStatusPath);
+  writeSummary(path.join(publicDir, 'score-summary.json'), state, now);
+  writeIncidents(path.join(publicDir, 'incidents.json'), now);
   return { cards, published, failed };
 }

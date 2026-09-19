@@ -49,12 +49,43 @@ Cards are computed off-chain (rolling windows and percentiles are impractical in
 
 | Input | Produced by | Notes |
 | --- | --- | --- |
-| Conclusive probe results, last 30 days | `mainnet-probe` (`results/probe-*.jsonl`) | Inconclusive runs (our own failures) are excluded, as today. |
+| Conclusive probe results, last 30 days | `mainnet-probe` (`results/probe-*.jsonl`) | Inconclusive runs (our own failures) are excluded, as today, along with rounds a declared collector incident covers (section 5.1). |
 | `stages_expected`, `checks`, `assets` per probe | `mainnet-probe` (new fields) | See sections 6.2 and 6.3. |
 | Issuer verification per asset | `mainnet-probe` (`status.json`, cached 24h) | Horizon `GET /accounts/{issuer}` → `home_domain`. |
 | Market samples, last 7 days | `passive-monitor` (new) | Only for verified issuer assets with a fiat reference. |
 | Mint/burn flows, last 30 days | `passive-monitor` (new) | Only for verified issuer assets. |
 | Payment activity profile | `passive-monitor` (existing) | Context and the SILENT flag only. Never scored. |
+
+### 5.1 Collector incidents
+
+A probe that failed because our own host could not make a connection says
+nothing about the anchor, and counting it as an outage would be a false
+claim about someone else's service. Rounds like that are declared in
+`services/aggregator/src/scoring/incidents.ts`, published at
+`/incidents.json`, and dropped as inconclusive before anything is computed.
+
+An incident is a set of **rounds**, not a set of anchors, and it names a
+later **proof window** in which the collector is known to have worked. A
+probe is dropped only when all of these hold:
+
+1. its timestamp falls inside one of the incident's windows;
+2. it failed with no HTTP status, so we never got an answer at all (a 404 or
+   a 500 came from the anchor's own server, and always counts);
+3. the same anchor answered us inside the proof window, which is the
+   evidence its host was reachable from this collector.
+
+Rule 3 is what keeps the list honest in both directions. An anchor that
+never answered us keeps its failures: an outage of ours and an anchor that
+is genuinely gone look identical from here, and we do not guess. Because the
+windows are fixed and in the past, the set of dropped probes is a function
+of the published log, so anyone can re-derive it and get the same answer;
+the list cannot be widened after the fact to flatter a particular anchor.
+
+Dropping checks is not free for the anchor: confidence counts how much we
+measured, so a window with fewer checks scores slightly lower on confidence
+even as availability recovers. Cards whose window lost checks carry an
+`excluded` entry naming the incident, in the bundle and in
+`score-summary.json`, and the anchor's page says how many checks went.
 
 ## 6. Pillars
 
@@ -230,6 +261,7 @@ Upgrades use `scripts/upgrade-contracts.sh` (same contract IDs, same state). The
 ## 14. Verifiability
 
 - `npm run verify-score -- <bundle sha256 | url | file>` in `services/aggregator`: checks the file hashes to its name, recomputes the card from the bundle with `computeCard`, prints the pillars and headline, and, given `--anchor`, compares with the on-chain `get_score_card`. Optional if cheap: `--logs <dir>` rebuilds the aggregates from a local copy of the probe results and compares them with the bundle.
+- `--logs` applies the declared collector incidents (section 5.1) before comparing, exactly as the scorer does; otherwise every card that cites one would look altered. The incidents are in the repository and published at `/incidents.json`, so the rule a card leans on is readable by whoever is checking it.
 - The headline is checkable from the on-chain card alone (section 9). The pillars are checkable from the bundle. The bundle's daily digests are checkable against the probe logs, and each probe's own evidence document is checkable with the existing `npm run verify` in `mainnet-probe`.
 - Operational note for the collector host: serve the probe results directory read-only beside the evidence directory so daily digests can be checked by outsiders.
 

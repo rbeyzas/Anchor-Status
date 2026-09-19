@@ -65,6 +65,10 @@ export interface ScoreInputs {
   flows: FlowAggregate[];
   /** Conclusive probes per UTC day, with a digest of that day's results. */
   days: { date: string; n: number; ok: number; digest: string }[];
+  /** Probes dropped because the collector, not the anchor, failed. Absent
+   * when nothing was dropped. The incidents are declared in
+   * `scoring/incidents.ts` and published at `/incidents.json`. */
+  excluded?: { incident: string; probes: number }[];
 }
 
 export interface ScoreCard {

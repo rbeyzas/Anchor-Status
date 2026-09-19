@@ -9,6 +9,7 @@ import path from 'node:path';
 import { Address, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { SCORE_INPUTS_SCHEMA, sha256Hex } from '../evidence.js';
 import { computeCard, flagNames } from './engine.js';
+import { applyIncidents } from './incidents.js';
 import { dayDigest, type ProbeLine } from './inputs.js';
 import type { ScoreCard, ScoreInputs } from './types.js';
 
@@ -70,21 +71,35 @@ export async function onChainCard(rpcUrl: string, oracleId: string, anchorId: st
   };
 }
 
-/** Recomputes the per-day digests from a copy of the probe logs. */
+/**
+ * Recomputes the per-day digests from a copy of the probe logs. The same
+ * collector incidents the scorer applied are applied here, or every card
+ * that cites one would look altered; `applyIncidents` reads its evidence
+ * from the log, so it needs every day of it, not one day at a time.
+ */
 export function checkDays(inputs: ScoreInputs, logsDir: string): string[] {
   const problems: string[] = [];
+  const all: ProbeLine[] = [];
+  // Every day in the directory, not only the days this card covers: an
+  // incident's proof window can fall outside them.
+  for (const file of fs.readdirSync(logsDir).filter((f) => /^probe-\d{4}-\d{2}-\d{2}\.jsonl$/.test(f))) {
+    for (const line of fs.readFileSync(path.join(logsDir, file), 'utf-8').split('\n')) {
+      if (line.trim()) all.push(JSON.parse(line) as ProbeLine);
+    }
+  }
+  applyIncidents(all);
   for (const day of inputs.days) {
-    const file = path.join(logsDir, `probe-${day.date}.jsonl`);
-    if (!fs.existsSync(file)) {
+    if (!fs.existsSync(path.join(logsDir, `probe-${day.date}.jsonl`))) {
       problems.push(`${day.date}: no log file`);
       continue;
     }
-    const probes = fs
-      .readFileSync(file, 'utf-8')
-      .split('\n')
-      .filter(Boolean)
-      .map((l) => JSON.parse(l) as ProbeLine)
-      .filter((p) => p.anchor_id === inputs.anchor_id && !p.inconclusive && Date.parse(p.timestamp) <= inputs.window_end * 1000);
+    const probes = all.filter(
+      (p) =>
+        p.anchor_id === inputs.anchor_id &&
+        !p.inconclusive &&
+        p.timestamp.slice(0, 10) === day.date &&
+        Date.parse(p.timestamp) <= inputs.window_end * 1000,
+    );
     const ok = probes.filter((p) => p.success).length;
     const digest = dayDigest(probes);
     if (probes.length !== day.n || ok !== day.ok || digest !== day.digest) {

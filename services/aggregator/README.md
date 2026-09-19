@@ -17,6 +17,14 @@ Node/TypeScript service. Two jobs, in this order, every collection round:
    first as a content-addressed bundle (`anchor-status/score-inputs/v1`)
    into `EVIDENCE_DIR`, and its SHA-256 goes on-chain with the card.
 
+Rounds where our own collector, not the anchor, was what failed are declared
+in `src/scoring/incidents.ts` and dropped as inconclusive before anything is
+computed ([`docs/SCORING.md`](../../docs/SCORING.md) section 5.1). An
+incident names rounds, never anchors: which checks come out is derived from
+the probe log, so it can be re-derived by anyone. The list is published as
+`incidents.json` beside the status file, and a card that lost checks says so
+in its bundle and in `score-summary.json`.
+
 The engine (`src/scoring/engine.ts`) is a pure function from a bundle to a
 card: no I/O, no clock, no randomness. Its constants are all in
 `src/scoring/constants.ts`; changing one means a new methodology version.
@@ -34,7 +42,8 @@ npm run typecheck
 from it, and with `--anchor` compares it with the card stored on-chain (read
 straight from the ledger, no account needed). With `--logs` it also checks
 the bundle's per-day digests against a copy of the probe logs, which the
-collector host serves at `/probe-results/`.
+collector host serves at `/probe-results/`, applying the same incidents the
+scorer applied.
 
 Paths (all env-overridable): `MAINNET_PROBE_RESULTS_DIR`,
 `MAINNET_STATUS_PATH`, `EVIDENCE_DIR`, `PASSIVE_MONITOR_FLOWS_PATH`,
