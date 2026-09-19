@@ -12,7 +12,7 @@ use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol};
 use types::{
     AnchorHealth, DataKey, ReportSubmittedEvent, RiskStatusChangedEvent, ScoreCard, ScoreCardInput,
-    ScoreCardPublishedEvent,
+    ScoreCardPublishedEvent, Verdict,
 };
 
 /// Reports timestamped further than this many seconds in the future
@@ -203,7 +203,10 @@ impl PerformanceOracle {
         env.storage().persistent().set(&card_key, &stored);
         bump_persistent(&env, &card_key);
 
-        registry.update_score(&anchor_id, &card.score);
+        // The registry holds the score of record: 0 while the card is too
+        // uncertain to use, so that nobody reading the registry alone takes
+        // a number that the card itself says not to show.
+        registry.update_score(&anchor_id, &score_of_record(&stored));
 
         // The risk floor follows the new headline.
         let health_key = DataKey::Health(anchor_id.clone());
@@ -243,21 +246,37 @@ impl PerformanceOracle {
         env.storage().persistent().get(&DataKey::Card(anchor_id))
     }
 
-    /// The headline: the score card's score when the anchor has one, else
-    /// the per-report EMA, else 0 for an anchor never scored (unknown, not
-    /// perfect).
+    /// The score of record: the card's score when the anchor has a card
+    /// confident enough to show (else 0), the per-report EMA for an anchor
+    /// scored by reports only, or 0 for an anchor never scored (unknown,
+    /// not perfect). The same number the registry holds.
     pub fn get_score(env: Env, anchor_id: Symbol) -> u32 {
+        Self::get_verdict(env, anchor_id).score
+    }
+
+    /// The score of record with the confidence and flags behind it. Use
+    /// this rather than `get_score` to tell "withheld" from "failing".
+    pub fn get_verdict(env: Env, anchor_id: Symbol) -> Verdict {
         if let Some(card) = env
             .storage()
             .persistent()
             .get::<_, ScoreCard>(&DataKey::Card(anchor_id.clone()))
         {
-            return card.score;
+            return Verdict {
+                score: score_of_record(&card),
+                confidence: Some(card.confidence),
+                flags: card.flags,
+                withheld: card.confidence < scoring::CONFIDENCE_INSUFFICIENT,
+                card_score: Some(card.score),
+            };
         }
-        env.storage()
-            .persistent()
-            .get(&DataKey::Score(anchor_id))
-            .unwrap_or(0)
+        Verdict {
+            score: env.storage().persistent().get(&DataKey::Score(anchor_id)).unwrap_or(0),
+            confidence: None,
+            flags: 0,
+            withheld: false,
+            card_score: None,
+        }
     }
 
     /// Trend, risk status and recent-window stats for `anchor_id`. An anchor
@@ -271,6 +290,16 @@ impl PerformanceOracle {
 
     pub fn get_reporter_source_type(env: Env, reporter: Address) -> Option<SourceType> {
         env.storage().persistent().get(&DataKey::Reporter(reporter))
+    }
+}
+
+/// What the registry and `get_score` hold for a card: its score, or 0 while
+/// its confidence is too low to show it.
+fn score_of_record(card: &ScoreCard) -> u32 {
+    if card.confidence < scoring::CONFIDENCE_INSUFFICIENT {
+        0
+    } else {
+        card.score
     }
 }
 

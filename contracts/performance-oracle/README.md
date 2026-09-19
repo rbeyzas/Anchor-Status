@@ -28,9 +28,14 @@ slashes or moves anyone's stake.
   update the EMA and the health record but no longer overwrite the
   registry's score, and `report_submitted.new_score` carries the card's.
 - `get_score_card(anchor_id)` — the latest card, if any.
-- `get_score(anchor_id)` — the headline: the card's score, else the
-  per-source-weighted EMA (`RealMainnet` and `RealTestnet` at 35%,
-  `SimulatedMock` at 15%), else **0** for an anchor never scored.
+- `get_score(anchor_id)` — the score of record, the same number the
+  registry holds: the card's score when its confidence is at least 40 (0
+  while it is lower: withheld), else the per-source-weighted EMA
+  (`RealMainnet` and `RealTestnet` at 35%, `SimulatedMock` at 15%), else
+  **0** for an anchor never scored.
+- `get_verdict(anchor_id)` — the score of record with its confidence,
+  flags, whether it is withheld, and the card's own score. Consumers should
+  read this rather than `get_score`, to tell "withheld" from "failing".
 - `get_health(anchor_id)` — the trend and risk record:
   - **Trend** from a fast (50%) and a slow (8%) EMA, both seeded from the
     anchor's first real report: `Degrading` when the fast one sits more

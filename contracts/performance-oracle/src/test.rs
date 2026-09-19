@@ -641,3 +641,50 @@ fn a_published_card_has_its_ttl_extended() {
     });
     assert!(ttl >= PERSISTENT_LIFETIME_THRESHOLD, "card TTL {ttl} should have been extended");
 }
+
+#[test]
+fn a_withheld_card_leaves_zero_as_the_score_of_record() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 49, 3, 3_600));
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 0, "the registry must not hold a number the card withholds");
+    assert_eq!(h.oracle.get_score(&anchor_id), 0);
+    let verdict = h.oracle.get_verdict(&anchor_id);
+    assert_eq!(verdict.score, 0);
+    assert_eq!(verdict.withheld, true);
+    assert_eq!(verdict.confidence, Some(3));
+    assert_eq!(verdict.card_score, Some(49));
+
+    // Once the card is confident enough, its score becomes the score of record.
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 81);
+    let verdict = h.oracle.get_verdict(&anchor_id);
+    assert_eq!((verdict.score, verdict.withheld, verdict.confidence), (81, false, Some(61)));
+}
+
+#[test]
+fn a_report_does_not_put_a_withheld_cards_score_into_the_registry() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 49, 3, 3_600));
+    h.oracle.submit_report(&reporter, &anchor_id, &true, &1, &10_000, &SourceType::RealMainnet);
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 0);
+}
+
+#[test]
+fn the_verdict_of_an_anchor_scored_by_reports_only_carries_no_card() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "testnet_anchor");
+    register_and_stake(&h, &anchor_id, 0);
+    h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &env.ledger().timestamp(), &SourceType::RealTestnet);
+    let verdict = h.oracle.get_verdict(&anchor_id);
+    assert_eq!((verdict.score, verdict.confidence, verdict.flags, verdict.withheld, verdict.card_score), (65, None, 0, false, None));
+}

@@ -134,6 +134,27 @@ pub struct RiskStatusChangedEvent {
     pub trend: Trend,
 }
 
+/// Everything a consumer needs to use an anchor's score correctly, in one
+/// read: the score of record, and whether it is worth showing.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct Verdict {
+    /// The score of record: what `get_score` returns and the registry holds.
+    /// 0 when there is no score to show: never scored, or a card whose
+    /// confidence is too low (`withheld`).
+    pub score: u32,
+    /// The card's confidence; None for an anchor scored by reports only.
+    pub confidence: Option<u32>,
+    /// The card's gate and information flags; 0 without a card.
+    pub flags: u32,
+    /// The anchor has a card, but its confidence is under 40: its number
+    /// says too little to use. The flags still apply.
+    pub withheld: bool,
+    /// The card's own score even when withheld, for anyone who wants to see
+    /// where it stands; None without a card.
+    pub card_score: Option<u32>,
+}
+
 /// Published for every accepted score card. Flat fields, so an indexer can
 /// read the headline and its confidence without decoding a nested struct.
 #[contractevent(topics = ["score_card_published"])]
