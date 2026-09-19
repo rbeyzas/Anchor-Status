@@ -271,7 +271,6 @@ export default async function LandingPage() {
           </section>
         )}
 
-        {/* Method */}
         <section id="method" className="scroll-mt-8 py-20 md:py-28">
           <h2 className="max-w-xl font-heading text-[44px] font-bold leading-[1.02] tracking-[-0.025em] text-as-ink">
             Measured three times, published once.
