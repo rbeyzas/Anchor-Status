@@ -24,7 +24,8 @@ export function saveArchive(filePath: string, archive: Archive): void {
     fs.copyFileSync(filePath, `${filePath}.bak`);
   }
   const tmp = `${filePath}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(archive, null, 2));
+  // Compact: the file is read by programs, and holds tens of thousands of points.
+  fs.writeFileSync(tmp, JSON.stringify(archive));
   fs.renameSync(tmp, filePath);
 }
 
