@@ -1,0 +1,794 @@
+{
+  "mock_anchor_1": {
+    "score": 100,
+    "scoreHistory": [
+      {
+        "timestamp": "2026-08-22T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-23T23:40:00+00:00",
+        "score": 52
+      },
+      {
+        "timestamp": "2026-08-24T23:40:00+00:00",
+        "score": 54
+      },
+      {
+        "timestamp": "2026-08-25T23:40:00+00:00",
+        "score": 56
+      },
+      {
+        "timestamp": "2026-08-26T23:40:00+00:00",
+        "score": 58
+      },
+      {
+        "timestamp": "2026-08-27T23:40:00+00:00",
+        "score": 60
+      },
+      {
+        "timestamp": "2026-08-28T23:40:00+00:00",
+        "score": 64
+      },
+      {
+        "timestamp": "2026-08-29T23:40:00+00:00",
+        "score": 68
+      },
+      {
+        "timestamp": "2026-08-30T23:40:00+00:00",
+        "score": 72
+      },
+      {
+        "timestamp": "2026-08-31T23:40:00+00:00",
+        "score": 76
+      },
+      {
+        "timestamp": "2026-09-01T23:40:00+00:00",
+        "score": 81
+      },
+      {
+        "timestamp": "2026-09-02T23:40:00+00:00",
+        "score": 86
+      },
+      {
+        "timestamp": "2026-09-03T23:40:00+00:00",
+        "score": 92
+      },
+      {
+        "timestamp": "2026-09-04T23:40:00+00:00",
+        "score": 95
+      },
+      {
+        "timestamp": "2026-09-05T23:40:00+00:00",
+        "score": 98
+      },
+      {
+        "timestamp": "2026-09-06T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-07T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-08T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-09T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-10T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-11T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-12T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-13T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-14T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-15T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-16T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-17T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-18T23:40:00+00:00",
+        "score": 100
+      },
+      {
+        "timestamp": "2026-09-19T23:40:00+00:00",
+        "score": 100
+      }
+    ],
+    "lastUpdated": "2026-09-20T00:00:00+00:00",
+    "health": {
+      "trend": "Stable",
+      "riskReason": "None",
+      "consecutiveFailures": 0,
+      "recentSuccessPercent": 100,
+      "recentCount": 20,
+      "observations": 180
+    },
+    "status": {
+      "dormant": false,
+      "checkedAt": "2026-09-19T22:00:00+00:00",
+      "reachable": true,
+      "issuedAssets": [
+        "SRT"
+      ],
+      "lastProbe": {
+        "at": "2026-09-19T22:00:00+00:00",
+        "success": true,
+        "stages": [
+          {
+            "stage": "toml",
+            "ok": true,
+            "ms": 180
+          },
+          {
+            "stage": "info",
+            "ok": true,
+            "ms": 240
+          },
+          {
+            "stage": "challenge",
+            "ok": true,
+            "ms": 320
+          },
+          {
+            "stage": "token",
+            "ok": true,
+            "ms": 410
+          },
+          {
+            "stage": "initiate",
+            "ok": true,
+            "ms": 368
+          }
+        ],
+        "expected": [
+          "toml",
+          "info",
+          "challenge",
+          "token",
+          "initiate"
+        ],
+        "seconds": 9.2
+      }
+    },
+    "card": {
+      "score": 100,
+      "availability": 100,
+      "speed": 100,
+      "integrity": 100,
+      "market": 100,
+      "confidence": 100,
+      "flags": [],
+      "windowEnd": "2026-09-20T00:00:00+00:00",
+      "methodologyVersion": 1,
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-09-20T00:00:00+00:00"
+    },
+    "cardContext": {
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "monitoredDays": 30,
+      "checks30d": 180,
+      "coverage": 1.0
+    }
+  },
+  "mock_anchor_2": {
+    "score": 54,
+    "scoreHistory": [
+      {
+        "timestamp": "2026-08-22T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-23T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-24T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-25T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-26T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-27T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-28T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-08-29T23:40:00+00:00",
+        "score": 52
+      },
+      {
+        "timestamp": "2026-08-30T23:40:00+00:00",
+        "score": 52
+      },
+      {
+        "timestamp": "2026-08-31T23:40:00+00:00",
+        "score": 53
+      },
+      {
+        "timestamp": "2026-09-01T23:40:00+00:00",
+        "score": 54
+      },
+      {
+        "timestamp": "2026-09-02T23:40:00+00:00",
+        "score": 53
+      },
+      {
+        "timestamp": "2026-09-03T23:40:00+00:00",
+        "score": 55
+      },
+      {
+        "timestamp": "2026-09-04T23:40:00+00:00",
+        "score": 55
+      },
+      {
+        "timestamp": "2026-09-05T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-06T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-07T23:40:00+00:00",
+        "score": 45
+      },
+      {
+        "timestamp": "2026-09-08T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-09T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-10T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-11T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-12T23:40:00+00:00",
+        "score": 51
+      },
+      {
+        "timestamp": "2026-09-13T23:40:00+00:00",
+        "score": 53
+      },
+      {
+        "timestamp": "2026-09-14T23:40:00+00:00",
+        "score": 53
+      },
+      {
+        "timestamp": "2026-09-15T23:40:00+00:00",
+        "score": 54
+      },
+      {
+        "timestamp": "2026-09-16T23:40:00+00:00",
+        "score": 53
+      },
+      {
+        "timestamp": "2026-09-17T23:40:00+00:00",
+        "score": 52
+      },
+      {
+        "timestamp": "2026-09-18T23:40:00+00:00",
+        "score": 54
+      },
+      {
+        "timestamp": "2026-09-19T23:40:00+00:00",
+        "score": 54
+      }
+    ],
+    "lastUpdated": "2026-09-20T00:00:00+00:00",
+    "health": {
+      "trend": "Stable",
+      "riskReason": "None",
+      "consecutiveFailures": 0,
+      "recentSuccessPercent": 90,
+      "recentCount": 20,
+      "observations": 180
+    },
+    "status": {
+      "dormant": false,
+      "checkedAt": "2026-09-19T22:00:00+00:00",
+      "reachable": true,
+      "issuedAssets": [],
+      "lastProbe": {
+        "at": "2026-09-19T22:00:00+00:00",
+        "success": true,
+        "stages": [
+          {
+            "stage": "toml",
+            "ok": true,
+            "ms": 180
+          },
+          {
+            "stage": "info",
+            "ok": true,
+            "ms": 240
+          },
+          {
+            "stage": "challenge",
+            "ok": true,
+            "ms": 320
+          },
+          {
+            "stage": "token",
+            "ok": true,
+            "ms": 410
+          },
+          {
+            "stage": "initiate",
+            "ok": true,
+            "ms": 2070
+          }
+        ],
+        "expected": [
+          "toml",
+          "info",
+          "challenge",
+          "token",
+          "initiate"
+        ],
+        "seconds": 51.8
+      }
+    },
+    "card": {
+      "score": 54,
+      "availability": 32,
+      "speed": 65,
+      "integrity": 92,
+      "market": null,
+      "confidence": 90,
+      "flags": [
+        "NO_MARKET"
+      ],
+      "windowEnd": "2026-09-20T00:00:00+00:00",
+      "methodologyVersion": 1,
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-09-20T00:00:00+00:00"
+    },
+    "cardContext": {
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "monitoredDays": 30,
+      "checks30d": 180,
+      "coverage": 0.8,
+      "marketNa": "not_issuer"
+    }
+  },
+  "mock_anchor_3": {
+    "score": 44,
+    "scoreHistory": [
+      {
+        "timestamp": "2026-08-22T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-23T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-24T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-25T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-26T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-27T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-28T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-29T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-30T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-31T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-01T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-02T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-03T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-04T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-05T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-06T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-07T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-08T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-09T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-10T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-11T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-09-12T23:40:00+00:00",
+        "score": 48
+      },
+      {
+        "timestamp": "2026-09-13T23:40:00+00:00",
+        "score": 47
+      },
+      {
+        "timestamp": "2026-09-14T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-09-15T23:40:00+00:00",
+        "score": 45
+      },
+      {
+        "timestamp": "2026-09-16T23:40:00+00:00",
+        "score": 44
+      },
+      {
+        "timestamp": "2026-09-17T23:40:00+00:00",
+        "score": 44
+      },
+      {
+        "timestamp": "2026-09-18T23:40:00+00:00",
+        "score": 44
+      },
+      {
+        "timestamp": "2026-09-19T23:40:00+00:00",
+        "score": 44
+      }
+    ],
+    "lastUpdated": "2026-09-20T00:00:00+00:00",
+    "health": {
+      "trend": "Degrading",
+      "riskReason": "LowSuccessRate",
+      "consecutiveFailures": 3,
+      "recentSuccessPercent": 40,
+      "recentCount": 20,
+      "observations": 180
+    },
+    "status": {
+      "dormant": false,
+      "checkedAt": "2026-09-19T22:00:00+00:00",
+      "reachable": false,
+      "problem": "the deposit could not be started",
+      "issuedAssets": [
+        "SRT"
+      ],
+      "lastProbe": {
+        "at": "2026-09-19T22:00:00+00:00",
+        "success": false,
+        "stages": [
+          {
+            "stage": "toml",
+            "ok": true,
+            "ms": 180
+          },
+          {
+            "stage": "info",
+            "ok": true,
+            "ms": 240
+          },
+          {
+            "stage": "challenge",
+            "ok": true,
+            "ms": 320
+          },
+          {
+            "stage": "token",
+            "ok": true,
+            "ms": 410
+          },
+          {
+            "stage": "initiate",
+            "ok": false
+          }
+        ],
+        "expected": [
+          "toml",
+          "info",
+          "challenge",
+          "token",
+          "initiate"
+        ],
+        "seconds": 17.2
+      }
+    },
+    "card": {
+      "score": 44,
+      "availability": 7,
+      "speed": 91,
+      "integrity": 100,
+      "market": 19,
+      "confidence": 100,
+      "flags": [
+        "DEPEG",
+        "OUTAGE",
+        "LOW_UPTIME"
+      ],
+      "windowEnd": "2026-09-20T00:00:00+00:00",
+      "methodologyVersion": 1,
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-09-20T00:00:00+00:00"
+    },
+    "cardContext": {
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "monitoredDays": 30,
+      "checks30d": 180,
+      "coverage": 1.0
+    }
+  },
+  "mock_anchor_4": {
+    "score": 39,
+    "scoreHistory": [
+      {
+        "timestamp": "2026-08-22T23:40:00+00:00",
+        "score": 50
+      },
+      {
+        "timestamp": "2026-08-23T23:40:00+00:00",
+        "score": 49
+      },
+      {
+        "timestamp": "2026-08-24T23:40:00+00:00",
+        "score": 49
+      },
+      {
+        "timestamp": "2026-08-25T23:40:00+00:00",
+        "score": 48
+      },
+      {
+        "timestamp": "2026-08-26T23:40:00+00:00",
+        "score": 48
+      },
+      {
+        "timestamp": "2026-08-27T23:40:00+00:00",
+        "score": 47
+      },
+      {
+        "timestamp": "2026-08-28T23:40:00+00:00",
+        "score": 46
+      },
+      {
+        "timestamp": "2026-08-29T23:40:00+00:00",
+        "score": 45
+      },
+      {
+        "timestamp": "2026-08-30T23:40:00+00:00",
+        "score": 44
+      },
+      {
+        "timestamp": "2026-08-31T23:40:00+00:00",
+        "score": 42
+      },
+      {
+        "timestamp": "2026-09-01T23:40:00+00:00",
+        "score": 41
+      },
+      {
+        "timestamp": "2026-09-02T23:40:00+00:00",
+        "score": 39
+      },
+      {
+        "timestamp": "2026-09-03T23:40:00+00:00",
+        "score": 38
+      },
+      {
+        "timestamp": "2026-09-04T23:40:00+00:00",
+        "score": 37
+      },
+      {
+        "timestamp": "2026-09-05T23:40:00+00:00",
+        "score": 36
+      },
+      {
+        "timestamp": "2026-09-06T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-07T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-08T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-09T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-10T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-11T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-12T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-13T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-14T23:40:00+00:00",
+        "score": 35
+      },
+      {
+        "timestamp": "2026-09-15T23:40:00+00:00",
+        "score": 36
+      },
+      {
+        "timestamp": "2026-09-16T23:40:00+00:00",
+        "score": 36
+      },
+      {
+        "timestamp": "2026-09-17T23:40:00+00:00",
+        "score": 36
+      },
+      {
+        "timestamp": "2026-09-18T23:40:00+00:00",
+        "score": 36
+      },
+      {
+        "timestamp": "2026-09-19T23:40:00+00:00",
+        "score": 39
+      }
+    ],
+    "lastUpdated": "2026-09-20T00:00:00+00:00",
+    "health": {
+      "trend": "Improving",
+      "riskReason": "None",
+      "consecutiveFailures": 1,
+      "recentSuccessPercent": 90,
+      "recentCount": 20,
+      "observations": 180
+    },
+    "status": {
+      "dormant": false,
+      "checkedAt": "2026-09-19T22:00:00+00:00",
+      "reachable": false,
+      "problem": "the deposit could not be started",
+      "issuedAssets": [],
+      "lastProbe": {
+        "at": "2026-09-19T22:00:00+00:00",
+        "success": false,
+        "stages": [
+          {
+            "stage": "toml",
+            "ok": true,
+            "ms": 180
+          },
+          {
+            "stage": "info",
+            "ok": true,
+            "ms": 240
+          },
+          {
+            "stage": "challenge",
+            "ok": true,
+            "ms": 320
+          },
+          {
+            "stage": "token",
+            "ok": true,
+            "ms": 410
+          },
+          {
+            "stage": "initiate",
+            "ok": false
+          }
+        ],
+        "expected": [
+          "toml",
+          "info",
+          "challenge",
+          "token",
+          "initiate"
+        ],
+        "seconds": 46.0
+      }
+    },
+    "card": {
+      "score": 39,
+      "availability": 15,
+      "speed": 48,
+      "integrity": 70,
+      "market": null,
+      "confidence": 75,
+      "flags": [
+        "LOW_COVERAGE",
+        "NO_MARKET",
+        "LOW_UPTIME"
+      ],
+      "windowEnd": "2026-09-20T00:00:00+00:00",
+      "methodologyVersion": 1,
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "publishedAt": "2026-09-20T00:00:00+00:00"
+    },
+    "cardContext": {
+      "inputsHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "monitoredDays": 30,
+      "checks30d": 180,
+      "coverage": 0.5,
+      "marketNa": "no_market"
+    }
+  }
+}

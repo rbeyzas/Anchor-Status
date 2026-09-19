@@ -200,16 +200,22 @@ export function AnchorDetailModal({
                 {new Date(anchor.status.onChainSince).toISOString().slice(0, 10)} (context only: age is not scored).
               </p>
             )}
-            <p className="mt-3 text-xs text-as-ink-muted">
-              Computed from a published{' '}
-              <a href={evidenceUrl(card.inputsHash)} target="_blank" rel="noreferrer" className="font-medium text-as-signal underline">
-                inputs bundle
-              </a>{' '}
-              whose hash is on-chain. Recompute it yourself:
-              <code className="mt-1.5 block overflow-x-auto rounded bg-as-surface-2 px-2 py-1 font-mono text-[11px] text-as-ink">
-                cd services/aggregator && npm run verify-score -- {card.inputsHash} --anchor {anchor.anchorId}
-              </code>
-            </p>
+            {anchor.sourceType === 'SimulatedMock' ? (
+              <p className="mt-3 text-xs text-as-ink-muted">
+                Fixed demo data: this card is not published on-chain and has no inputs bundle to recompute.
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-as-ink-muted">
+                Computed from a published{' '}
+                <a href={evidenceUrl(card.inputsHash)} target="_blank" rel="noreferrer" className="font-medium text-as-signal underline">
+                  inputs bundle
+                </a>{' '}
+                whose hash is on-chain. Recompute it yourself:
+                <code className="mt-1.5 block overflow-x-auto rounded bg-as-surface-2 px-2 py-1 font-mono text-[11px] text-as-ink">
+                  cd services/aggregator && npm run verify-score -- {card.inputsHash} --anchor {anchor.anchorId}
+                </code>
+              </p>
+            )}
           </div>
         )}
 

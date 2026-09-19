@@ -15,6 +15,7 @@ import {
   NEW_HEALTH,
   readAnchorIds,
 } from './contract-state';
+import { mergeMockDemoInto } from './mock-demo';
 import { createRpcPool, type RpcPool } from './rpc';
 import { fetchScoreSummary, mergeCardContext } from './score-summary';
 import type { AnchorViewModel, DashboardData, ScorePoint, UnreadableAnchor } from './types';
@@ -219,9 +220,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
     }
     return {
-      anchors: mergeCardContext(
-        mergeStatusInto(mergeArchiveInto(live.anchors.filter((a) => !isDelisted(a.anchorId)), archive), status),
-        summary,
+      anchors: mergeMockDemoInto(
+        mergeCardContext(
+          mergeStatusInto(mergeArchiveInto(live.anchors.filter((a) => !isDelisted(a.anchorId)), archive), status),
+          summary,
+        ),
       ),
       unreadable: live.unreadable.filter((u) => !isDelisted(u.anchorId)),
       dataSource: 'live',
