@@ -257,19 +257,10 @@ export function AnchorDetailModal({
                   }}
                   labelStyle={{ color: 'rgb(var(--as-ink))' }}
                 />
-                {anchor.slashEvents.map((slash) => (
-                  <ReferenceLine
-                    key={slash.timestamp}
-                    x={formatChartAxisLabel(slash.timestamp, historyTimestamps)}
-                    stroke="rgb(var(--as-danger))"
-                    strokeDasharray="4 4"
-                    label={{
-                      value: 'legacy slash',
-                      position: 'top',
-                      fontSize: 10,
-                      fill: 'rgb(var(--as-danger))',
-                    }}
-                  />
+                {/* One bare line per axis position: slashes can come minutes apart, and a
+                    label on each one printed over the others. The text below explains them. */}
+                {[...new Set(anchor.slashEvents.map((slash) => formatChartAxisLabel(slash.timestamp, historyTimestamps)))].map((x) => (
+                  <ReferenceLine key={x} x={x} stroke="rgb(var(--as-danger))" strokeDasharray="4 4" strokeOpacity={0.7} />
                 ))}
                 <Area
                   type="monotone"
