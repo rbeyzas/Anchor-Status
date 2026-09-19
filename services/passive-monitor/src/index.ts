@@ -2,6 +2,7 @@ import { Horizon } from '@stellar/stellar-sdk';
 import fs from 'node:fs';
 import path from 'node:path';
 import { aggregatePayments } from './aggregate.js';
+import { runChainSignals } from './chain.js';
 import { config, loadAnchorsFile } from './config.js';
 import { fetchRecentPayments, sleep } from './horizon.js';
 import { fetchAnchorInfo } from './sep.js';
@@ -70,7 +71,9 @@ async function buildProfile(
   };
 }
 
-async function main() {
+/** Payment activity of the hand-configured distribution accounts: context
+ * only, never scored. */
+async function buildProfiles() {
   const { anchors } = loadAnchorsFile(config.anchorsConfigPath);
   if (anchors.length === 0) {
     console.warn('[passive-monitor] anchors.json has no anchors configured, nothing to do.');
@@ -95,6 +98,18 @@ async function main() {
   fs.mkdirSync(path.dirname(config.outputPath), { recursive: true });
   fs.writeFileSync(config.outputPath, JSON.stringify(profiles, null, 2));
   console.log(`[passive-monitor] wrote ${profiles.length} profile(s) to ${config.outputPath}`);
+}
+
+async function main() {
+  // Independent: a failure in one must not cost the other its round.
+  await buildProfiles().catch((err) => {
+    console.error('[passive-monitor] activity profiles failed:', err);
+    process.exitCode = 1;
+  });
+  await runChainSignals().catch((err) => {
+    console.error('[passive-monitor] chain signals failed:', err);
+    process.exitCode = 1;
+  });
 }
 
 main().catch((err) => {

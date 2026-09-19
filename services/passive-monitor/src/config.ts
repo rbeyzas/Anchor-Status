@@ -29,7 +29,25 @@ export const config = {
   // 200 payments/page; caps very high-volume accounts at ~5,000 payments.
   maxPages: Number(process.env.PASSIVE_MONITOR_MAX_PAGES ?? '25'),
   outputPath: path.join(__dirname, '..', 'output', 'base-profiles.json'),
+
+  // --- Chain signals for the score cards ---
+  // mainnet-probe's status file: which assets each anchor issues.
+  statusPath: path.resolve(repoRoot, process.env.MAINNET_STATUS_PATH ?? 'services/mainnet-probe/output/status.json'),
+  // Durable on the collector host (under /var/lib/anchor-status), like the
+  // rest of the collected data.
+  flowsPath: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_FLOWS_PATH ?? 'services/passive-monitor/output/flows.json'),
+  marketDir: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_MARKET_DIR ?? 'services/passive-monitor/output/market'),
+  // A 30-day backfill of a busy issuer takes minutes; this many new issuers
+  // per round keeps a first run from holding up the 20-minute collection.
+  maxBackfillsPerRun: Number(process.env.PASSIVE_MONITOR_MAX_BACKFILLS_PER_RUN ?? '5'),
+  requestTimeoutMs: 20_000,
+  get fxCachePath() {
+    return fxCachePathFor(this.flowsPath);
+  },
 };
+
+/** Today's FX table, cached beside the flows. */
+export const fxCachePathFor = (flowsPath: string) => path.join(path.dirname(flowsPath), 'fx.json');
 
 export function loadAnchorsFile(anchorsPath: string) {
   if (!fs.existsSync(anchorsPath)) {

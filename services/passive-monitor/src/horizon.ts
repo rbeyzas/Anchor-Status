@@ -61,8 +61,14 @@ export async function fetchRecentPayments(
       const op = record as unknown as {
         asset_type: string;
         asset_code?: string;
+        asset_issuer?: string;
         amount?: string;
         source_amount?: string;
+        source_asset_type?: string;
+        source_asset_code?: string;
+        source_asset_issuer?: string;
+        from?: string;
+        to?: string;
       };
       const amountStr = op.amount ?? op.source_amount;
       if (!amountStr) continue;
@@ -70,6 +76,16 @@ export async function fetchRecentPayments(
         createdAt: record.created_at,
         assetCode: op.asset_type === 'native' ? 'XLM' : (op.asset_code ?? 'UNKNOWN'),
         amount: Number(amountStr),
+        ...(op.from ? { from: op.from } : {}),
+        ...(op.to ? { to: op.to } : {}),
+        ...(op.asset_issuer ? { assetIssuer: op.asset_issuer } : {}),
+        ...(op.source_asset_type
+          ? {
+              sourceAssetCode: op.source_asset_type === 'native' ? 'XLM' : op.source_asset_code,
+              ...(op.source_asset_issuer ? { sourceAssetIssuer: op.source_asset_issuer } : {}),
+              ...(op.source_amount ? { sourceAmount: Number(op.source_amount) } : {}),
+            }
+          : {}),
       });
     }
 

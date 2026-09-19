@@ -14,6 +14,15 @@ export interface PaymentRecord {
   createdAt: string; // ISO 8601
   assetCode: string; // "XLM" for native
   amount: number;
+  /** Who sent and who received it; for flows, where the issuer is one side. */
+  from?: string;
+  to?: string;
+  /** Issuer of the asset received. */
+  assetIssuer?: string;
+  /** For path payments: the asset the sender gave up, when it differs. */
+  sourceAssetCode?: string;
+  sourceAssetIssuer?: string;
+  sourceAmount?: number;
 }
 
 export interface VolumeStats {
