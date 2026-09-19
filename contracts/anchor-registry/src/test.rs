@@ -48,7 +48,7 @@ fn register_anchor_success() {
     let info = client.get_anchor_info(&anchor_id);
     assert_eq!(info.operator, operator);
     assert_eq!(info.stake, 0);
-    assert_eq!(info.score, 100);
+    assert_eq!(info.score, 0, "a new anchor is unscored, not perfect");
     assert_eq!(info.source_type, SourceType::RealTestnet);
 }
 

@@ -13,6 +13,50 @@ pub enum DataKey {
     Score(Symbol),
     /// anchor_id -> AnchorHealth: the trend and risk-floor state.
     Health(Symbol),
+    /// anchor_id -> ScoreCard: the latest windowed score card
+    /// (docs/SCORING.md). Appended last so existing keys keep their encoding.
+    Card(Symbol),
+}
+
+/// What a reporter submits: the card computed off-chain from a published
+/// inputs bundle. One struct rather than one argument per field, because a
+/// contract function takes at most 10 arguments.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct ScoreCardInput {
+    /// Headline 0-100, after the confidence shrinkage and the gate caps.
+    pub score: u32,
+    pub availability: u32,
+    pub speed: u32,
+    pub integrity: u32,
+    /// None when the Market pillar does not apply (n/a).
+    pub market: Option<u32>,
+    pub confidence: u32,
+    /// Gate and information flags, as a bitmask (docs/SCORING.md section 8).
+    pub flags: u32,
+    /// Unix seconds: the end of the measured window.
+    pub window_end: u64,
+    pub methodology_version: u32,
+    /// SHA-256 of the published inputs bundle the card was computed from.
+    pub inputs_hash: BytesN<32>,
+}
+
+/// A stored score card: the submitted card plus when it was published.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct ScoreCard {
+    pub score: u32,
+    pub availability: u32,
+    pub speed: u32,
+    pub integrity: u32,
+    pub market: Option<u32>,
+    pub confidence: u32,
+    pub flags: u32,
+    pub window_end: u64,
+    pub methodology_version: u32,
+    pub inputs_hash: BytesN<32>,
+    /// Ledger timestamp when the card was accepted.
+    pub published_at: u64,
 }
 
 /// Direction of an anchor's recent performance relative to its long-run
@@ -88,4 +132,18 @@ pub struct RiskStatusChangedEvent {
     pub risk_reason: RiskReason,
     pub score: u32,
     pub trend: Trend,
+}
+
+/// Published for every accepted score card. Flat fields, so an indexer can
+/// read the headline and its confidence without decoding a nested struct.
+#[contractevent(topics = ["score_card_published"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScoreCardPublishedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub score: u32,
+    pub confidence: u32,
+    pub flags: u32,
+    pub methodology_version: u32,
+    pub inputs_hash: BytesN<32>,
 }

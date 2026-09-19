@@ -105,7 +105,9 @@ impl AnchorRegistry {
             source_type,
             operator,
             stake: 0,
-            score: 100,
+            // Unscored: unknown, not perfect. The oracle writes the first
+            // real score.
+            score: 0,
             registered_at: now,
             last_updated: now,
         };

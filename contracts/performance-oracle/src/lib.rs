@@ -10,7 +10,10 @@ mod test;
 use anchor_registry::{AnchorRegistryClient, SourceType};
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol};
-use types::{AnchorHealth, DataKey, ReportSubmittedEvent, RiskStatusChangedEvent};
+use types::{
+    AnchorHealth, DataKey, ReportSubmittedEvent, RiskStatusChangedEvent, ScoreCard, ScoreCardInput,
+    ScoreCardPublishedEvent,
+};
 
 /// Reports timestamped further than this many seconds in the future
 /// (relative to ledger time) are rejected as invalid.
@@ -135,11 +138,126 @@ impl PerformanceOracle {
         Ok(())
     }
 
+    /// Publishes a score card computed off-chain (docs/SCORING.md) from the
+    /// inputs bundle whose SHA-256 is `card.inputs_hash`. The reporter must
+    /// be authorized for the anchor's own source type, read from the
+    /// registry. The card becomes the anchor's headline: it is pushed to the
+    /// registry, and from then on per-report updates no longer overwrite it.
+    /// Returns the headline score.
+    pub fn publish_score_card(env: Env, reporter: Address, anchor_id: Symbol, card: ScoreCardInput) -> Result<u32, Error> {
+        reporter.require_auth();
+
+        let reporter_key = DataKey::Reporter(reporter);
+        let authorized_source: SourceType = env
+            .storage()
+            .persistent()
+            .get(&reporter_key)
+            .ok_or(Error::NotAuthorizedReporter)?;
+        bump_persistent(&env, &reporter_key);
+
+        let registry_address: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::RegistryAddress)
+            .ok_or(Error::NotInitialized)?;
+        let registry = AnchorRegistryClient::new(&env, &registry_address);
+        let info = match registry.try_get_anchor_info(&anchor_id) {
+            Ok(Ok(info)) => info,
+            _ => return Err(Error::AnchorNotFound),
+        };
+        if info.source_type != authorized_source {
+            return Err(Error::ReporterWrongSourceType);
+        }
+
+        let percentages = [card.score, card.availability, card.speed, card.integrity, card.confidence];
+        if percentages.iter().any(|p| *p > 100)
+            || card.market.is_some_and(|m| m > 100)
+            || card.methodology_version == 0
+        {
+            return Err(Error::InvalidScoreCard);
+        }
+        let now = env.ledger().timestamp();
+        if card.window_end > now + MAX_FUTURE_SKEW_SECONDS {
+            return Err(Error::ReportTimestampInFuture);
+        }
+        let card_key = DataKey::Card(anchor_id.clone());
+        if let Some(previous) = env.storage().persistent().get::<_, ScoreCard>(&card_key) {
+            if card.window_end <= previous.window_end {
+                return Err(Error::StaleScoreCard);
+            }
+        }
+
+        let stored = ScoreCard {
+            score: card.score,
+            availability: card.availability,
+            speed: card.speed,
+            integrity: card.integrity,
+            market: card.market,
+            confidence: card.confidence,
+            flags: card.flags,
+            window_end: card.window_end,
+            methodology_version: card.methodology_version,
+            inputs_hash: card.inputs_hash.clone(),
+            published_at: now,
+        };
+        env.storage().persistent().set(&card_key, &stored);
+        bump_persistent(&env, &card_key);
+
+        registry.update_score(&anchor_id, &card.score);
+
+        // The risk floor follows the new headline.
+        let health_key = DataKey::Health(anchor_id.clone());
+        let mut health: AnchorHealth = env
+            .storage()
+            .persistent()
+            .get(&health_key)
+            .unwrap_or_else(scoring::new_health);
+        let reason = scoring::risk_reason(floor_score(&stored), &health);
+        if reason != health.risk_reason {
+            health.risk_reason = reason;
+            env.storage().persistent().set(&health_key, &health);
+            bump_persistent(&env, &health_key);
+            RiskStatusChangedEvent {
+                anchor_id: anchor_id.clone(),
+                risk_reason: reason,
+                score: card.score,
+                trend: health.trend,
+            }
+            .publish(&env);
+        }
+        bump_instance(&env);
+
+        ScoreCardPublishedEvent {
+            anchor_id,
+            score: card.score,
+            confidence: card.confidence,
+            flags: card.flags,
+            methodology_version: card.methodology_version,
+            inputs_hash: card.inputs_hash,
+        }
+        .publish(&env);
+        Ok(card.score)
+    }
+
+    pub fn get_score_card(env: Env, anchor_id: Symbol) -> Option<ScoreCard> {
+        env.storage().persistent().get(&DataKey::Card(anchor_id))
+    }
+
+    /// The headline: the score card's score when the anchor has one, else
+    /// the per-report EMA, else 0 for an anchor never scored (unknown, not
+    /// perfect).
     pub fn get_score(env: Env, anchor_id: Symbol) -> u32 {
+        if let Some(card) = env
+            .storage()
+            .persistent()
+            .get::<_, ScoreCard>(&DataKey::Card(anchor_id.clone()))
+        {
+            return card.score;
+        }
         env.storage()
             .persistent()
             .get(&DataKey::Score(anchor_id))
-            .unwrap_or(scoring::DEFAULT_SCORE)
+            .unwrap_or(0)
     }
 
     /// Trend, risk status and recent-window stats for `anchor_id`. An anchor
@@ -153,6 +271,15 @@ impl PerformanceOracle {
 
     pub fn get_reporter_source_type(env: Env, reporter: Address) -> Option<SourceType> {
         env.storage().persistent().get(&DataKey::Reporter(reporter))
+    }
+}
+
+/// The score the risk floor judges: none for a card too uncertain to show.
+fn floor_score(card: &ScoreCard) -> Option<u32> {
+    if card.confidence < scoring::CONFIDENCE_INSUFFICIENT {
+        None
+    } else {
+        Some(card.score)
     }
 }
 
@@ -196,9 +323,15 @@ fn record_report(
         .unwrap_or(scoring::DEFAULT_SCORE);
 
     let observation = scoring::observation_score(success, settlement_seconds, &source_type);
-    let new_score = scoring::ema_update(old_score, observation, &source_type);
-    env.storage().persistent().set(&score_key, &new_score);
+    let ema = scoring::ema_update(old_score, observation, &source_type);
+    env.storage().persistent().set(&score_key, &ema);
     bump_persistent(&env, &score_key);
+
+    // With a score card, the card is the headline: reports still feed the
+    // EMA and the health record, but must not overwrite the card's score.
+    let card: Option<ScoreCard> = env.storage().persistent().get(&DataKey::Card(anchor_id.clone()));
+    let new_score = card.as_ref().map_or(ema, |c| c.score);
+    let judged = card.as_ref().map_or(Some(ema), floor_score);
 
     // Trend and risk floors live in contract state, not in event
     // history, so detecting them never depends on how long an RPC
@@ -210,7 +343,7 @@ fn record_report(
         .get(&health_key)
         .unwrap_or_else(scoring::new_health);
     let previous_reason = previous.risk_reason;
-    let health = scoring::update_health(previous, success, observation, new_score, timestamp);
+    let health = scoring::update_health(previous, success, observation, judged, timestamp);
     env.storage().persistent().set(&health_key, &health);
     bump_persistent(&env, &health_key);
 
@@ -219,8 +352,9 @@ fn record_report(
         .instance()
         .get(&DataKey::RegistryAddress)
         .ok_or(Error::NotInitialized)?;
-    let registry = AnchorRegistryClient::new(&env, &registry_address);
-    registry.update_score(&anchor_id, &new_score);
+    if card.is_none() {
+        AnchorRegistryClient::new(&env, &registry_address).update_score(&anchor_id, &ema);
+    }
     bump_instance(&env);
 
     ReportSubmittedEvent {

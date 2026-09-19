@@ -3,7 +3,7 @@
 use super::*;
 use anchor_registry::{AnchorRegistry, AnchorRegistryClient};
 use soroban_sdk::{
-    testutils::{Address as _, Events, Ledger},
+    testutils::{storage::Persistent as _, Address as _, Events, Ledger},
     token, xdr, BytesN, Env, String,
 };
 use types::{RiskReason, Trend};
@@ -412,4 +412,232 @@ fn evidence_does_not_bypass_reporter_authorization() {
         &BytesN::from_array(&env, &[1u8; 32]),
     );
     assert_eq!(result, Err(Ok(Error::NotAuthorizedReporter)));
+}
+
+// --- Score cards (docs/SCORING.md section 12) ---
+
+fn card(env: &Env, score: u32, confidence: u32, window_end: u64) -> ScoreCardInput {
+    ScoreCardInput {
+        score,
+        availability: 100,
+        speed: 90,
+        integrity: 83,
+        market: None,
+        confidence,
+        flags: 0,
+        window_end,
+        methodology_version: 1,
+        inputs_hash: BytesN::from_array(env, &[9u8; 32]),
+    }
+}
+
+/// A registered mainnet anchor and a reporter authorized for mainnet.
+fn mainnet_anchor(h: &Harness) -> (Address, Symbol) {
+    let reporter = Address::generate(&h.env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealMainnet);
+    let anchor_id = Symbol::new(&h.env, "anchor_1");
+    register_and_stake(h, &anchor_id, 0);
+    (reporter, anchor_id)
+}
+
+fn at(env: &Env, timestamp: u64) {
+    env.ledger().with_mut(|l| l.timestamp = timestamp);
+}
+
+fn events_named(env: &Env, name: &str) -> u32 {
+    let wanted = xdr::ScVal::Symbol(xdr::ScSymbol(name.try_into().unwrap()));
+    env.events()
+        .all()
+        .events()
+        .iter()
+        .filter(|event| {
+            let xdr::ContractEventBody::V0(body) = &event.body;
+            body.topics.first() == Some(&wanted)
+        })
+        .count() as u32
+}
+
+#[test]
+fn publishing_a_card_stores_it_and_pushes_the_score_to_the_registry() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+
+    let score = h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+
+    assert_eq!(score, 81);
+    assert_eq!(events_named(&env, "score_card_published"), 1);
+    let stored = h.oracle.get_score_card(&anchor_id).unwrap();
+    assert_eq!((stored.score, stored.confidence, stored.window_end, stored.published_at), (81, 61, 7_200, 10_000));
+    assert_eq!(h.oracle.get_score(&anchor_id), 81);
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 81);
+}
+
+#[test]
+fn a_card_from_an_unauthorized_reporter_is_rejected() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_, anchor_id) = mainnet_anchor(&h);
+    let stranger = Address::generate(&env);
+    let result = h.oracle.try_publish_score_card(&stranger, &anchor_id, &card(&env, 81, 61, 0));
+    assert_eq!(result, Err(Ok(Error::NotAuthorizedReporter)));
+}
+
+#[test]
+fn a_card_must_come_from_a_reporter_for_the_anchors_own_source_type() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_, anchor_id) = mainnet_anchor(&h);
+    let testnet_reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&testnet_reporter, &SourceType::RealTestnet);
+    let result = h.oracle.try_publish_score_card(&testnet_reporter, &anchor_id, &card(&env, 81, 61, 0));
+    assert_eq!(result, Err(Ok(Error::ReporterWrongSourceType)));
+}
+
+#[test]
+fn a_card_for_an_unregistered_anchor_is_rejected() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (reporter, _) = mainnet_anchor(&h);
+    let result = h.oracle.try_publish_score_card(&reporter, &Symbol::new(&env, "nobody"), &card(&env, 81, 61, 0));
+    assert_eq!(result, Err(Ok(Error::AnchorNotFound)));
+}
+
+#[test]
+fn out_of_range_card_values_are_rejected() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    let base = card(&env, 81, 61, 0);
+    let bad = [
+        ScoreCardInput { score: 101, ..base.clone() },
+        ScoreCardInput { availability: 101, ..base.clone() },
+        ScoreCardInput { speed: 101, ..base.clone() },
+        ScoreCardInput { integrity: 101, ..base.clone() },
+        ScoreCardInput { confidence: 101, ..base.clone() },
+        ScoreCardInput { market: Some(101), ..base.clone() },
+        ScoreCardInput { methodology_version: 0, ..base.clone() },
+    ];
+    for c in bad.iter() {
+        assert_eq!(h.oracle.try_publish_score_card(&reporter, &anchor_id, c), Err(Ok(Error::InvalidScoreCard)));
+    }
+    assert!(h.oracle.get_score_card(&anchor_id).is_none());
+}
+
+#[test]
+fn a_replayed_or_older_card_is_rejected() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+
+    let replay = h.oracle.try_publish_score_card(&reporter, &anchor_id, &card(&env, 90, 61, 7_200));
+    let older = h.oracle.try_publish_score_card(&reporter, &anchor_id, &card(&env, 90, 61, 3_600));
+    assert_eq!(replay, Err(Ok(Error::StaleScoreCard)));
+    assert_eq!(older, Err(Ok(Error::StaleScoreCard)));
+    assert_eq!(h.oracle.get_score(&anchor_id), 81);
+
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 90, 61, 10_000));
+    assert_eq!(h.oracle.get_score(&anchor_id), 90);
+}
+
+#[test]
+fn a_card_whose_window_ends_in_the_future_is_rejected() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    let result = h.oracle.try_publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 10_000 + MAX_FUTURE_SKEW_SECONDS + 1));
+    assert_eq!(result, Err(Ok(Error::ReportTimestampInFuture)));
+}
+
+#[test]
+fn after_a_card_reports_no_longer_overwrite_the_headline() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 73, 100, 7_200));
+
+    let emitted = h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &10_000, &SourceType::RealMainnet);
+
+    assert_eq!(emitted, 73, "the report event and return value carry the headline");
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 73);
+    assert_eq!(h.oracle.get_score(&anchor_id), 73);
+    // The report still feeds the health record.
+    assert_eq!(h.oracle.get_health(&anchor_id).observations, 1);
+}
+
+#[test]
+fn without_a_card_reports_keep_driving_the_registry() {
+    let env = Env::default();
+    let h = setup(&env);
+    let reporter = Address::generate(&env);
+    h.oracle.authorize_reporter(&reporter, &SourceType::RealTestnet);
+    let anchor_id = Symbol::new(&env, "testnet_anchor");
+    register_and_stake(&h, &anchor_id, 0);
+    let score = h.oracle.submit_report(&reporter, &anchor_id, &false, &0, &env.ledger().timestamp(), &SourceType::RealTestnet);
+    assert_eq!(score, 65);
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 65);
+}
+
+#[test]
+fn the_risk_floor_judges_the_card_score() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 50, 90, 3_600));
+    // events() only holds the latest invocation's events: check before reading.
+    assert_eq!(events_named(&env, "risk_status_changed"), 1);
+    assert_eq!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::ScoreBelowFloor);
+
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 85, 90, 7_200));
+    assert_eq!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::None);
+
+    // A fast successful report would put the EMA at 100; the floor still
+    // judges the card.
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 40, 90, 10_000));
+    h.oracle.submit_report(&reporter, &anchor_id, &true, &1, &10_000, &SourceType::RealMainnet);
+    assert_eq!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::ScoreBelowFloor);
+}
+
+#[test]
+fn an_insufficient_confidence_card_is_not_judged_by_its_score() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    // A new anchor we know little about lands near the neutral prior; that
+    // is not evidence that it is failing.
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 52, 20, 3_600));
+    assert_eq!(events_named(&env, "risk_status_changed"), 0);
+    assert_eq!(h.oracle.get_health(&anchor_id).risk_reason, RiskReason::None);
+}
+
+#[test]
+fn an_anchor_never_scored_reads_as_zero() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_, anchor_id) = mainnet_anchor(&h);
+    assert_eq!(h.oracle.get_score(&anchor_id), 0);
+    assert_eq!(h.oracle.get_score(&Symbol::new(&env, "never_seen")), 0);
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 0);
+    assert!(h.oracle.get_score_card(&anchor_id).is_none());
+}
+
+#[test]
+fn a_published_card_has_its_ttl_extended() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, 10_000);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+    let ttl = env.as_contract(&h.oracle.address, || {
+        env.storage().persistent().get_ttl(&DataKey::Card(anchor_id.clone()))
+    });
+    assert!(ttl >= PERSISTENT_LIFETIME_THRESHOLD, "card TTL {ttl} should have been extended");
 }

@@ -21,7 +21,8 @@ pub struct AnchorInfo {
     pub operator: Address,
     /// Current staked amount, in the stake token's smallest unit (stroops for XLM).
     pub stake: i128,
-    /// Reliability score, 0-100. Written by PerformanceOracle via update_score().
+    /// Reliability score, 0-100: 0 until PerformanceOracle writes the first
+    /// one via update_score().
     pub score: u32,
     pub registered_at: u64,
     pub last_updated: u64,

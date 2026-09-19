@@ -2,10 +2,15 @@ use anchor_registry::SourceType;
 
 use crate::types::{AnchorHealth, RiskReason, Trend};
 
-/// Default score assigned to an anchor that has never received a report
-/// (matches AnchorRegistry.register_anchor's initial score of 100 — see
-/// that contract's `AnchorInfo::score` default).
+/// Where the legacy per-report EMA starts. Only the EMA's own running state
+/// uses it: an anchor that has never been scored reads as 0 (unscored), and
+/// AnchorRegistry registers anchors at 0.
 pub const DEFAULT_SCORE: u32 = 100;
+
+/// A score card below this confidence is "insufficient": its number is
+/// withheld (docs/SCORING.md section 7), so the score floor does not judge
+/// it either. The other risk rules still apply.
+pub const CONFIDENCE_INSUFFICIENT: u32 = 40;
 
 /// Absolute floor: a headline score at/below this flags the anchor as at
 /// risk. Matches the dashboard's "red" threshold (see dashboard/README.md).
@@ -136,14 +141,17 @@ pub fn success_percent(recent_outcomes: u32, recent_count: u32) -> u32 {
 /// The first floor rule that trips, or `RiskReason::None`. These are checked
 /// independently of the EMA on purpose: a short recovery can pull the EMA
 /// back over the floor while most of the window is still failures.
-pub fn risk_reason(score: u32, health: &AnchorHealth) -> RiskReason {
+///
+/// `score` is None when the headline is a card too uncertain to judge; the
+/// score floor is then skipped.
+pub fn risk_reason(score: Option<u32>, health: &AnchorHealth) -> RiskReason {
     if health.consecutive_failures >= FLOOR_CONSECUTIVE_FAILURES {
         RiskReason::ConsecutiveFailures
     } else if health.recent_count >= FLOOR_MIN_SAMPLES
         && success_percent(health.recent_outcomes, health.recent_count) < FLOOR_MIN_SUCCESS_PERCENT
     {
         RiskReason::LowSuccessRate
-    } else if score <= RISK_SCORE_FLOOR {
+    } else if score.is_some_and(|s| s <= RISK_SCORE_FLOOR) {
         RiskReason::ScoreBelowFloor
     } else {
         RiskReason::None
@@ -151,12 +159,12 @@ pub fn risk_reason(score: u32, health: &AnchorHealth) -> RiskReason {
 }
 
 /// Folds one report into an anchor's health. `score` is the headline score
-/// after this report.
+/// after this report, as `risk_reason` takes it.
 pub fn update_health(
     mut health: AnchorHealth,
     success: bool,
     observation: u32,
-    score: u32,
+    score: Option<u32>,
     timestamp: u64,
 ) -> AnchorHealth {
     if health.observations == 0 {
@@ -261,7 +269,7 @@ mod tests {
         for &ok in outcomes {
             let obs = observation_score(ok, 10, &SourceType::RealTestnet);
             score = ema_update(score, obs, &SourceType::RealTestnet);
-            h = update_health(h, ok, obs, score, 0);
+            h = update_health(h, ok, obs, Some(score), 0);
         }
         h
     }
@@ -297,7 +305,7 @@ mod tests {
         assert_eq!(h.trend, Trend::Stable);
         // Still succeeding, just slowly: observation 40, not a failure.
         let score = ema_update(100, 40, &SourceType::RealTestnet);
-        h = update_health(h, true, 40, score, 0);
+        h = update_health(h, true, 40, Some(score), 0);
         assert_eq!(h.trend, Trend::Degrading);
     }
 
@@ -314,7 +322,7 @@ mod tests {
         // worse; the trend must stay Stable from its very first report.
         let mut h = new_health();
         for _ in 0..5 {
-            h = update_health(h, true, 40, 80, 0);
+            h = update_health(h, true, 40, Some(80), 0);
             assert_eq!(h.trend, Trend::Stable);
         }
         assert_eq!((h.fast_score, h.slow_score), (40, 40));
@@ -323,6 +331,16 @@ mod tests {
     #[test]
     fn new_anchor_is_not_flagged_by_one_early_failure() {
         let h = feed(new_health(), &[false]);
-        assert_eq!(risk_reason(80, &h), RiskReason::None);
+        assert_eq!(risk_reason(Some(80), &h), RiskReason::None);
+    }
+
+    #[test]
+    fn the_score_floor_skips_a_headline_too_uncertain_to_show() {
+        let h = new_health();
+        assert_eq!(risk_reason(Some(50), &h), RiskReason::ScoreBelowFloor);
+        assert_eq!(risk_reason(None, &h), RiskReason::None);
+        // The outage rule does not depend on the score at all.
+        let h = feed(new_health(), &[false; 3]);
+        assert_eq!(risk_reason(None, &h), RiskReason::ConsecutiveFailures);
     }
 }
