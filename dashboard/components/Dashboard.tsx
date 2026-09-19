@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { WarningCircle } from '@phosphor-icons/react';
+import { MagnifyingGlass, WarningCircle, X } from '@phosphor-icons/react';
 import type { AnchorViewModel, DataSource, SourceType, UnreadableAnchor } from '@/lib/types';
+import { matchesQuery } from '@/lib/search';
 import { compareAnchors } from '@/lib/status-labels';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
@@ -30,17 +31,18 @@ export function Dashboard({
   unreadable: UnreadableAnchor[];
 }) {
   const [filter, setFilter] = useState<FilterValue>('all');
+  const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<AnchorViewModel | null>(null);
   const prefersReducedMotion = useReducedMotion();
 
   const filtered = useMemo(() => {
-    const scoped = filter === 'all' ? anchors : anchors.filter((a) => a.sourceType === filter);
+    const scoped = anchors.filter((a) => (filter === 'all' || a.sourceType === filter) && matchesQuery(a, query));
     return [...scoped].sort((a, b) => {
       const sourceDiff = SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType];
       if (sourceDiff !== 0) return sourceDiff;
       return compareAnchors(a, b);
     });
-  }, [anchors, filter]);
+  }, [anchors, filter, query]);
 
   return (
     <div className="as-grid-ground min-h-screen">
@@ -88,16 +90,57 @@ export function Dashboard({
         </header>
 
       <div className="pb-10">
-      <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <FilterBar active={filter} onChange={setFilter} />
-        <span className="as-mono hidden text-xs text-as-ink-faint sm:inline">
-          {filtered.length} anchors shown
-        </span>
+        <div className="flex items-center gap-4">
+          <div className="relative w-full lg:w-72">
+            <MagnifyingGlass
+              size={16}
+              weight="bold"
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-as-ink-muted"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && setQuery('')}
+              placeholder="Search by name or domain"
+              aria-label="Search anchors by name or domain"
+              spellCheck={false}
+              autoComplete="off"
+              className="h-10 w-full rounded-pill border border-as-border-control bg-as-surface-2 pl-9 pr-9 text-sm text-as-ink placeholder:text-as-ink-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse [&::-webkit-search-cancel-button]:hidden"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full text-as-ink-muted hover:bg-as-surface-1 hover:text-as-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
+              >
+                <X size={12} weight="bold" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <span className="as-mono hidden flex-shrink-0 text-xs text-as-ink-faint sm:inline" aria-live="polite">
+            {filtered.length} anchor{filtered.length === 1 ? '' : 's'} shown
+          </span>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="as-panel px-6 py-12 text-center text-sm text-as-ink-muted">
-          No anchors match this filter.
+          {query.trim() ? (
+            <>
+              No anchor matches “{query.trim()}”
+              {filter !== 'all' ? ' in this filter' : ''}.{' '}
+              <button type="button" onClick={() => setQuery('')} className="font-medium text-as-signal hover:underline">
+                Clear the search
+              </button>
+            </>
+          ) : (
+            'No anchors match this filter.'
+          )}
         </div>
       ) : (
         <motion.div
