@@ -125,6 +125,7 @@ export function Dashboard({
         >
           {filtered.map((anchor) => (
             <motion.div
+              className="h-full"
               key={anchor.anchorId}
               variants={{
                 hidden: { opacity: 0, y: 12 },

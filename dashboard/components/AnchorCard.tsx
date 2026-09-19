@@ -45,7 +45,7 @@ export function AnchorCard({
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.18, ease: 'easeOut' }}
-      className={`glass-panel relative flex w-full cursor-pointer items-center justify-between gap-4 rounded-card p-4 text-left shadow-card transition-shadow duration-300 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-5 ${RING_SHADOW[anchor.sourceType]}`}
+      className={`glass-panel relative flex h-full min-h-[160px] w-full cursor-pointer items-center justify-between gap-4 rounded-card p-4 text-left shadow-card transition-shadow duration-300 hover:border-border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent sm:p-5 ${RING_SHADOW[anchor.sourceType]}`}
     >
       {badge && (
         <span className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-pill bg-danger-soft px-2.5 py-1 text-[11px] font-semibold text-danger shadow-glow-danger">
@@ -54,7 +54,7 @@ export function AnchorCard({
         </span>
       )}
 
-      <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="truncate font-heading text-base font-semibold text-ink">{anchor.name}</span>
         <SourceBadge sourceType={anchor.sourceType} />
         {(status?.listing || status?.policyNote || status?.dormant) && (
@@ -96,7 +96,7 @@ export function AnchorCard({
         )}
       </div>
 
-      <div className="flex flex-shrink-0 flex-col items-center gap-2">
+      <div className="flex w-[96px] flex-shrink-0 flex-col items-center justify-center gap-2">
         {enoughData ? (
           <>
             <ScoreValue score={anchor.score} size={52} />
