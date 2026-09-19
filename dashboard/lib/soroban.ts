@@ -4,7 +4,9 @@ import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchArchive, mergeArchiveInto } from './history';
 import {
   anchorInfoKey,
+  cardKey,
   decodeAnchorInfo,
+  decodeCard,
   decodeHealth,
   healthKey,
   instanceKey,
@@ -13,6 +15,7 @@ import {
   readAnchorIds,
 } from './contract-state';
 import { createRpcPool, type RpcPool } from './rpc';
+import { fetchScoreSummary, mergeCardContext } from './score-summary';
 import type { AnchorViewModel, DashboardData, ScorePoint, UnreadableAnchor } from './types';
 
 const REGISTRY_CONTRACT_ID = process.env.NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID ?? '';
@@ -134,9 +137,13 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
   if (!registryInstance) throw new Error('AnchorRegistry contract not found');
   const anchorIds = readAnchorIds(registryInstance.val);
 
-  // Every anchor's record and health in one or two calls, instead of two
+  // Every anchor's record, health and card in two calls, instead of
   // simulated contract calls per anchor.
-  const keys = anchorIds.flatMap((id) => [anchorInfoKey(REGISTRY_CONTRACT_ID, id), healthKey(ORACLE_CONTRACT_ID, id)]);
+  const keys = anchorIds.flatMap((id) => [
+    anchorInfoKey(REGISTRY_CONTRACT_ID, id),
+    healthKey(ORACLE_CONTRACT_ID, id),
+    cardKey(ORACLE_CONTRACT_ID, id),
+  ]);
   const [{ entries, latestLedger }, history] = await Promise.all([
     fetchEntries(pool, keys),
     fetchAllScoreHistory(pool).catch((err) => {
@@ -167,6 +174,14 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
     }
     const healthEntry = entries.get(keyId(healthKey(ORACLE_CONTRACT_ID, anchorId)));
     const health = !healthEntry ? NEW_HEALTH : isArchived(healthEntry, latestLedger) ? undefined : decodeHealth(healthEntry.val);
+    // No entry: no card published yet, or an oracle from before cards.
+    const cardEntry = entries.get(keyId(cardKey(ORACLE_CONTRACT_ID, anchorId)));
+    let card;
+    try {
+      card = cardEntry && !isArchived(cardEntry, latestLedger) ? decodeCard(cardEntry.val) : undefined;
+    } catch (err) {
+      console.warn(`[dashboard] could not decode the score card of ${anchorId}:`, err);
+    }
     const lastUpdated = new Date(Number(info.lastUpdated) * 1000).toISOString();
     const points = history.get(anchorId) ?? [];
     anchors.push({
@@ -181,6 +196,7 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
       slashEvents: [],
       lastUpdated,
       health,
+      ...(card ? { card } : {}),
     });
   }
   if (pool.activeProvider !== 'primary') console.warn('[dashboard] this render was served by the backup RPC');
@@ -192,16 +208,17 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
  * anything that looks like a real score but isn't. */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [live, archive, status] = await Promise.all([
+    const [live, archive, status, summary] = await Promise.all([
       fetchLiveDashboardData(createRpcPool()),
       fetchArchive(),
       fetchAnchorStatus(),
+      fetchScoreSummary(),
     ]);
     if (live.anchors.length === 0 && live.unreadable.length > 0) {
       throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
     }
     return {
-      anchors: mergeStatusInto(mergeArchiveInto(live.anchors, archive), status),
+      anchors: mergeCardContext(mergeStatusInto(mergeArchiveInto(live.anchors, archive), status), summary),
       unreadable: live.unreadable,
       dataSource: 'live',
     };

@@ -1,6 +1,7 @@
 import { ChartLineUp, Coins, Lightning, ShieldCheck } from '@phosphor-icons/react/dist/ssr';
 import { formatStakeXlm } from '@/lib/format';
-import { hasRecentSignificantDrop } from '@/lib/analysis';
+import { GATE_FLAGS } from '@/lib/scorecard';
+import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 
 function average(values: number[]): number {
@@ -9,13 +10,24 @@ function average(values: number[]): number {
 }
 
 export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
-  const avgScore = average(anchors.map((a) => a.score));
+  // Only numbers the page actually shows: a withheld score must not move
+  // the average either.
+  const scored = anchors.filter(hasEnoughData);
+  const avgScore = average(scored.map(headlineScore));
   const totalStake = anchors.reduce((sum, a) => sum + a.stake, 0);
-  const atRisk = anchors.filter((a) => hasRecentSignificantDrop(a.scoreHistory, a.score)).length;
+  // The oracle's risk verdict, or a gate on the score card.
+  const atRisk = anchors.filter(
+    (a) => (a.health && a.health.riskReason !== 'None') || a.card?.flags.some((f) => GATE_FLAGS.has(f)),
+  ).length;
 
   const stats = [
     { label: 'Anchors tracked', value: String(anchors.length), icon: ShieldCheck, tone: 'text-accent' },
-    { label: 'Average score', value: Math.round(avgScore).toString(), icon: ChartLineUp, tone: 'text-success' },
+    {
+      label: scored.length ? `Average score (${scored.length} scored)` : 'Average score',
+      value: scored.length ? Math.round(avgScore).toString() : '-',
+      icon: ChartLineUp,
+      tone: 'text-success',
+    },
     { label: 'Total stake', value: formatStakeXlm(totalStake), icon: Coins, tone: 'text-warning' },
     { label: 'Active risk alerts', value: String(atRisk), icon: Lightning, tone: atRisk > 0 ? 'text-danger' : 'text-ink-faint' },
   ];

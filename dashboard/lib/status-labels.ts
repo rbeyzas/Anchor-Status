@@ -1,13 +1,24 @@
+import { isWithheld } from './scorecard';
 import type { AnchorViewModel } from './types';
 
 /** Scores based on fewer checks than this are shown as "not enough data":
- * the contract starts every anchor at 100, so a new dead anchor would
+ * a per-report score starts from a default, so a new dead anchor would
  * otherwise look perfect until it has failed a few times. */
 export const MIN_OBSERVATIONS_FOR_SCORE = 3;
 
+/**
+ * Whether the number is worth showing. A mainnet anchor is scored by its
+ * card: without one, or with a confidence under 40, there is no number to
+ * show yet. Testnet and reference anchors keep the per-report score.
+ */
 export function hasEnoughData(anchor: AnchorViewModel): boolean {
+  if (anchor.card) return !isWithheld(anchor.card);
+  if (anchor.sourceType === 'RealMainnet') return false;
   return !anchor.health || anchor.health.observations >= MIN_OBSERVATIONS_FOR_SCORE;
 }
+
+/** The headline to show: the card's when there is one. */
+export const headlineScore = (anchor: AnchorViewModel) => anchor.card?.score ?? anchor.score;
 
 /** Sort rank within a source: reachable, then failing, then not yet checked. */
 export function statusRank(anchor: AnchorViewModel): number {
@@ -36,6 +47,9 @@ export function listingExplanation(anchor: AnchorViewModel): string | undefined 
 }
 
 const EVIDENCE_BASE_URL = process.env.NEXT_PUBLIC_EVIDENCE_BASE_URL ?? 'http://37.221.76.23/evidence/';
+
+/** Where a published document (probe evidence or score inputs) lives. */
+export const evidenceUrl = (hash: string) => `${EVIDENCE_BASE_URL}${hash}.json`;
 
 /** The newest score point that carries published evidence, if any. */
 export function latestEvidence(anchor: AnchorViewModel): { hash: string; url: string; timestamp: string } | undefined {

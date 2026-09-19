@@ -1,5 +1,6 @@
 import { Address, scValToNative, xdr } from '@stellar/stellar-sdk';
-import type { AnchorHealth, RiskReason, SourceType, Trend } from './types';
+import { flagsFromMask } from './scorecard';
+import type { AnchorHealth, RiskReason, ScoreCardView, SourceType, Trend } from './types';
 
 // The contracts' storage layout, read directly instead of through one
 // simulated call per anchor. These keys mirror the `DataKey` enums in
@@ -31,6 +32,10 @@ export const anchorInfoKey = (registryId: string, anchorId: string) =>
 /** Oracle `DataKey::Health(id)` → AnchorHealth. */
 export const healthKey = (oracleId: string, anchorId: string) =>
   contractDataKey(oracleId, enumKey('Health', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Oracle `DataKey::Card(id)` → ScoreCard. */
+export const cardKey = (oracleId: string, anchorId: string) =>
+  contractDataKey(oracleId, enumKey('Card', xdr.ScVal.scvSymbol(anchorId)));
 
 export const keyId = (key: xdr.LedgerKey) => key.toXDR('base64');
 
@@ -96,5 +101,22 @@ export function decodeHealth(entry: xdr.LedgerEntryData): AnchorHealth {
     recentSuccessPercent: count === 0 ? 100 : Math.floor((successes * 100) / count),
     recentCount: count,
     observations: Number(raw.observations),
+  };
+}
+
+export function decodeCard(entry: xdr.LedgerEntryData): ScoreCardView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  return {
+    score: Number(raw.score),
+    availability: Number(raw.availability),
+    speed: Number(raw.speed),
+    integrity: Number(raw.integrity),
+    market: raw.market === null || raw.market === undefined ? null : Number(raw.market),
+    confidence: Number(raw.confidence),
+    flags: flagsFromMask(Number(raw.flags)),
+    windowEnd: new Date(Number(raw.window_end) * 1000).toISOString(),
+    methodologyVersion: Number(raw.methodology_version),
+    inputsHash: Buffer.from(raw.inputs_hash as Uint8Array).toString('hex'),
+    publishedAt: new Date(Number(raw.published_at) * 1000).toISOString(),
   };
 }

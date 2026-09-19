@@ -5,6 +5,7 @@ import { Logo } from '@/components/Logo';
 import { SiteNav } from '@/components/SiteNav';
 import { SourceBadge } from '@/components/SourceBadge';
 import { getDashboardData } from '@/lib/soroban';
+import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 
@@ -17,10 +18,10 @@ async function loadPreview(): Promise<AnchorViewModel[]> {
   try {
     const { anchors, dataSource } = await getDashboardData();
     if (dataSource !== 'live') return [];
-    // Only anchors with a real score history are worth previewing.
+    // Only scores the dashboard would show: a card with enough confidence.
     return [...anchors]
-      .filter((a) => a.sourceType === 'RealMainnet')
-      .sort((a, b) => b.score - a.score)
+      .filter((a) => a.sourceType === 'RealMainnet' && hasEnoughData(a))
+      .sort((a, b) => headlineScore(b) - headlineScore(a))
       .slice(0, 4);
   } catch {
     return [];
@@ -40,14 +41,14 @@ const STEPS = [
     icon: ChartLineUp,
     sticker: 'bg-sticker-purple',
     title: 'Score',
-    body: 'A Soroban contract blends every report into one weighted score, a trend, and a risk flag. Real sources move it faster than simulated ones.',
+    body: 'Thirty days of checks become a score card: availability, speed, integrity and, for anchors that issue their own asset, how well it holds its peg. A separate confidence says how much we measured; hard failures cap the score.',
   },
   {
     n: '03',
     icon: Stamp,
     sticker: 'bg-sticker-teal',
     title: 'Publish',
-    body: 'The verdict is written on-chain and read straight back by the dashboard. Anyone can check it. The contract never touches an anchor’s stake.',
+    body: 'The card goes on-chain with the hash of every input behind it, and the inputs are published. Anyone can recompute the score. The contract never touches an anchor’s stake.',
   },
 ];
 
@@ -126,8 +127,8 @@ export default async function LandingPage() {
                     {preview.map((a) => (
                       <li key={a.anchorId} className="flex items-center justify-between gap-4 py-3.5">
                         <span className="truncate text-sm font-medium">{a.name}</span>
-                        <span className={`tabular font-heading text-3xl font-bold tracking-tight ${TIER_TEXT[scoreTier(a.score)]}`}>
-                          {Math.round(a.score)}
+                        <span className={`tabular font-heading text-3xl font-bold tracking-tight ${TIER_TEXT[scoreTier(headlineScore(a))]}`}>
+                          {Math.round(headlineScore(a))}
                         </span>
                       </li>
                     ))}
@@ -140,7 +141,7 @@ export default async function LandingPage() {
                 <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
                   <Logo size={64} />
                   <p className="max-w-[16rem] text-sm text-ink-muted">
-                    Scores are read from the chain when you open the dashboard.
+                    No mainnet anchor has been measured long enough for a score yet. The checks behind it are live on the dashboard.
                   </p>
                 </div>
               )}

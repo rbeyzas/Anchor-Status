@@ -1,3 +1,5 @@
+import type { FlagName, MarketNa } from './scorecard';
+
 export type SourceType = 'RealMainnet' | 'RealTestnet' | 'SimulatedMock';
 
 export interface ScorePoint {
@@ -30,6 +32,36 @@ export interface AnchorHealth {
   observations: number;
 }
 
+/** A windowed score card published on-chain (docs/SCORING.md). */
+export interface ScoreCardView {
+  score: number;
+  availability: number;
+  speed: number;
+  integrity: number;
+  /** null when the Market pillar does not apply. */
+  market: number | null;
+  confidence: number;
+  flags: FlagName[];
+  /** ISO time the measured window ends. */
+  windowEnd: string;
+  methodologyVersion: number;
+  /** SHA-256 of the published inputs bundle. */
+  inputsHash: string;
+  publishedAt: string;
+}
+
+/** What the card was computed from, as published by the aggregator beside
+ * the bundle: the confidence factors and why Market is n/a. Shown only
+ * when it describes the same bundle as the on-chain card. */
+export interface ScoreCardContext {
+  inputsHash: string;
+  monitoredDays: number;
+  checks30d: number;
+  /** Median share of the expected steps we could test; null if unknown. */
+  coverage: number | null;
+  marketNa?: MarketNa;
+}
+
 /** Off-chain context from mainnet-probe: how the directory lists the anchor,
  * and what its latest check found. */
 export interface AnchorStatusView {
@@ -42,6 +74,10 @@ export interface AnchorStatusView {
   reachable?: boolean;
   problem?: string;
   policyNote?: string;
+  /** Codes of the assets it issues itself (the issuer points back at it). */
+  issuedAssets?: string[];
+  /** Creation of its oldest issuer account. Context, never scored. */
+  onChainSince?: string;
 }
 
 export interface AnchorViewModel {
@@ -60,6 +96,9 @@ export interface AnchorViewModel {
   /** Absent when reading a contract deployed before health tracking. */
   health?: AnchorHealth;
   status?: AnchorStatusView;
+  /** The anchor's score card, when one has been published. */
+  card?: ScoreCardView;
+  cardContext?: ScoreCardContext;
 }
 
 /** 'unavailable': the chain could not be read, and nothing is shown. */

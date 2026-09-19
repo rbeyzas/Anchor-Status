@@ -15,9 +15,25 @@ interface LastProbe {
   policy: string[];
 }
 
+interface StatusAsset {
+  code: string;
+  issuer?: string;
+  issuer_home_domain_matches?: boolean;
+  issuer_created_at?: string;
+}
+
 interface StatusFile {
   generated_at: string;
-  anchors: Record<string, { listing?: 'abandoned' | 'unsafe'; dormant: boolean; last_probe?: LastProbe }>;
+  anchors: Record<string, { listing?: 'abandoned' | 'unsafe'; dormant: boolean; last_probe?: LastProbe; assets?: StatusAsset[] }>;
+}
+
+/** The assets it issues itself, and when its oldest issuer account was
+ * created. Age is context only: it never enters the score. */
+export function issuedAssets(assets: StatusAsset[] | undefined): { issuedAssets?: string[]; onChainSince?: string } {
+  const issued = (assets ?? []).filter((a) => a.issuer && a.issuer_home_domain_matches === true);
+  if (issued.length === 0) return {};
+  const created = issued.flatMap((a) => (a.issuer_created_at ? [a.issuer_created_at] : [])).sort();
+  return { issuedAssets: [...new Set(issued.map((a) => a.code))], ...(created.length ? { onChainSince: created[0] } : {}) };
 }
 
 export async function fetchAnchorStatus(): Promise<StatusFile | null> {
@@ -84,6 +100,7 @@ export function mergeStatusInto(anchors: AnchorViewModel[], status: StatusFile |
             policyNote: policyNote(s.last_probe),
           }
         : {}),
+      ...issuedAssets(s.assets),
     };
     return { ...anchor, status: view };
   });

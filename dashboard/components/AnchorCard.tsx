@@ -5,9 +5,10 @@ import { Lightning, TrendDown, TrendUp, Vault, WarningCircle } from '@phosphor-i
 import { formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
 import { RISK_LABEL } from '@/lib/health';
-import { hasEnoughData, LISTING_LABEL } from '@/lib/status-labels';
+import { hasEnoughData, headlineScore, LISTING_LABEL } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
+import { ConfidenceChip, FlagChips } from './ScoreCardParts';
 import { ScoreValue } from './ScoreValue';
 import { Sparkline } from './Sparkline';
 import { SourceBadge } from './SourceBadge';
@@ -25,12 +26,14 @@ export function AnchorCard({
   anchor: AnchorViewModel;
   onSelect: (anchor: AnchorViewModel) => void;
 }) {
-  const recentDrop = hasRecentSignificantDrop(anchor.scoreHistory, anchor.score);
+  const score = headlineScore(anchor);
+  const card = anchor.card;
+  const recentDrop = hasRecentSignificantDrop(anchor.scoreHistory, score);
   // The oracle's own risk verdict when available; the score tier is only a
   // fallback for contracts deployed before health tracking.
   const riskLabel = anchor.health
     ? RISK_LABEL[anchor.health.riskReason]
-    : scoreTier(anchor.score) === 'low'
+    : scoreTier(score) === 'low'
       ? 'Risky anchor'
       : null;
   const badge = riskLabel ?? (recentDrop ? 'Sharp drop in 24h' : null);
@@ -80,6 +83,7 @@ export function AnchorCard({
             )}
           </div>
         )}
+        {card && <FlagChips flags={card.flags} limit={2} />}
         {status?.problem && (
           <span className="flex items-center gap-1 text-xs font-medium text-danger">
             <WarningCircle size={13} weight="bold" aria-hidden="true" className="flex-shrink-0" />
@@ -99,15 +103,16 @@ export function AnchorCard({
       <div className="flex w-[96px] flex-shrink-0 flex-col items-center justify-center gap-2">
         {enoughData ? (
           <>
-            <ScoreValue score={anchor.score} size={52} />
-            <Sparkline history={anchor.scoreHistory} currentScore={anchor.score} anchorId={anchor.anchorId} />
+            <ScoreValue score={score} size={52} />
+            <Sparkline history={anchor.scoreHistory} currentScore={score} anchorId={anchor.anchorId} />
           </>
         ) : (
           <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-ink-faint">
             <span className="font-heading text-lg text-ink-muted">-</span>
-            Not enough checks yet
+            {card || anchor.sourceType === 'RealMainnet' ? 'Not enough data yet' : 'Not enough checks yet'}
           </span>
         )}
+        {card && enoughData && <ConfidenceChip confidence={card.confidence} />}
         {trend === 'Degrading' && (
           <span className="inline-flex items-center gap-1 text-[11px] font-medium text-danger">
             <TrendDown size={12} weight="bold" aria-hidden="true" /> Degrading

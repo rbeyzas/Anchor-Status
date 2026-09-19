@@ -6,8 +6,10 @@ import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
 import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
-import { hasEnoughData, latestEvidence, listingExplanation } from '@/lib/status-labels';
+import { CONFIDENCE_LABEL, confidenceBand } from '@/lib/scorecard';
+import { evidenceUrl, hasEnoughData, headlineScore, latestEvidence, listingExplanation } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
+import { ConfidenceChip, FlagChips, PillarBars } from './ScoreCardParts';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
 
@@ -31,6 +33,9 @@ export function AnchorDetailModal({
   }, [onClose]);
 
   const evidence = latestEvidence(anchor);
+  const card = anchor.card;
+  const context = anchor.cardContext;
+  const score = headlineScore(anchor);
   const historyTimestamps = anchor.scoreHistory.map((p) => p.timestamp);
   const chartData = anchor.scoreHistory.map((p) => ({
     label: formatChartAxisLabel(p.timestamp, historyTimestamps),
@@ -94,7 +99,16 @@ export function AnchorDetailModal({
           <div className="flex flex-col gap-2">
             <span className="text-xs text-ink-muted">Score</span>
             {hasEnoughData(anchor) ? (
-              <ScoreValue score={anchor.score} size={44} />
+              <>
+                <ScoreValue score={score} size={44} />
+                {card && <ConfidenceChip confidence={card.confidence} />}
+              </>
+            ) : card ? (
+              <span className="text-sm text-ink-faint">
+                {CONFIDENCE_LABEL[confidenceBand(card.confidence)]} yet (confidence {card.confidence} of the 40 needed)
+              </span>
+            ) : anchor.sourceType === 'RealMainnet' ? (
+              <span className="text-sm text-ink-faint">Not enough data yet: no score card published</span>
             ) : (
               <span className="text-sm text-ink-faint">
                 Not enough checks yet ({anchor.health?.observations ?? 0} of 3)
@@ -115,6 +129,62 @@ export function AnchorDetailModal({
             <span className="font-medium text-ink">{formatRelativeTime(anchor.lastUpdated)}</span>
           </div>
         </div>
+
+        {card && (
+          <div className="mb-5 rounded-card border border-border px-4 py-4">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <span className="text-sm font-medium text-ink">Score card</span>
+              <span className="text-xs text-ink-faint">
+                methodology v{card.methodologyVersion} · 30 days to {formatRelativeTime(card.windowEnd)}
+              </span>
+            </div>
+            <PillarBars card={card} marketNa={context?.marketNa} />
+            {card.flags.length > 0 && (
+              <div className="mt-4">
+                <FlagChips flags={card.flags} />
+              </div>
+            )}
+            <dl className="mt-4 grid grid-cols-3 gap-3 text-xs">
+              <div className="flex flex-col gap-0.5">
+                <dt className="text-ink-faint">Confidence</dt>
+                <dd className="tabular font-medium text-ink">{card.confidence} / 100</dd>
+              </div>
+              {context && (
+                <>
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-ink-faint">Monitored</dt>
+                    <dd className="tabular font-medium text-ink">
+                      {context.monitoredDays < 1 ? 'under a day' : `${Math.floor(context.monitoredDays)} day${Math.floor(context.monitoredDays) === 1 ? '' : 's'}`},{' '}
+                      {context.checks30d} checks
+                    </dd>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <dt className="text-ink-faint">Test depth</dt>
+                    <dd className="tabular font-medium text-ink">
+                      {context.coverage === null ? 'not measured yet' : `${Math.round(context.coverage * 100)}% of its steps`}
+                    </dd>
+                  </div>
+                </>
+              )}
+            </dl>
+            {anchor.status?.onChainSince && (
+              <p className="mt-3 text-xs text-ink-muted">
+                Issues {anchor.status.issuedAssets?.join(', ')} on-chain since{' '}
+                {new Date(anchor.status.onChainSince).toISOString().slice(0, 10)} (context only: age is not scored).
+              </p>
+            )}
+            <p className="mt-3 text-xs text-ink-muted">
+              Computed from a published{' '}
+              <a href={evidenceUrl(card.inputsHash)} target="_blank" rel="noreferrer" className="font-medium text-accent underline">
+                inputs bundle
+              </a>{' '}
+              whose hash is on-chain. Recompute it yourself:
+              <code className="mt-1.5 block overflow-x-auto rounded bg-surface-muted px-2 py-1 font-mono text-[11px] text-ink">
+                cd services/aggregator && npm run verify-score -- {card.inputsHash} --anchor {anchor.anchorId}
+              </code>
+            </p>
+          </div>
+        )}
 
         <div className="h-64 w-full rounded-card border border-border bg-surface-muted/50 p-2">
           <ResponsiveContainer width="100%" height="100%">

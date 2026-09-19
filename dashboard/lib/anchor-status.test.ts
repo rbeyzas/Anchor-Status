@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { describeProblem, mergeStatusInto, policyNote } from './anchor-status';
-import { hasEnoughData, listingExplanation, statusRank } from './status-labels';
+import { describeProblem, issuedAssets, mergeStatusInto, policyNote } from './anchor-status';
+import { hasEnoughData, headlineScore, listingExplanation, statusRank } from './status-labels';
 import type { AnchorViewModel } from './types';
 
 const probe = (extra: object = {}) => ({ timestamp: '2026-09-18T12:00:00Z', success: false, policy: [], ...extra });
@@ -42,10 +42,42 @@ const anchor = (extra: Partial<AnchorViewModel> = {}): AnchorViewModel => ({
 });
 
 describe('status labels', () => {
-  it('hides the score until the anchor has been checked a few times', () => {
+  it('hides a per-report score until the anchor has been checked a few times', () => {
     const health = { trend: 'Stable', riskReason: 'None', consecutiveFailures: 0, recentSuccessPercent: 100, recentCount: 1 } as const;
-    expect(hasEnoughData(anchor({ health: { ...health, observations: 1 } }))).toBe(false);
-    expect(hasEnoughData(anchor({ health: { ...health, observations: 3 } }))).toBe(true);
+    expect(hasEnoughData(anchor({ sourceType: 'RealTestnet', health: { ...health, observations: 1 } }))).toBe(false);
+    expect(hasEnoughData(anchor({ sourceType: 'RealTestnet', health: { ...health, observations: 3 } }))).toBe(true);
+  });
+
+  it('scores a mainnet anchor by its card, and shows nothing without one', () => {
+    const card = {
+      score: 81,
+      availability: 100,
+      speed: 100,
+      integrity: 100,
+      market: null,
+      confidence: 61,
+      flags: [],
+      windowEnd: '2026-09-19T12:00:00.000Z',
+      methodologyVersion: 1,
+      inputsHash: 'ab'.repeat(32),
+      publishedAt: '2026-09-19T12:05:00.000Z',
+    };
+    expect(hasEnoughData(anchor({ sourceType: 'RealMainnet' }))).toBe(false);
+    expect(hasEnoughData(anchor({ sourceType: 'RealMainnet', card }))).toBe(true);
+    expect(hasEnoughData(anchor({ sourceType: 'RealMainnet', card: { ...card, confidence: 39 } }))).toBe(false);
+    expect(headlineScore(anchor({ score: 40, card }))).toBe(81);
+    expect(headlineScore(anchor({ score: 40 }))).toBe(40);
+  });
+
+  it('reads the assets an anchor issues and its oldest issuer account', () => {
+    expect(
+      issuedAssets([
+        { code: 'ARST', issuer: 'GA', issuer_home_domain_matches: true, issuer_created_at: '2021-05-01T00:00:00Z' },
+        { code: 'BRLT', issuer: 'GB', issuer_home_domain_matches: true, issuer_created_at: '2020-02-01T00:00:00Z' },
+        { code: 'USDC', issuer: 'GC', issuer_home_domain_matches: false, issuer_created_at: '2019-01-01T00:00:00Z' },
+      ]),
+    ).toEqual({ issuedAssets: ['ARST', 'BRLT'], onChainSince: '2020-02-01T00:00:00Z' });
+    expect(issuedAssets([{ code: 'USDC', issuer: 'GC', issuer_home_domain_matches: false }])).toEqual({});
   });
 
   it('sorts reachable anchors before failing ones', () => {

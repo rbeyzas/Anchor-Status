@@ -5,13 +5,14 @@ Next.js (App Router) + TypeScript + Tailwind CSS + recharts. Reads
 and visualizes it (read-only — never signs a transaction).
 
 - 4 filters at the top: All / Live mainnet / Live testnet / Simulated.
-- Each anchor is a card: name, source badge, stake, a large score with a
-  sparkline, the oracle's trend (Improving / Degrading), and a badge with
-  the oracle's risk reason when it flags the anchor. Against an oracle
-  without health tracking it falls back to a "Sharp drop in 24h" tag.
-- Clicking a card opens a detailed score-history line chart and a health
-  summary (recent success rate, failure streak, number of checks).
-  Slashes from the previous oracle version are marked as legacy.
+- Each anchor is a card: name, source badge, the score with a sparkline
+  and a confidence chip (Low / Medium / High), the oracle's trend and risk
+  reason, and the score card's flags ("Outage: last 3 checks failed",
+  "Only partly testable: declines anonymous wallets", ...).
+- Clicking a card opens the score card (see below), the score-history
+  chart and the health summary (recent success rate, failure streak,
+  number of checks). Slashes from the previous oracle version are marked
+  as legacy.
 - **Visual direction**: a dark-first "premium web3" interface — glass
   panel cards (`.glass-panel`, backdrop-blur), an SVG ring gauge for the
   score (`ScoreValue`), Phosphor icons, `framer-motion` entrance/hover
@@ -23,62 +24,68 @@ and visualizes it (read-only — never signs a transaction).
   `app/globals.css` (light and dark were designed together, contrast
   checked separately for each).
 
-## Data layer and the mock fallback
+## Score cards
 
-`lib/soroban.ts::getDashboardData()` first tries a live read from
-testnet Soroban RPC:
+Mainnet anchors are scored by a windowed score card
+([`docs/SCORING.md`](../docs/SCORING.md)); testnet and reference anchors
+keep the per-report score.
 
-1. `AnchorRegistry.list_anchors()` to get every registered anchor id.
-2. For each one, `AnchorRegistry.get_anchor_info()` (name, domain,
-   source_type, stake, last update) and `PerformanceOracle.get_score()`
-   (current score).
-3. Score history via `PerformanceOracle`'s `report_submitted` events,
-   and legacy slash markers via `AnchorRegistry`'s `slash` events (only
-   the previous oracle emitted these), both through
-   `rpc.Server.getEvents()` filtered on the `anchor_id` topic. Trend and
-   risk come from `PerformanceOracle.get_health()`.
+- The number is shown only when the card's **confidence** is at least 40.
+  Below that the card says "Not enough data yet", and the flags are still
+  shown. A mainnet anchor without a published card says the same. The page
+  never shows a placeholder that looks like a score.
+- The detail view shows the four pillars as bars (Availability, Speed,
+  Integrity, Market; Market reads "n/a" with its reason: the anchor does
+  not issue the assets it lists, no fiat reference rate, or no liquid
+  market), the confidence factors (days monitored, checks in 30 days, test
+  depth), the active flags in plain language, the methodology version,
+  "on-chain since" for an issuing anchor (context only: age is not
+  scored), and a link to the inputs bundle with the command to recompute
+  it.
+- Averages and "top anchors" count only scores the page shows.
 
-**Important — event query window**: on the public
-`soroban-testnet.stellar.org` RPC, the range `getEvents` will *accept*
-(from its own range-validation error) is much longer than the range it
-will actually *return results for*. Empirically, a `startLedger` more
-than roughly 10,000–12,000 ledgers behind the tip (~14–17 hours) starts
-silently returning zero events — no error, it just finds nothing, even
-though the same query against a more recent `startLedger` returns real
-results. So the code intentionally queries a short, empirically-safe
-window (`MAX_QUERYABLE_LEDGERS_BACK`, currently 9,000 ledgers /
-~12–13 hours) rather than the much longer window the RPC advertises as
-valid; a catch-and-retry step (using `min + 1`, since the advertised
-minimum is itself already-pruned/exclusive) is a secondary safety net,
-not the primary strategy. If a query still comes back empty (e.g. an
-anchor's most recent event really is older than the safe window), that
-anchor's chart falls back to a single point at its current score rather
-than crashing the page. If you switch to a different RPC provider,
-re-verify this constant — it isn't a documented, universal Soroban RPC
-guarantee.
+Flag copy, pillar labels and the confidence bands live in `lib/scorecard.ts`.
 
-If the live read fails entirely (contracts not deployed yet, no network
-access to the RPC, etc.) the dashboard **automatically** falls back to
-the deterministic demo data in `lib/mock-data.ts` and shows an orange
-"Showing demo data" banner. This means the dashboard can always be
-reviewed in a real browser even before contracts are deployed or without
-testnet access.
+## Data layer
+
+`lib/soroban.ts::getDashboardData()` reads the chain directly, in a handful
+of calls rather than two per anchor:
+
+1. The `AnchorRegistry` instance entry, for the list of anchor ids.
+2. Every anchor's `AnchorInfo`, `AnchorHealth` and `ScoreCard` ledger
+   entries in batches of up to 200 keys (`getLedgerEntries`). An entry
+   whose TTL ran out is reported as archived, not as current data.
+3. Score history from `report_submitted` events over the public RPC's
+   7-day retention, scanned in parallel ranges of 10,000 ledgers
+   (`getEvents` scans about that many per call and returns an empty page
+   with a cursor when it finds nothing).
+
+Three server-side fetches enrich it, all from the collector host over
+plain HTTP (so never from the browser): the history archive
+(`HISTORY_ARCHIVE_URL`), each anchor's latest probe verdict and listed
+assets (`ANCHOR_STATUS_URL`), and the score cards' confidence factors
+(`score-summary.json` beside it, or `SCORE_SUMMARY_URL`). The factors are
+attached only when they describe the very bundle the on-chain card names.
+Each is optional: without it the page still renders from the chain.
+
+If the public RPC fails, the page falls back to `SOROBAN_RPC_FALLBACK_URL`
+(server-side only; ours is an Alchemy URL with its key), with at most 8
+requests in flight. If no RPC answers, the page says so and shows no
+scores. There is no demo data.
 
 ## Setup and running
 
 ```bash
 npm install
 npm run dev          # auto-loads the root .env (via dotenv-cli)
-npm run build         # production build
-npm test               # network-free unit tests (drop detection, health labels, archive merge)
+npm run build        # production build
+npm test             # network-free unit tests
 npm run typecheck
 ```
 
-For live data, the root `.env` needs: `NEXT_PUBLIC_SOROBAN_RPC_URL`,
-`NEXT_PUBLIC_NETWORK_PASSPHRASE`, `NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID`,
-`NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID`, and
-`NEXT_PUBLIC_READER_PUBLIC_KEY` (any funded testnet account — used only
-as the source account for read-only simulation, never asked to sign).
-
-If any of these are missing or the RPC is unreachable, the dashboard
-automatically falls back to demo data (see above).
+For live data, the root `.env` needs `NEXT_PUBLIC_SOROBAN_RPC_URL`,
+`NEXT_PUBLIC_NETWORK_PASSPHRASE`, `NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID`
+and `NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID`. Optional, server-side:
+`SOROBAN_RPC_FALLBACK_URL`, `HISTORY_ARCHIVE_URL`, `ANCHOR_STATUS_URL`,
+`SCORE_SUMMARY_URL`, and `NEXT_PUBLIC_EVIDENCE_BASE_URL` for the evidence
+links.
