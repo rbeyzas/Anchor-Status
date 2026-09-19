@@ -11,6 +11,28 @@ Root-level setup / deploy / demo scripts.
 
 These scripts **require network access** to Stellar testnet.
 
+## Collector host: the public files
+
+nginx serves each public file by an explicit `location =`; everything else
+is a 404, so a new output file is invisible until it gets a block of its
+own. Beside `/history.json`, `/anchor-status.json`, `/score-summary.json`,
+`/evidence/` and `/probe-results/`, the aggregator publishes the collector
+incidents the scorer applies ([`docs/SCORING.md`](../docs/SCORING.md)
+section 5.1):
+
+```nginx
+location = /incidents.json {
+    alias /var/lib/anchor-status/incidents.json;
+    default_type application/json;
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header Cache-Control "no-store" always;
+}
+```
+
+Keep backups of the config out of `sites-enabled/`: nginx globs that
+directory, and a copy of the server block there fails the config test as a
+duplicate default server.
+
 ## Collector host: the onboarding intake
 
 Applications from the dashboard's `/apply` page reach the collector through
