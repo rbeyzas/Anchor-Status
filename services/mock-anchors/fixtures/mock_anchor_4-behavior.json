@@ -1,0 +1,1802 @@
+[
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-21T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "23fd2925-5224-5c0f-92a7-e31417f8a046",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-21T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d53072b7-da96-588d-aca5-d29d8579bd83",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-21T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f52f4438-50c0-567d-8e63-613f73aa6da7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-21T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "395e117d-9f50-5704-aff5-4729a53df0d5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-21T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2b815761-9cb9-5f31-a119-6af5f5e71991",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-21T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "655d05b8-94db-51a8-9ff0-7811376a0c3c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 0
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-22T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "df7c4811-fea8-5a6e-b124-677afcd078c7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-22T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f1af7eff-97ef-56d2-8601-ac40daab1960",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-22T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7c32014e-2347-5195-86b3-331284aa0746",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-22T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "de7c425f-6ac7-576f-b55e-f49c5871bdaf",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-22T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "8625f752-8585-5a6a-8b22-00ea99059d9e",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-22T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "e2a244be-17de-5f53-a1d3-feb48e558d62",
+    "kind": "deposit",
+    "elapsed_simulated_days": 1
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-23T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f40afe9a-484c-57eb-836a-99a8cb00ebf9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-23T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2c79731e-9092-511a-9a9a-27f716afdcb7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-23T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "111b7d05-e13a-5c62-be8c-5e479a546b77",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-23T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "cb9d4b5a-7076-5f4c-ac33-37d13fe17fc8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-23T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c9d970f6-b8bc-59b2-b83f-cc0736c5f381",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-23T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "ce99a7c0-2135-57a5-bde3-89e6ba0894c6",
+    "kind": "deposit",
+    "elapsed_simulated_days": 2
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-24T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d8325bda-362c-5a09-97ab-fe26d57f9cc9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-24T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "68a75b96-41be-5453-96ba-7036f738260d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-24T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "71143ddf-5067-540f-8dc7-697ae6f8c49f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-24T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "efdc4df6-2e82-576b-b6f1-a51f545c9518",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-24T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "0c23ff69-2d42-509c-aa43-5a58f4e2c43a",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-24T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6050d34f-fa63-5b49-ad99-69c504caa9a9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 3
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-25T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "b05432ed-0aec-5816-902e-8fb28e2e47a8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-25T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a2f5ebb7-6dfc-5d61-8a09-673d9210ee73",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-25T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "35991dce-3886-59d8-ab36-b498a0ac35a4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-25T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "bc991921-6453-5a36-916d-6ac70569869a",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-25T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "121a3091-79ad-553c-a5c3-81b27cf4990f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-25T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "9aef7c52-5165-589b-a8bb-121f2bf7e72b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 4
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-26T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f1a32ddb-2167-573b-aafc-e9ed42f004e1",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-26T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4c2f4a0c-f415-5687-8a39-c6d8a03c07e3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-26T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f4e88fc5-e5b8-54ed-8f9b-d9e5c17bd8b6",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-26T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "49d99b60-4287-5f2d-8c5a-b38ec665b867",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-26T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "bdc7ccd4-f51b-5fef-a20b-a24a59fe7aa6",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-26T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "dc2f321f-bca6-59ee-a22f-0656a64f1014",
+    "kind": "deposit",
+    "elapsed_simulated_days": 5
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-27T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6d511777-6211-5cc2-a73e-61b63c7e189c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-27T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2a041937-1f07-5b39-a6bf-38051e1cc833",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-27T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "125f3654-361e-5297-9b50-074bd9cca635",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-27T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "429302aa-dd4b-5a2a-ab54-4977f3c04362",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-27T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "fb4806d1-df8c-5bde-86dd-f74d6561db42",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-27T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "187425a8-9f04-5998-9cec-f2de61225371",
+    "kind": "deposit",
+    "elapsed_simulated_days": 6
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-28T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "b2d8006a-be4c-522b-86b8-e428e0bd64c8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-28T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "69de997b-6d17-576e-a33f-bf908ea37d13",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-28T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3bbea59f-0c32-5846-a66e-6ac5af4cd2aa",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-28T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a5166121-cfff-5ef0-a60c-d32e4ca774f1",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-28T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "9eaa0d94-4188-5443-b648-ebff16b78705",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-28T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4d4a0583-cfb9-597a-9a0e-a6fb00973da3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 7
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-29T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "406fc661-7022-559f-ae96-ee366c86261d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-29T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "92a8b472-4245-5596-9661-aa741f8dd0cb",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-29T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2c2a05d2-63bc-5710-b38a-778d5451463f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-29T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f8f441f4-6dd7-5cc6-a63f-04fad91bdd7e",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-29T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "8b485cbd-de20-5ce9-a93b-bcf2cd7aab78",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-29T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3a42c0c0-ab72-5b4a-9dd3-af210ab9a5df",
+    "kind": "deposit",
+    "elapsed_simulated_days": 8
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-30T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "12e5ac17-d9dd-5ef7-8a1b-c4122a02adec",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-08-30T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "0dbdf293-3d38-56ef-80e9-207b43ddc67e",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-08-30T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5ddb9cb4-c112-5803-98b4-e70febf899dc",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-08-30T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f18e2947-814c-52fe-beeb-c4b021bb1b11",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-30T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "8515836f-bce0-546a-a658-878c76fb6deb",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-30T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c0c64007-5893-5b1a-8059-c854175665b4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 9
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-08-31T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "13964dcd-b3e1-5990-a8eb-d51faeaa103b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-08-31T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "41385867-01c0-5d5a-b4fa-c6186225b9f4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-08-31T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f9eb5968-a2d7-5531-a55e-0301d02ff2c5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-08-31T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5375f347-a835-5810-b6db-8115c7593893",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-08-31T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "492c504f-799f-5872-97c1-a44730f86545",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-08-31T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "e077bb8c-8666-5f01-9289-daa6146d7c21",
+    "kind": "deposit",
+    "elapsed_simulated_days": 10
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-01T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "54cd35cc-5863-572b-89a2-77bba1a3b60f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-01T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "ee680a24-9af7-599d-91ec-713a861d33d7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-01T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d7cbbc2e-daaf-531d-85a3-70bb63578924",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-01T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "22666502-97ea-59a4-a0c6-be1553cd65fb",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-01T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7173463f-1fe3-5cd1-aadf-814aea3e7478",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-01T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d7d23727-7561-5e6a-82e6-ff7fef2c032f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 11
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-02T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "1523865e-332f-527d-98cd-6a148f2bccb2",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-02T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "01741a67-93ff-5b52-8bdc-7354cf9b81ed",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-02T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "12134a19-ba68-5308-912c-dfdecd066fad",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-02T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "73035cf2-c787-5a20-9101-6586a6f19405",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-02T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "99876934-ce3f-5b7e-9b5c-5958323792c8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-02T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6bae8fa9-57b7-51a1-8747-dee7914989a4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 12
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-03T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7ad3d280-bb1d-5dfd-be36-c4cdf756a7f3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-03T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "85622d36-e916-5ddf-977b-c7ea34837efd",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-03T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "244fc469-dbe2-51c1-bf72-7896b3fc62bc",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-03T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "085adc2e-7b0b-58f1-9299-f6c68ed729f9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-03T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "60cf01a0-751b-5b04-a4ca-49869ddd067e",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-03T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5c11f4e5-de53-5b80-8fd5-37e051b699f1",
+    "kind": "deposit",
+    "elapsed_simulated_days": 13
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-04T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5541ee60-ebb7-575f-bc31-4477791e2bdc",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-04T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a4dbdc51-b231-5ae6-8546-b7e6298f034b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-04T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "81d7880d-5117-5794-a7a4-83088326ce09",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-04T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "bbadc4ff-5199-5c51-b8ca-7a279236cb4c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-04T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6a8b5dbc-360b-50ea-9cb1-d507ae968e0b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-04T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3067bfce-6b0c-5165-83af-147d914f1071",
+    "kind": "deposit",
+    "elapsed_simulated_days": 14
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-05T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3e44ca17-1de2-50e8-a2ee-41a621ab2d86",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-05T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "f54805f3-0e63-5157-9f2f-a0021ca90e7c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-05T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c6717024-7a10-515f-bead-9a0ef3e41799",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-05T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6c086dcc-7f87-5fb6-abed-fe513c02cfa2",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-05T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "e2878126-1e83-58d7-946b-13d3588433a7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-05T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3e623af7-1e58-5c68-99c1-bdda4303c3f4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 15
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-06T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "854af036-6a70-5ada-b016-2d97174c8fc4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-06T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "05f14d20-449e-57f9-8af6-852ece42648c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-06T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2808087c-3e1d-554b-a9e0-a341bc618396",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-06T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3d780b81-0cd9-5eb6-a47e-69a778a05e66",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-06T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7c638380-0852-5f7e-93e8-83c12a70fc20",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-06T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "276f6813-8d4b-5a59-8200-62f160210e7d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 16
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-07T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "afb91737-f0bc-56f9-a744-8fed7054ea0d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-07T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a15abebf-a79d-536c-b077-5b59c8d3c1cf",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-07T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "74f37399-1001-5865-8ec7-9dd7a216a422",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-07T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "28c1f269-a510-5cf0-8667-fe9b484cfec2",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-07T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "0b35fbd3-09a6-5aaa-bf96-b33b72044952",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-07T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a9152aaf-08b7-5fd2-a22c-8abf7449be39",
+    "kind": "deposit",
+    "elapsed_simulated_days": 17
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-08T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d13483ec-5ad5-539d-a6b8-6f74b20e24d8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-08T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4fd0e02a-4069-50de-aa17-785a114c79d5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-08T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "81473058-6bfb-55aa-b607-05fc5265d662",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-08T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "20bd9f72-62c5-5afd-8b31-6211fadfeecf",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-08T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4fca01c8-f0d8-5dcb-b89f-0a87ab88ddf7",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-08T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "fe7faa56-bfa8-5db6-8652-50760011ac0b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 18
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-09T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "166c75ca-940c-5a9c-8c04-c7c50698e262",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-09T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "ba93c7ff-92df-588d-96c4-3d6f8c1e1d75",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-09T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4c209b47-4a17-5284-997b-7c403dbefa63",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-09T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "dfe7a685-c05f-5e07-a0c1-8f5c37551c28",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-09T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4702b594-75f2-5a88-a6e5-8b02ae473393",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-09T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3fd7b365-2c52-5c36-926d-ab73326debd9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 19
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-10T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2f7f934e-680b-584b-80b1-b0969c04c6af",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-10T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d159d2a2-46c9-5dfe-88ae-bd18bf05e213",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-10T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "31397e08-b5d7-5362-a72b-2b4e2363b47a",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-10T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "89fbf46c-3c5d-512b-ad75-aaad91af15a8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-10T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "9eb93f3c-b0a6-5018-9955-1fc72a0ee19d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-10T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a1823685-5e49-5ec7-8de3-0d5c6acfa94c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 20
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-11T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6b278280-283c-5996-b1ec-32c0bea3fac5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-11T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "b060b5cd-e417-534c-8575-9a5b8346d377",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-11T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "1022a7e5-0db3-51f6-b24f-0a56b397a328",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-11T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "e9c472cb-1888-56c8-8282-aefbc03305b5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-11T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "9028b2ca-2bcd-5ee1-9776-056f7f3b8389",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-11T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "30ed51c8-8ff4-5188-8a2b-08a4b12f3629",
+    "kind": "deposit",
+    "elapsed_simulated_days": 21
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-12T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "feb88c4f-5150-58b4-a338-05085470426a",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 126.0,
+    "timestamp": "2026-09-12T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2e494daa-b97a-5783-9ca3-c70439b95a30",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 96.0,
+    "timestamp": "2026-09-12T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "e0473308-4b57-5757-8425-7539525062e3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 120.0,
+    "timestamp": "2026-09-12T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4a298949-47ef-5cf3-9c96-bafac95c1fc3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-12T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5de81bf0-2cd6-5d4a-ae17-2c9fc22afd9b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-12T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "69d5f4ab-30d8-5307-bd9a-856afe021e7c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 22
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 144.0,
+    "timestamp": "2026-09-13T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "157c6c82-88fa-5cc0-92f4-77b9645123b9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 114.0,
+    "timestamp": "2026-09-13T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "4ee018ae-7c0e-5d31-81ee-665e0db2ca9b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 138.0,
+    "timestamp": "2026-09-13T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "1f7d523b-ae36-5845-be4f-ac28ce9307b2",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 108.0,
+    "timestamp": "2026-09-13T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3fbc1268-a518-5cff-81ee-8260ca84d629",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 132.0,
+    "timestamp": "2026-09-13T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "1cd45f19-c50c-541c-9254-75dadf1f9176",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 102.0,
+    "timestamp": "2026-09-13T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "aed60692-89a8-5fa8-a9bd-6cfecdcd58f3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 23
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 44.0,
+    "timestamp": "2026-09-14T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "eba4b4e9-7691-59fc-92ef-4ebe8bb92b4c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 34.0,
+    "timestamp": "2026-09-14T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a26f2697-6d9f-517a-991a-ed3015bbfda9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 42.0,
+    "timestamp": "2026-09-14T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "bcb5ca86-b247-5ecc-92fa-57831e4e5d9f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 32.0,
+    "timestamp": "2026-09-14T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6eb57d86-7007-5591-97f7-df1e88ff674c",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 40.0,
+    "timestamp": "2026-09-14T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c830836f-a7c9-5972-85a7-c3506cee3118",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 48.0,
+    "timestamp": "2026-09-14T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "0b76ea76-5daf-5a47-9b30-706b7bbe68fe",
+    "kind": "deposit",
+    "elapsed_simulated_days": 24
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 40.0,
+    "timestamp": "2026-09-15T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "d94b87db-406e-5907-be8b-2ebce772e524",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 48.0,
+    "timestamp": "2026-09-15T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "a1a811d6-7daa-5fed-82c0-5474972d6318",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 38.0,
+    "timestamp": "2026-09-15T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "81ffb5c9-a621-5298-ac75-a3062b4d14bb",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 46.0,
+    "timestamp": "2026-09-15T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "404bc297-3dc0-559c-be9e-3b48790f78b9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 36.0,
+    "timestamp": "2026-09-15T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "dc47736d-3372-5c11-a846-d3c4c29bc909",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 44.0,
+    "timestamp": "2026-09-15T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "867ea30e-8235-5108-ba39-16d9025449c9",
+    "kind": "deposit",
+    "elapsed_simulated_days": 25
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 36.0,
+    "timestamp": "2026-09-16T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "3fd7389f-6a2c-5014-8c9a-0461cae6417b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 44.0,
+    "timestamp": "2026-09-16T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "bc9888aa-24c6-5b9a-a2ed-e65d49558304",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 34.0,
+    "timestamp": "2026-09-16T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "6ce67055-eafa-5836-842a-7732e3f6db6b",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 42.0,
+    "timestamp": "2026-09-16T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "87b5fc73-99eb-5524-9f3e-e990c9a77381",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 32.0,
+    "timestamp": "2026-09-16T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "437b1b5c-089d-5c86-a7f2-7f58f9f79c77",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 40.0,
+    "timestamp": "2026-09-16T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5db511ed-6a5a-546e-a37b-053510ec5765",
+    "kind": "deposit",
+    "elapsed_simulated_days": 26
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 32.0,
+    "timestamp": "2026-09-17T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "0577e3b2-6bcb-538d-b65b-2781f88f9b15",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 40.0,
+    "timestamp": "2026-09-17T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7ead8a72-d523-5009-b9a3-8b5c390db7d2",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 48.0,
+    "timestamp": "2026-09-17T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "8964ca49-069e-5039-84e7-8bb4b18ba3c8",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 38.0,
+    "timestamp": "2026-09-17T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c9c0368d-2c3b-5252-83af-6d06767bf4fb",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 46.0,
+    "timestamp": "2026-09-17T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "078a4c2b-c8f3-5135-a8ad-bd22c781e6ea",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 36.0,
+    "timestamp": "2026-09-17T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "40c42cc0-7f15-55d3-9261-5136fffad439",
+    "kind": "deposit",
+    "elapsed_simulated_days": 27
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 46.0,
+    "timestamp": "2026-09-18T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "212029ff-3b07-5a5a-929c-41652e689493",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 36.0,
+    "timestamp": "2026-09-18T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "498709f0-4a55-5461-ac56-79e4c85bc28f",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 44.0,
+    "timestamp": "2026-09-18T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "24cab490-e528-5696-8ccf-cf83c7a22e73",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 34.0,
+    "timestamp": "2026-09-18T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "5b3b40e8-2ff3-55e1-870e-2c4369e9856d",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 42.0,
+    "timestamp": "2026-09-18T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "1635e688-61c2-533e-bb9b-3c33c17042ad",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 32.0,
+    "timestamp": "2026-09-18T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "ab5304b9-8ecd-5a13-a80a-8748377931c3",
+    "kind": "deposit",
+    "elapsed_simulated_days": 28
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 42.0,
+    "timestamp": "2026-09-19T02:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "fd490a5d-ea78-5172-a74f-5cbbad42a133",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 32.0,
+    "timestamp": "2026-09-19T06:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "c4f7fed5-f149-59d9-80b3-89b976a6d08a",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 40.0,
+    "timestamp": "2026-09-19T10:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "909ca168-6e74-5992-aafa-539d61576e56",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 48.0,
+    "timestamp": "2026-09-19T14:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "2db87dfb-9e26-5bc0-b954-a72dad8cf0e5",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": true,
+    "settlement_seconds": 38.0,
+    "timestamp": "2026-09-19T18:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "09b179e1-9f0f-51e3-873a-77bf117ac4d4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  },
+  {
+    "anchor_id": "mock_anchor_4",
+    "success": false,
+    "settlement_seconds": 46.0,
+    "timestamp": "2026-09-19T22:00:00+00:00",
+    "source_type": "SimulatedMock",
+    "transaction_id": "7893755a-6114-5de9-a1eb-2437871a1fc4",
+    "kind": "deposit",
+    "elapsed_simulated_days": 29
+  }
+]
