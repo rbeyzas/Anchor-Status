@@ -1,5 +1,4 @@
-import { ChartLineUp, Coins, Lightning, ShieldCheck } from '@phosphor-icons/react/dist/ssr';
-import { formatStakeXlm } from '@/lib/format';
+import { ChartLineUp, Lightning, ShieldCheck } from '@phosphor-icons/react/dist/ssr';
 import { GATE_FLAGS } from '@/lib/scorecard';
 import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
@@ -14,7 +13,6 @@ export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
   // the average either.
   const scored = anchors.filter(hasEnoughData);
   const avgScore = average(scored.map(headlineScore));
-  const totalStake = anchors.reduce((sum, a) => sum + a.stake, 0);
   // The oracle's risk verdict, or a gate on the score card.
   const atRisk = anchors.filter(
     (a) => (a.health && a.health.riskReason !== 'None') || a.card?.flags.some((f) => GATE_FLAGS.has(f)),
@@ -28,7 +26,6 @@ export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
       icon: ChartLineUp,
       tone: 'text-as-signal',
     },
-    { label: 'Total stake', value: formatStakeXlm(totalStake), icon: Coins, tone: 'text-as-amber' },
     {
       label: 'Active risk alerts',
       value: String(atRisk),
@@ -38,7 +35,7 @@ export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {stats.map((stat) => (
         <div key={stat.label} className="as-panel flex items-center gap-3 px-4 py-3.5">
           <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-as-surface-2 ${stat.tone}`}>
