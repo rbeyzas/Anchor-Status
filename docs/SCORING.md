@@ -1,6 +1,6 @@
 # Scoring methodology (v1)
 
-This is the single source of truth for how an anchor's score is computed, published and verified. It replaces the per-report EMA as the headline score for mainnet anchors. The implementation plan is in [`docs/scoring-v2-implementation.md`](scoring-v2-implementation.md); where the implementation departs from this text, section 19 says how and why.
+This is the single source of truth for how an anchor's score is computed, published and verified. It replaces the per-report EMA as the headline score for mainnet anchors. The implementation plan is in [`docs/prompts/scoring-v2-implementation.md`](prompts/scoring-v2-implementation.md); where the implementation departs from this text, section 19 says how and why.
 
 ## 1. Why the current score is not enough
 
