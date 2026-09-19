@@ -47,15 +47,34 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
 
   const server = new Horizon.Server(config.horizonMainnetUrl, { allowHttp: false });
   const flows = loadFlows(config.flowsPath);
-  const { scanned, waiting } = await updateFlows(
+  const withoutHistory: string[] = [];
+  const { scanned, waiting, failures } = await updateFlows(
     flows,
     issued,
     now,
-    (issuer, cutoff) => fetchRecentPayments(server, issuer, cutoff, config.requestDelayMs, config.maxPages),
+    async (issuer, cutoff) => {
+      const result = await fetchRecentPayments(server, issuer, cutoff, config.requestDelayMs, config.maxPages);
+      if (result.historyMissing) withoutHistory.push(issuer);
+      return result;
+    },
     config.maxBackfillsPerRun,
   );
   saveFlows(config.flowsPath, flows);
   console.log(`[passive-monitor] flows: ${scanned} issuer(s) scanned, ${waiting} waiting for a backfill slot`);
+  if (withoutHistory.length > 0) {
+    // Real zeros, not gaps: Horizon holds no classic operation for these
+    // accounts, so they have minted and burned nothing we can see.
+    console.log(`[passive-monitor] flows: ${withoutHistory.length} issuer(s) with no payment history at all (${withoutHistory.join(', ')})`);
+  }
+  for (const f of failures) {
+    console.warn(`[passive-monitor] flows: could not read issuer ${f.issuer}, leaving it for the next run: ${f.message}`);
+  }
+  // A few unreadable issuers are a fact about them. Not one issuer read
+  // when there were issuers to read is a fact about us, and the round
+  // should say so rather than look healthy.
+  if (scanned === 0 && failures.length > 0) {
+    throw new Error(`could not read any of the ${failures.length} issuer(s) scanned: ${failures[0].message}`);
+  }
 
   const fx = await loadFxTable(config.fxCachePath, now);
   const samples: MarketSample[] = [];

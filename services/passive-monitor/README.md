@@ -13,7 +13,14 @@ sections 6.4 and 8). Only for assets an anchor issues itself, as found by
   `PASSIVE_MONITOR_MAX_BACKFILLS_PER_RUN` (5) per round; after that only the
   days since the last run are recomputed, so nothing is counted twice and a
   missed round leaves no gap. When the page cap cuts a history short, those
-  days are marked truncated and the flow gates do not apply to them.
+  days are marked truncated and the flow gates do not apply to them. An
+  issuer Horizon cannot be read for is left exactly as it was and retried
+  next round, rather than costing every other issuer its scan: the file is
+  written once, after the whole loop. An issuer Horizon has no history for
+  at all (it 404s the collection, which is how it answers for an account
+  that has never been in a classic operation — a Stellar Asset Contract
+  issuer, for one) is read as zero mint and zero burn, because that is what
+  can be seen.
 - **Market samples** (`PASSIVE_MONITOR_MARKET_DIR`, one JSON-lines file a
   day): for each issued fiat asset, its price against Circle's USDC from the
   DEX order book mid (both sides present, spread under 5%) and the AMM pool

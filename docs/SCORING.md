@@ -169,6 +169,8 @@ A gate is a hard cap applied after everything else. Multiple gates: the lowest c
 
 Balanced mint and burn is not rewarded: a growing anchor legitimately mints more than it burns. Only a complete absence of redemption is flagged. Flow counts come from payments to and from the issuer account; anchors that redeem by other means are a known blind spot.
 
+One such blind spot is now concrete. An issuer whose asset moves only through the Stellar Asset Contract has no classic payment at all: Horizon records the transfer as an `invoke_host_function` on the caller, and answers 404 for the issuer's own payment history rather than returning an empty page. Those issuers are read as zero mint and zero burn, which is what we can see, and SILENT is set. SILENT caps nothing, but for a SAC-only issuer it describes our sight, not the anchor. Reading `asset_balance_changes` for issuers would close it.
+
 ## 9. Headline formula
 
 Integer arithmetic on the card's own on-chain integers, so anyone can check it from the card alone:

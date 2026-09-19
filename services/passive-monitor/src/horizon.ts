@@ -17,6 +17,26 @@ export interface RecentPayments {
   truncated: boolean;
   /** created_at of the oldest operation actually scanned (payment or not). */
   oldestScannedAt?: string;
+  /** Horizon has no operation history for this account at all (see
+   * `isHistoryMissing`). Not an error: the account has never moved
+   * anything, so zero is the measurement. */
+  historyMissing?: boolean;
+}
+
+/**
+ * Horizon answers 404, not an empty page, when an account has never been a
+ * participant in a classic operation — it has no row in the history tables
+ * to page over. Some issuers are like that: they exist on the ledger, but
+ * every mint and burn of their asset goes through the Stellar Asset
+ * Contract, which Horizon records as `invoke_host_function` on the caller,
+ * not as a payment by the issuer.
+ *
+ * Either way the answer to "what did this account pay in the last 30 days"
+ * is nothing, so the caller gets an empty result rather than an exception.
+ */
+export function isHistoryMissing(err: unknown): boolean {
+  const status = (err as { response?: { status?: number } })?.response?.status;
+  return status === 404;
 }
 
 /**
@@ -39,12 +59,13 @@ export async function fetchRecentPayments(
   const results: PaymentRecord[] = [];
   let oldestScannedAt: string | undefined;
   let pagesFetched = 1;
-  let page = await server
-    .payments()
-    .forAccount(accountId)
-    .order('desc')
-    .limit(200)
-    .call();
+  let page;
+  try {
+    page = await server.payments().forAccount(accountId).order('desc').limit(200).call();
+  } catch (err) {
+    if (!isHistoryMissing(err)) throw err;
+    return { records: [], truncated: false, historyMissing: true };
+  }
 
   let reachedCutoff = false;
   while (!reachedCutoff) {
@@ -97,7 +118,15 @@ export async function fetchRecentPayments(
     }
 
     await sleep(delayMs);
-    page = await page.next();
+    try {
+      page = await page.next();
+    } catch (err) {
+      // We have already read rows, so this is not an account without
+      // history: the page we cannot read is history we know exists, which
+      // is what `truncated` means — counts become lower bounds.
+      if (!isHistoryMissing(err)) throw err;
+      return { records: results, truncated: true, oldestScannedAt };
+    }
     pagesFetched++;
   }
 

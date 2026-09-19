@@ -99,7 +99,7 @@ export function bucketize(
 export type ScanIssuer = (
   issuer: string,
   cutoff: Date,
-) => Promise<{ records: PaymentRecord[]; truncated: boolean; oldestScannedAt?: string }>;
+) => Promise<{ records: PaymentRecord[]; truncated: boolean; oldestScannedAt?: string; historyMissing?: boolean }>;
 
 /**
  * Brings every issued asset's history up to today. A new asset is
@@ -115,7 +115,7 @@ export async function updateFlows(
   now: number,
   scan: ScanIssuer,
   maxBackfills: number,
-): Promise<{ scanned: number; waiting: number }> {
+): Promise<{ scanned: number; waiting: number; failures: { issuer: string; message: string }[] }> {
   const today = utcDay(now);
   const oldestKept = utcDay(now - FLOW_DAYS * DAY_MS);
   const byIssuer = new Map<string, IssuedAsset[]>();
@@ -124,6 +124,7 @@ export async function updateFlows(
   let backfills = 0;
   let scanned = 0;
   let waiting = 0;
+  const failures: { issuer: string; message: string }[] = [];
   for (const [issuer, issued] of byIssuer) {
     const known = issued.map((a) => file.assets[assetKey(a)]);
     const isNew = known.some((k) => !k);
@@ -137,7 +138,19 @@ export async function updateFlows(
       ? oldestKept
       : known.map((k) => k!.updated_through).reduce((a, b) => (a < b ? a : b));
     const fromClamped = fromDay < oldestKept ? oldestKept : fromDay;
-    const result = await scan(issuer, new Date(Date.parse(fromClamped)));
+    // One issuer we cannot read must not cost every other issuer its round:
+    // this loop's caller only saves the file after the loop returns, so an
+    // exception here used to throw away the whole scan. Leaving the asset
+    // untouched keeps its `updated_through` where it was, so the next run
+    // picks the same range up again and no day is silently skipped.
+    let result;
+    try {
+      result = await scan(issuer, new Date(Date.parse(fromClamped)));
+    } catch (err) {
+      if (isNew) backfills--;
+      failures.push({ issuer, message: (err as Error).message });
+      continue;
+    }
     scanned++;
     for (const asset of issued) {
       const key = assetKey(asset);
@@ -162,7 +175,7 @@ export async function updateFlows(
     }
   }
   file.updated_at = new Date(now).toISOString();
-  return { scanned, waiting };
+  return { scanned, waiting, failures };
 }
 
 export function loadFlows(filePath: string): FlowsFile {

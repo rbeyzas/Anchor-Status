@@ -112,8 +112,47 @@ describe('updateFlows', () => {
     const file = empty();
     const assets = ['G1', 'G2', 'G3'].map((issuer) => ({ anchor_id: 'a', code: 'X', issuer }));
     const result = await updateFlows(file, assets, now, horizon([]).scan, 2);
-    expect(result).toEqual({ scanned: 2, waiting: 1 });
+    expect(result).toEqual({ scanned: 2, waiting: 1, failures: [] });
     expect(Object.keys(file.assets)).toHaveLength(2);
+  });
+
+  it('keeps going when one issuer cannot be read, and reports it', async () => {
+    const file = empty();
+    const assets = ['G1', 'G2', 'G3'].map((issuer) => ({ anchor_id: 'a', code: 'ARST', issuer }));
+    const scan: ScanIssuer = async (issuer) => {
+      if (issuer === 'G2') throw new Error('Service Unavailable');
+      return { records: [], truncated: false };
+    };
+    const result = await updateFlows(file, assets, now, scan, 5);
+    expect(result.scanned).toBe(2);
+    expect(result.failures).toEqual([{ issuer: 'G2', message: 'Service Unavailable' }]);
+    // The two readable issuers are still written; the third is simply absent.
+    expect(Object.keys(file.assets).sort()).toEqual(['ARST:G1', 'ARST:G3']);
+  });
+
+  it('leaves an unreadable issuer exactly where it was, so the next run redoes it', async () => {
+    const file = empty();
+    const asset = { anchor_id: 'a', ...ARST };
+    await updateFlows(file, [asset], Date.parse('2026-09-17T12:00:00Z'), horizon(history).scan, 5);
+    const before = structuredClone(file.assets[`ARST:${ISSUER}`]);
+    const failing: ScanIssuer = async () => {
+      throw new Error('Not Found');
+    };
+    await updateFlows(file, [asset], now, failing, 5);
+    expect(file.assets[`ARST:${ISSUER}`]).toEqual(before);
+  });
+
+  it('does not spend a backfill slot on an issuer it could not read', async () => {
+    const file = empty();
+    const assets = ['G1', 'G2'].map((issuer) => ({ anchor_id: 'a', code: 'ARST', issuer }));
+    const scan: ScanIssuer = async (issuer) => {
+      if (issuer === 'G1') throw new Error('Not Found');
+      return { records: [], truncated: false };
+    };
+    // One slot: the failed issuer must not consume it and starve G2.
+    const result = await updateFlows(file, assets, now, scan, 1);
+    expect(result.scanned).toBe(1);
+    expect(Object.keys(file.assets)).toEqual(['ARST:G2']);
   });
 
   it('moves complete coverage past a truncated backfill', async () => {
