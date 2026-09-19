@@ -51,8 +51,11 @@ export const PILLARS = [
 
 export type ConfidenceBand = 'insufficient' | 'low' | 'medium' | 'high';
 
+/** Below this confidence the number says too little to show. */
+export const CONFIDENCE_TO_SHOW = 40;
+
 export function confidenceBand(confidence: number): ConfidenceBand {
-  if (confidence < 40) return 'insufficient';
+  if (confidence < CONFIDENCE_TO_SHOW) return 'insufficient';
   if (confidence < 70) return 'low';
   if (confidence < 90) return 'medium';
   return 'high';

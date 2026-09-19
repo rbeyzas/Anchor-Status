@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { WarningCircle } from '@phosphor-icons/react';
 import type { AnchorViewModel, DataSource, SourceType, UnreadableAnchor } from '@/lib/types';
-import { hasEnoughData, headlineScore, statusRank } from '@/lib/status-labels';
+import { compareAnchors } from '@/lib/status-labels';
 import { AnchorCard } from './AnchorCard';
 import { AnchorDetailModal } from './AnchorDetailModal';
 import { FilterBar, type FilterValue } from './FilterBar';
@@ -38,12 +38,7 @@ export function Dashboard({
     return [...scoped].sort((a, b) => {
       const sourceDiff = SOURCE_ORDER[a.sourceType] - SOURCE_ORDER[b.sourceType];
       if (sourceDiff !== 0) return sourceDiff;
-      // Reachable first, then failing, then not yet checked; then shown
-      // scores highest first, then those without a score yet.
-      const statusDiff = statusRank(a) - statusRank(b);
-      if (statusDiff !== 0) return statusDiff;
-      const shownDiff = Number(hasEnoughData(b)) - Number(hasEnoughData(a));
-      return shownDiff !== 0 ? shownDiff : headlineScore(b) - headlineScore(a);
+      return compareAnchors(a, b);
     });
   }, [anchors, filter]);
 

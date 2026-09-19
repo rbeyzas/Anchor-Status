@@ -5,6 +5,7 @@ import { Lightning, TrendDown, TrendUp, Vault, WarningCircle } from '@phosphor-i
 import { formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
 import { RISK_LABEL } from '@/lib/health';
+import { CONFIDENCE_TO_SHOW } from '@/lib/scorecard';
 import { hasEnoughData, headlineScore, LISTING_LABEL } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
@@ -28,7 +29,9 @@ export function AnchorCard({
 }) {
   const score = headlineScore(anchor);
   const card = anchor.card;
-  const recentDrop = hasRecentSignificantDrop(anchor.scoreHistory, score);
+  // Only for per-report scores: a card's history starts where the EMA's
+  // ended, and that switch of method is not a drop in the anchor.
+  const recentDrop = !card && hasEnoughData(anchor) && hasRecentSignificantDrop(anchor.scoreHistory, score);
   // The oracle's own risk verdict when available; the score tier is only a
   // fallback for contracts deployed before health tracking.
   const riskLabel = anchor.health
@@ -111,13 +114,32 @@ export function AnchorCard({
             <ScoreValue score={score} size={52} />
             <Sparkline history={anchor.scoreHistory} currentScore={score} anchorId={anchor.anchorId} />
           </>
+        ) : card && !status?.aliasOf ? (
+          // Withheld: show how far the card is from having a number to show.
+          <span
+            className="flex w-[88px] flex-col items-center gap-1 text-center text-[11px] leading-tight text-ink-faint"
+            title={`A score is shown from a confidence of ${CONFIDENCE_TO_SHOW}`}
+          >
+            <span>Confidence</span>
+            <span className="tabular font-heading text-lg text-ink-muted">
+              {card.confidence}
+              <span className="text-xs text-ink-faint"> / {CONFIDENCE_TO_SHOW}</span>
+            </span>
+            <span className="h-1 w-full overflow-hidden rounded-pill bg-surface-muted" aria-hidden="true">
+              <span
+                className="block h-full rounded-pill bg-accent"
+                style={{ width: `${Math.min(100, (card.confidence / CONFIDENCE_TO_SHOW) * 100)}%` }}
+              />
+            </span>
+            <span>needed for a score</span>
+          </span>
         ) : (
           <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-ink-faint">
             <span className="font-heading text-lg text-ink-muted">-</span>
             {status?.aliasOf
               ? `Scored as ${status.aliasOf.domain}`
-              : card || anchor.sourceType === 'RealMainnet'
-                ? 'Not enough data yet'
+              : anchor.sourceType === 'RealMainnet'
+                ? 'No score card yet'
                 : 'Not enough checks yet'}
           </span>
         )}

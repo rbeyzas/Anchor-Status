@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeProblem, issuedAssets, mergeStatusInto, policyNote } from './anchor-status';
-import { hasEnoughData, headlineScore, listingExplanation, statusRank } from './status-labels';
+import { compareAnchors, hasEnoughData, headlineScore, listingExplanation, statusRank } from './status-labels';
 import type { AnchorViewModel } from './types';
 
 const probe = (extra: object = {}) => ({ timestamp: '2026-09-18T12:00:00Z', success: false, policy: [], ...extra });
@@ -133,5 +133,40 @@ describe('aliases', () => {
     expect(alias.status?.aliasOf).toEqual({ anchorId: 'api_anclap_com', domain: 'api.anclap.com' });
     expect(hasEnoughData(alias)).toBe(false);
     expect(canonical.status?.aliasOf).toBeUndefined();
+  });
+});
+
+describe('compareAnchors', () => {
+  const card = (score: number, confidence: number) => ({
+    score,
+    availability: 100,
+    speed: 100,
+    integrity: 100,
+    market: null,
+    confidence,
+    flags: [],
+    windowEnd: '',
+    methodologyVersion: 1,
+    inputsHash: '',
+    publishedAt: '',
+  });
+  const up = { dormant: false, reachable: true } as const;
+  const down = { dormant: false, reachable: false } as const;
+
+  it('puts shown scores first, then withheld cards closest to being shown, then anchors without a card', () => {
+    const list = [
+      anchor({ anchorId: 'none', name: 'none', status: up }),
+      anchor({ anchorId: 'far', name: 'far', card: card(60, 20), status: up }),
+      anchor({ anchorId: 'shown_low', name: 'shown_low', card: card(70, 80), status: up }),
+      anchor({ anchorId: 'near', name: 'near', card: card(60, 38), status: up }),
+      anchor({ anchorId: 'shown_high', name: 'shown_high', card: card(90, 80), status: up }),
+    ];
+    expect([...list].sort(compareAnchors).map((a) => a.anchorId)).toEqual(['shown_high', 'shown_low', 'near', 'far', 'none']);
+  });
+
+  it('still keeps reachable anchors above failing ones', () => {
+    const failingShown = anchor({ anchorId: 'failing', card: card(45, 90), status: down });
+    const reachableWithheld = anchor({ anchorId: 'reachable', card: card(80, 10), status: up });
+    expect([failingShown, reachableWithheld].sort(compareAnchors).map((a) => a.anchorId)).toEqual(['reachable', 'failing']);
   });
 });

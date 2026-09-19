@@ -22,6 +22,24 @@ export function hasEnoughData(anchor: AnchorViewModel): boolean {
 /** The headline to show: the card's when there is one. */
 export const headlineScore = (anchor: AnchorViewModel) => anchor.card?.score ?? anchor.score;
 
+/** A withheld card's confidence, 0 without one: how close it is to showing. */
+const progressToScore = (anchor: AnchorViewModel) =>
+  anchor.card && !anchor.status?.aliasOf ? anchor.card.confidence : -1;
+
+/**
+ * Order within one source: reachable, then failing, then not yet checked;
+ * within those, shown scores highest first, then withheld cards closest to
+ * being shown, then anchors with no card at all.
+ */
+export function compareAnchors(a: AnchorViewModel, b: AnchorViewModel): number {
+  const statusDiff = statusRank(a) - statusRank(b);
+  if (statusDiff !== 0) return statusDiff;
+  const shownDiff = Number(hasEnoughData(b)) - Number(hasEnoughData(a));
+  if (shownDiff !== 0) return shownDiff;
+  if (hasEnoughData(a)) return headlineScore(b) - headlineScore(a);
+  return progressToScore(b) - progressToScore(a) || a.name.localeCompare(b.name);
+}
+
 /** Sort rank within a source: reachable, then failing, then not yet checked. */
 export function statusRank(anchor: AnchorViewModel): number {
   if (!anchor.status || anchor.status.reachable === undefined) return anchor.status ? 2 : 0;
