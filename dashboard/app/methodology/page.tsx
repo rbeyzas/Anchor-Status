@@ -73,8 +73,8 @@ const PILLAR_COPY = [
 function Section({ id, title, lead, children }: { id: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-8 py-14 md:py-20">
-      <h2 className="max-w-2xl font-heading text-3xl font-bold tracking-[-0.025em] text-ink md:text-4xl">{title}</h2>
-      {lead && <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-ink-muted">{lead}</p>}
+      <h2 className="max-w-2xl font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink md:text-4xl">{title}</h2>
+      {lead && <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-as-ink-muted">{lead}</p>}
       <div className="mt-10">{children}</div>
     </section>
   );
@@ -83,17 +83,17 @@ function Section({ id, title, lead, children }: { id: string; title: string; lea
 function CurveTable({ title, rows }: { title: string; rows: readonly (readonly [string, number])[] }) {
   return (
     <table className="w-full text-sm">
-      <caption className="mb-2 text-left text-xs font-semibold text-ink-faint">{title}</caption>
-      <tbody className="divide-y divide-border">
+      <caption className="mb-2 text-left text-xs font-semibold text-as-ink-faint">{title}</caption>
+      <tbody className="divide-y divide-as-hairline">
         {rows.map(([x, y]) => (
           <tr key={x}>
-            <td className="tabular py-1.5 font-mono text-ink-muted">{x}</td>
+            <td className="tabular py-1.5 font-mono text-as-ink-muted">{x}</td>
             <td className="py-1.5">
               <div className="flex items-center gap-2">
-                <div className="h-1.5 w-24 overflow-hidden rounded-pill bg-surface-muted" aria-hidden="true">
-                  <div className="h-full rounded-pill bg-accent" style={{ width: `${y}%` }} />
+                <div className="h-1.5 w-24 overflow-hidden rounded-pill bg-as-surface-2" aria-hidden="true">
+                  <div className="h-full rounded-pill bg-as-signal" style={{ width: `${y}%` }} />
                 </div>
-                <span className="tabular font-mono text-ink">{y}</span>
+                <span className="tabular font-mono text-as-ink">{y}</span>
               </div>
             </td>
           </tr>
@@ -109,17 +109,18 @@ export default function MethodologyPage() {
   const integrityTotal = INTEGRITY_CHECKS.reduce((s, c) => s + c.weight, 0);
 
   return (
+    <div className="as-grid-ground min-h-screen">
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
       <SiteNav />
 
       <header className="pb-6 pt-10 md:pt-16">
-        <p className="mb-5 inline-block rounded-pill border border-border bg-surface-glass px-3 py-1 text-xs font-semibold text-ink-muted">
+        <p className="mb-5 inline-block rounded-pill border border-as-hairline bg-as-surface-1 px-3 py-1 text-xs font-semibold text-as-ink-muted">
           Methodology version {METHODOLOGY_VERSION}
         </p>
-        <h1 className="max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.033em] text-ink sm:text-6xl">
+        <h1 className="max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
           How we measure an anchor.
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-ink-muted">
+        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
           Every mainnet anchor gets a score card built from 30 days of checks. It says how well the anchor did on what
           we measured, and, as a separate number, how much we measured. Nothing is guessed, traffic never adds points,
           and every number can be recomputed by anyone from what we publish.
@@ -134,7 +135,7 @@ export default function MethodologyPage() {
             ['#not-scored', 'Not scored'],
             ['#verify', 'Verify it'],
           ].map(([href, label]) => (
-            <a key={href} href={href} className="rounded-pill border border-border px-3 py-1 text-ink-muted transition-colors hover:border-border-strong hover:text-ink">
+            <a key={href} href={href} className="rounded-pill border border-as-hairline px-3 py-1 text-as-ink-muted transition-colors hover:border-as-border-control hover:text-as-ink">
               {label}
             </a>
           ))}
@@ -148,24 +149,24 @@ export default function MethodologyPage() {
       >
         <ol className="grid gap-3 md:grid-cols-5">
           {STAGES.map((s, i) => (
-            <li key={s.stage} className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-              <span className="text-xs font-semibold text-ink-faint">Step {i + 1}</span>
-              <h3 className="mt-1 font-heading text-lg font-bold text-ink">{s.stage}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{s.what}</p>
+            <li key={s.stage} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+              <span className="text-xs font-semibold text-as-ink-faint">Step {i + 1}</span>
+              <h3 className="mt-1 font-heading text-lg font-bold text-as-ink">{s.stage}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{s.what}</p>
             </li>
           ))}
         </ol>
-        <div className="mt-6 grid gap-3 text-sm text-ink-muted md:grid-cols-3">
-          <p className="rounded-card border border-border p-4">
-            <span className="font-medium text-danger">Failure:</span> no answer, a server error, or an endpoint the anchor
+        <div className="mt-6 grid gap-3 text-sm text-as-ink-muted md:grid-cols-3">
+          <p className="rounded-as-md border border-as-hairline p-4">
+            <span className="font-medium text-as-danger">Failure:</span> no answer, a server error, or an endpoint the anchor
             advertises that does not exist.
           </p>
-          <p className="rounded-card border border-border p-4">
-            <span className="font-medium text-success">Up, but declined:</span> the anchor understood and said no (for
+          <p className="rounded-as-md border border-as-hairline p-4">
+            <span className="font-medium text-as-signal">Up, but declined:</span> the anchor understood and said no (for
             example “client_domain is required”). It is up; we just could not test further.
           </p>
-          <p className="rounded-card border border-border p-4">
-            <span className="font-medium text-ink">Inconclusive:</span> when our own network is down, the check is
+          <p className="rounded-as-md border border-as-hairline p-4">
+            <span className="font-medium text-as-ink">Inconclusive:</span> when our own network is down, the check is
             thrown away. Our outage is never recorded as theirs.
           </p>
         </div>
@@ -181,19 +182,19 @@ export default function MethodologyPage() {
             { title: 'When Market applies', s: withMarket },
             { title: 'When it does not (most anchors)', s: withoutMarket },
           ].map(({ title, s }) => (
-            <div key={title} className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-              <span className="text-xs font-semibold text-ink-faint">{title}</span>
+            <div key={title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+              <span className="text-xs font-semibold text-as-ink-faint">{title}</span>
               <div className="mt-3 flex h-3 w-full overflow-hidden rounded-pill" aria-hidden="true">
-                <div className="bg-accent" style={{ width: `${s.availability * 100}%` }} />
-                <div className="bg-success" style={{ width: `${s.speed * 100}%` }} />
-                <div className="bg-warning" style={{ width: `${s.integrity * 100}%` }} />
-                <div className="bg-danger" style={{ width: `${s.market * 100}%` }} />
+                <div className="bg-as-signal" style={{ width: `${s.availability * 100}%` }} />
+                <div className="bg-as-pulse" style={{ width: `${s.speed * 100}%` }} />
+                <div className="bg-as-amber" style={{ width: `${s.integrity * 100}%` }} />
+                <div className="bg-as-danger" style={{ width: `${s.market * 100}%` }} />
               </div>
-              <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-ink-muted">
-                <li>Availability <span className="tabular font-mono text-ink">{Math.round(s.availability * 100)}%</span></li>
-                <li>Speed <span className="tabular font-mono text-ink">{Math.round(s.speed * 100)}%</span></li>
-                <li>Integrity <span className="tabular font-mono text-ink">{Math.round(s.integrity * 100)}%</span></li>
-                <li>Market <span className="tabular font-mono text-ink">{s.market ? `${Math.round(s.market * 100)}%` : 'n/a'}</span></li>
+              <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-as-ink-muted">
+                <li>Availability <span className="tabular font-mono text-as-ink">{Math.round(s.availability * 100)}%</span></li>
+                <li>Speed <span className="tabular font-mono text-as-ink">{Math.round(s.speed * 100)}%</span></li>
+                <li>Integrity <span className="tabular font-mono text-as-ink">{Math.round(s.integrity * 100)}%</span></li>
+                <li>Market <span className="tabular font-mono text-as-ink">{s.market ? `${Math.round(s.market * 100)}%` : 'n/a'}</span></li>
               </ul>
             </div>
           ))}
@@ -201,33 +202,33 @@ export default function MethodologyPage() {
 
         <div className="flex flex-col gap-4">
           {PILLAR_COPY.map((p) => (
-            <article key={p.key} className="grid gap-6 rounded-card border border-border bg-surface-glass p-6 shadow-card md:grid-cols-[1.4fr_1fr]">
+            <article key={p.key} className="grid gap-6 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel md:grid-cols-[1.4fr_1fr]">
               <div>
                 <div className="flex items-baseline gap-3">
-                  <h3 className="font-heading text-2xl font-bold text-ink">{p.title}</h3>
-                  <span className="text-sm text-ink-faint">
+                  <h3 className="font-heading text-2xl font-bold text-as-ink">{p.title}</h3>
+                  <span className="text-sm text-as-ink-faint">
                     {Math.round(withMarket[p.key] * 100)}% of the score
                     {p.key !== 'market' && `, ${Math.round(withoutMarket[p.key] * 100)}% without Market`}
                   </span>
                 </div>
-                <p className="mt-1 font-medium text-ink">{p.question}</p>
-                <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">{p.body}</p>
-                {p.note && <p className="mt-3 text-sm leading-relaxed text-ink-faint">{p.note}</p>}
+                <p className="mt-1 font-medium text-as-ink">{p.question}</p>
+                <p className="mt-3 text-[15px] leading-relaxed text-as-ink-muted">{p.body}</p>
+                {p.note && <p className="mt-3 text-sm leading-relaxed text-as-ink-faint">{p.note}</p>}
               </div>
               <div>
                 {p.key === 'integrity' ? (
                   <table className="w-full text-sm">
-                    <caption className="mb-2 text-left text-xs font-semibold text-ink-faint">
+                    <caption className="mb-2 text-left text-xs font-semibold text-as-ink-faint">
                       Checklist (weights out of {integrityTotal})
                     </caption>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-as-hairline">
                       {INTEGRITY_CHECKS.map((c) => (
                         <tr key={c.key}>
                           <td className="py-2 pr-3 align-top">
-                            <span className="font-medium text-ink">{c.label}</span>
-                            <span className="block text-xs text-ink-faint">{c.passes}</span>
+                            <span className="font-medium text-as-ink">{c.label}</span>
+                            <span className="block text-xs text-as-ink-faint">{c.passes}</span>
                           </td>
-                          <td className="tabular py-2 text-right align-top font-mono text-ink">{c.weight}</td>
+                          <td className="tabular py-2 text-right align-top font-mono text-as-ink">{c.weight}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -247,44 +248,44 @@ export default function MethodologyPage() {
         lead="A score from three days of checks and one from a month are not equally sure. Confidence is a second number, from 0 to 100, and it is what separates ‘we know little’ from ‘it is failing’."
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="min-w-0 rounded-card border border-border bg-surface-glass p-6 shadow-card">
-            <h3 className="font-heading text-lg font-bold text-ink">What goes into it</h3>
-            <ul className="mt-3 flex flex-col gap-3 text-[15px] text-ink-muted">
+          <div className="min-w-0 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel">
+            <h3 className="font-heading text-lg font-bold text-as-ink">What goes into it</h3>
+            <ul className="mt-3 flex flex-col gap-3 text-[15px] text-as-ink-muted">
               <li>
-                <span className="font-medium text-ink">Time watched</span>: full after 14 days of monitoring.
+                <span className="font-medium text-as-ink">Time watched</span>: full after 14 days of monitoring.
               </li>
               <li>
-                <span className="font-medium text-ink">Number of checks</span>: full at 100 conclusive checks in 30 days.
+                <span className="font-medium text-as-ink">Number of checks</span>: full at 100 conclusive checks in 30 days.
               </li>
               <li>
-                <span className="font-medium text-ink">Test depth</span>: the share of its own steps we could complete.
+                <span className="font-medium text-as-ink">Test depth</span>: the share of its own steps we could complete.
                 An anchor that declines anonymous wallets at sign-in can only be tested to step 2 of 5.
               </li>
             </ul>
-            <pre className="mt-4 overflow-x-auto rounded bg-surface-muted px-3 py-2 font-mono text-xs text-ink">
+            <pre className="mt-4 overflow-x-auto rounded bg-as-surface-2 px-3 py-2 font-mono text-xs text-as-ink">
 {`sufficiency = ½·min(1, days/14) + ½·min(1, checks/100)
 depth       = ½ + ½·(steps tested / steps expected)
 confidence  = 100 · sufficiency · depth`}
             </pre>
           </div>
-          <div className="min-w-0 rounded-card border border-border bg-surface-glass p-6 shadow-card">
-            <h3 className="font-heading text-lg font-bold text-ink">What it changes</h3>
+          <div className="min-w-0 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel">
+            <h3 className="font-heading text-lg font-bold text-as-ink">What it changes</h3>
             <table className="mt-3 w-full text-sm">
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-as-hairline">
                 {CONFIDENCE_BANDS.map((b) => (
                   <tr key={b.label}>
-                    <td className="tabular py-2 pr-3 font-mono text-ink-muted">
+                    <td className="tabular py-2 pr-3 font-mono text-as-ink-muted">
                       {b.from} to {b.to}
                     </td>
                     <td className="py-2">
-                      <span className="font-medium text-ink">{b.label}</span>
-                      {'note' in b && b.note && <span className="block text-xs text-ink-faint">{b.note}</span>}
+                      <span className="font-medium text-as-ink">{b.label}</span>
+                      {'note' in b && b.note && <span className="block text-xs text-as-ink-faint">{b.note}</span>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+            <p className="mt-4 text-sm leading-relaxed text-as-ink-muted">
               Confidence also pulls the score toward the middle (see below), so a new anchor lands near 50, not at 100.
               Traffic enters here and nowhere else: more checks make us surer, never make the score higher.
             </p>
@@ -298,27 +299,27 @@ confidence  = 100 · sufficiency · depth`}
         lead="Three steps, in whole numbers, so anyone can check a published score from the card alone."
       >
         <ol className="mb-10 grid gap-3 md:grid-cols-3">
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="text-xs font-semibold text-ink-faint">1. Weigh</span>
-            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="text-xs font-semibold text-as-ink-faint">1. Weigh</span>
+            <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">
               Weighted average of the pillars that apply, with the weights above.
             </p>
           </li>
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="text-xs font-semibold text-ink-faint">2. Pull toward 50</span>
-            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="text-xs font-semibold text-as-ink-faint">2. Pull toward 50</span>
+            <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">
               Mix with a neutral 50 by confidence: at confidence 100 the pillars decide alone, at 0 the score is 50.
               Unknown is not perfect.
             </p>
           </li>
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="text-xs font-semibold text-ink-faint">3. Cap</span>
-            <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="text-xs font-semibold text-as-ink-faint">3. Cap</span>
+            <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">
               A hard failure caps the score whatever the average says. With several, the lowest cap wins.
             </p>
           </li>
         </ol>
-        <h3 className="mb-4 font-heading text-xl font-bold text-ink">Try it</h3>
+        <h3 className="mb-4 font-heading text-xl font-bold text-as-ink">Try it</h3>
         <ScoreCalculator />
       </Section>
 
@@ -328,36 +329,36 @@ confidence  = 100 · sufficiency · depth`}
         lead="A gate is a hard cap for a failure no average should hide. Information flags cap nothing; they explain the card. Both are always shown, whatever the confidence."
       >
         <div className="grid gap-4 md:grid-cols-2">
-          <table className="w-full overflow-hidden rounded-card border border-border bg-surface-glass text-sm shadow-card">
+          <table className="w-full overflow-hidden rounded-as-md border border-as-hairline bg-as-surface-1 text-sm shadow-as-panel">
             <thead>
-              <tr className="text-left text-xs text-ink-faint">
+              <tr className="text-left text-xs text-as-ink-faint">
                 <th className="px-4 pb-2 pt-4 font-semibold">Gate</th>
                 <th className="px-4 pb-2 pt-4 font-semibold">When</th>
                 <th className="px-4 pb-2 pt-4 text-right font-semibold">Cap</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-as-hairline">
               {GATES.map((g) => (
                 <tr key={g.flag}>
-                  <td className="px-4 py-2.5 align-top font-mono text-xs text-danger">{g.flag}</td>
-                  <td className="px-4 py-2.5 text-ink-muted">{g.when}</td>
-                  <td className="tabular px-4 py-2.5 text-right align-top font-mono text-ink">{g.cap}</td>
+                  <td className="px-4 py-2.5 align-top font-mono text-xs text-as-danger">{g.flag}</td>
+                  <td className="px-4 py-2.5 text-as-ink-muted">{g.when}</td>
+                  <td className="tabular px-4 py-2.5 text-right align-top font-mono text-as-ink">{g.cap}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <table className="w-full overflow-hidden rounded-card border border-border bg-surface-glass text-sm shadow-card">
+          <table className="w-full overflow-hidden rounded-as-md border border-as-hairline bg-as-surface-1 text-sm shadow-as-panel">
             <thead>
-              <tr className="text-left text-xs text-ink-faint">
+              <tr className="text-left text-xs text-as-ink-faint">
                 <th className="px-4 pb-2 pt-4 font-semibold">Information</th>
                 <th className="px-4 pb-2 pt-4 font-semibold">When</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-as-hairline">
               {INFO_FLAGS.map((f) => (
                 <tr key={f.flag}>
-                  <td className="px-4 py-2.5 align-top font-mono text-xs text-ink">{f.flag}</td>
-                  <td className="px-4 py-2.5 text-ink-muted">{f.when}</td>
+                  <td className="px-4 py-2.5 align-top font-mono text-xs text-as-ink">{f.flag}</td>
+                  <td className="px-4 py-2.5 text-as-ink-muted">{f.when}</td>
                 </tr>
               ))}
             </tbody>
@@ -373,9 +374,9 @@ confidence  = 100 · sufficiency · depth`}
             ['Stake', 'Optional, and nobody is ever slashed. Shown only where an operator has staked.'],
             ['Machine learning', 'There is no labelled ground truth and the score must be explainable to the anchor it describes. Plain statistics: windows, percentiles, and a pull toward the middle.'],
           ].map(([title, body]) => (
-            <li key={title} className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-              <h3 className="font-heading text-lg font-bold text-ink">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{body}</p>
+            <li key={title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+              <h3 className="font-heading text-lg font-bold text-as-ink">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{body}</p>
             </li>
           ))}
         </ul>
@@ -386,26 +387,26 @@ confidence  = 100 · sufficiency · depth`}
         title="Don’t take our word for it."
         lead="Every score card goes on-chain with the SHA-256 of the inputs it was computed from, and the inputs are published. Nothing in the chain of evidence depends on trusting us."
       >
-        <ol className="flex flex-col gap-3 text-[15px] text-ink-muted">
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="font-medium text-ink">The headline</span> can be checked from the on-chain card alone: its
+        <ol className="flex flex-col gap-3 text-[15px] text-as-ink-muted">
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">The headline</span> can be checked from the on-chain card alone: its
             pillars, confidence and flags are stored with it.
           </li>
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="font-medium text-ink">The pillars</span> can be recomputed from the inputs bundle, whose hash
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">The pillars</span> can be recomputed from the inputs bundle, whose hash
             is on-chain:
-            <code className="mt-2 block overflow-x-auto rounded bg-surface-muted px-3 py-2 font-mono text-xs text-ink">
+            <code className="mt-2 block overflow-x-auto rounded bg-as-surface-2 px-3 py-2 font-mono text-xs text-as-ink">
               cd services/aggregator && npm run verify-score -- &lt;bundle hash&gt; --anchor &lt;anchor id&gt;
             </code>
           </li>
-          <li className="rounded-card border border-border bg-surface-glass p-5 shadow-card">
-            <span className="font-medium text-ink">The bundle</span> holds a digest of each day’s checks, which can be
+          <li className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+            <span className="font-medium text-as-ink">The bundle</span> holds a digest of each day’s checks, which can be
             recomputed from the raw probe logs we publish, and each check has its own evidence document: the anchor’s
             own signed sign-in challenge.
           </li>
         </ol>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/scores" className="btn btn-md btn-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+          <Link href="/scores" className="as-btn as-btn--primary focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse">
             See the live scores
             <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </Link>
@@ -413,7 +414,7 @@ confidence  = 100 · sufficiency · depth`}
             href={SPEC_URL}
             target="_blank"
             rel="noreferrer"
-            className="btn btn-md inline-flex items-center gap-1 border border-border text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="as-btn as-btn--outline focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
           >
             The full specification
             <ArrowUpRight size={16} weight="bold" aria-hidden="true" />
@@ -421,12 +422,13 @@ confidence  = 100 · sufficiency · depth`}
         </div>
       </Section>
 
-      <footer className="flex flex-col gap-3 border-t border-border py-8 text-sm text-ink-muted sm:flex-row sm:items-center sm:justify-between">
-        <span className="inline-flex items-center gap-2 font-medium text-ink">
+      <footer className="flex flex-col gap-3 border-t border-as-hairline py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">
+        <span className="inline-flex items-center gap-2 font-medium text-as-ink">
           <Logo size={18} /> Anchor Status
         </span>
         <span>Changing any number on this page means a new methodology version. This is version {METHODOLOGY_VERSION}.</span>
       </footer>
+    </div>
     </div>
   );
 }
