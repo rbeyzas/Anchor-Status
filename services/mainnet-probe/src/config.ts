@@ -1,6 +1,7 @@
 import { config as loadDotenv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { resolveOnboardingDir } from './candidates.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const repoRoot = path.resolve(__dirname, '../../..');
@@ -49,6 +50,18 @@ export const config = {
   concurrency: Number(process.env.MAINNET_PROBE_CONCURRENCY ?? '12'),
 
   mainnetPassphrase: 'Public Global Stellar Network ; September 2015',
+
+  // Self-service onboarding: applicants are measured once against these
+  // thresholds, then tracked like every other anchor.
+  onboardingDir: resolveOnboardingDir(),
+  onboardingMinAgeDays: Number(process.env.ONBOARDING_MIN_AGE_DAYS ?? '7'),
+  // Payments of its own assets on the network, as StellarExpert counts them.
+  onboardingMinTransfers: Number(process.env.ONBOARDING_MIN_TRANSFERS ?? '100'),
+  // Each applicant costs a full probe (up to anchorTimeoutMs): a few per
+  // round keeps the 20-minute round short whatever the queue holds.
+  onboardingMaxPerRun: Number(process.env.ONBOARDING_MAX_PER_RUN ?? '5'),
+  // Rounds that fail on our side before an applicant is turned away.
+  onboardingMaxAttempts: Number(process.env.ONBOARDING_MAX_ATTEMPTS ?? '6'),
 
   // On-chain registration of newly discovered anchors (testnet contracts).
   rpcUrl: process.env.SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org',

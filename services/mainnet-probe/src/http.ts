@@ -31,3 +31,14 @@ export async function timedFetch(
   }
   return { value: res, ms: Date.now() - started };
 }
+
+/** True when we, not the anchors, are offline: a failed probe must not be
+ * written on-chain as an anchor outage when it was our network. */
+export async function ourNetworkIsDown(): Promise<boolean> {
+  try {
+    const res = await fetch('https://horizon.stellar.org/', { signal: AbortSignal.timeout(10_000) });
+    return !res.ok;
+  } catch {
+    return true;
+  }
+}

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { isDormant, loadAnchorsFile, registeredMainnetAnchors, type MainnetAnchor } from './anchors.js';
 import { mapWithConcurrency } from './concurrency.js';
 import { config } from './config.js';
-import { HttpError } from './http.js';
+import { HttpError, ourNetworkIsDown } from './http.js';
 import { probeAnchor, type MainnetProbeResult, type ProbeTarget } from './probe.js';
 import { assignAliases, operatorKey } from './aliases.js';
 import { buildStatus, lastProbedAt, loadStatus, saveStatus } from './status.js';
@@ -32,17 +32,6 @@ function withAnchorTimeout(target: ProbeTarget, run: Promise<MainnetProbeResult>
     );
   });
   return Promise.race([run, timeout]).finally(() => clearTimeout(timer));
-}
-
-/** True when we, not the anchors, are offline: a failed probe must not be
- * written on-chain as an anchor outage when it was our network. */
-async function ourNetworkIsDown(): Promise<boolean> {
-  try {
-    const res = await fetch('https://horizon.stellar.org/', { signal: AbortSignal.timeout(10_000) });
-    return !res.ok;
-  } catch {
-    return true;
-  }
 }
 
 /** Appends to one JSON-lines file per UTC day. Append-only: nothing already

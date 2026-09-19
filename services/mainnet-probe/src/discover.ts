@@ -78,19 +78,24 @@ async function main() {
 
   const registered = registeredMainnetAnchors(config.registeredAnchorsPath);
   const registeredByDomain = new Map(registered.map((a) => [a.domain, a]));
+  // Every anchor already tracked is rechecked too, or one that is in no
+  // directory (an applicant, say) would never have last_seen_live refreshed
+  // and would be probed as dormant after a week, however healthy.
+  const trackedByDomain = new Map((existing?.anchors ?? []).map((a) => [a.domain, a]));
   const [rated, directory] = await Promise.all([ratedAssetDomains(), directoryAnchors()]);
-  const domains = new Set([...rated, ...directory.keys(), ...registeredByDomain.keys()]);
+  const domains = new Set([...rated, ...directory.keys(), ...registeredByDomain.keys(), ...trackedByDomain.keys()]);
   console.log(`[discover] ${domains.size} candidate domain(s) (${directory.size} from the anchor directory)`);
 
   const checked = await mapWithConcurrency(Array.from(domains), 24, async (domain): Promise<Candidate | null> => {
     const reg = registeredByDomain.get(domain);
     const dir = directory.get(domain);
+    const tracked = trackedByDomain.get(domain);
     // A domain is an anchor we track if someone says it is one: our own
-    // registry or the directory. Rated-asset domains only count once their
-    // toml and /info prove it.
-    const known = Boolean(reg || dir);
+    // registry, the directory, or an earlier admission. Rated-asset domains
+    // only count once their toml and /info prove it.
+    const known = Boolean(reg || dir || tracked);
     const base = {
-      anchor_id: reg?.anchor_id ?? anchorIdFor(domain),
+      anchor_id: reg?.anchor_id ?? tracked?.anchor_id ?? anchorIdFor(domain),
       domain,
       ...(dir ? { listing: dir.listing, fromDirectory: true } : {}),
     };

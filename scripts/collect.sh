@@ -12,8 +12,12 @@ export AGGREGATOR_SKIP_MOCK="${AGGREGATOR_SKIP_MOCK:-true}"
 
 log() { echo "[collect $(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*"; }
 
-log "mainnet-probe: discover anchors (once a day) and register new ones on-chain"
+log "mainnet-probe: discover anchors (once a day), admit applicants, register new ones on-chain"
 (cd services/mainnet-probe && npm run --silent discover -- --daily) || log "anchor discovery failed"
+# Applications from the dashboard's "Add your anchor" page: the ones that
+# qualify join anchors.json, so the register step right after puts them
+# on-chain and this same round starts measuring them.
+(cd services/mainnet-probe && npm run --silent onboard) || log "anchor onboarding failed"
 (cd services/mainnet-probe && npm run --silent register) || log "anchor registration failed"
 
 log "mainnet-probe (SEP-1/6/10/24 reachability, no funds moved)"
