@@ -13,16 +13,18 @@ and visualizes it (read-only — never signs a transaction).
   chart and the health summary (recent success rate, failure streak,
   number of checks). Slashes from the previous oracle version are marked
   as legacy.
-- **Visual direction**: a dark-first "premium web3" interface — glass
-  panel cards (`.glass-panel`, backdrop-blur), an SVG ring gauge for the
-  score (`ScoreValue`), Phosphor icons, `framer-motion` entrance/hover
-  animation, and a `next-themes` light/dark toggle (dark by default).
-  Fonts: Space Grotesk for headings, Inter for body text, JetBrains Mono
-  for numeric data (via `next/font/google`, exposed as `font-heading` /
-  `font-body` / `font-mono` in `tailwind.config.ts`). All colors come
-  from the `:root` / `.dark` CSS custom properties in
-  `app/globals.css` (light and dark were designed together, contrast
-  checked separately for each).
+- **Visual direction**: a dark-first "console" (the Anchor Status design
+  system): flat `surface-0` ground, `as-panel` cards with a 1px ring,
+  one accent (`signal` green) for live readings and primary actions,
+  `pulse` blue for on-chain references and focus rings, Space Grotesk for
+  text and Geist Mono for every number (via `next/font/google`). Tokens
+  are the `--as-*` custom properties in `app/globals.css` (dark by
+  default, light kept), exposed to Tailwind as `as-*` colors, radii and
+  shadows; `StatusChip`, `ScoreValue` (arc that draws in as its numeral
+  counts up) and `Radar` (home hero ambience only) are the shared pieces.
+- `/apply`: an anchor operator applies with a domain; the page lists what
+  is checked, each application's results, and recent applications (see
+  below).
 
 ## Score cards
 
@@ -73,6 +75,15 @@ If the public RPC fails, the page falls back to `SOROBAN_RPC_FALLBACK_URL`
 requests in flight. If no RPC answers, the page says so and shows no
 scores. There is no demo data.
 
+## Applications
+
+`/apply` posts to `/api/onboarding`, the dashboard's only API route: it
+validates the domain and forwards it, server-side, to the collector's
+intake with a shared token and the caller's address (for the intake's
+per-client limit; never stored). The page reads the collector's public
+`onboarding.json` for thresholds and results; nothing about applications
+is decided here. See `services/mainnet-probe/README.md` for the checks.
+
 ## Setup and running
 
 ```bash
@@ -88,4 +99,7 @@ For live data, the root `.env` needs `NEXT_PUBLIC_SOROBAN_RPC_URL`,
 and `NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID`. Optional, server-side:
 `SOROBAN_RPC_FALLBACK_URL`, `HISTORY_ARCHIVE_URL`, `ANCHOR_STATUS_URL`,
 `SCORE_SUMMARY_URL`, and `NEXT_PUBLIC_EVIDENCE_BASE_URL` for the evidence
-links.
+links. Applications need `ONBOARDING_INTAKE_URL` and
+`ONBOARDING_INTAKE_TOKEN` (server-side; without them `/apply` says
+applications are not open yet), and read `onboarding.json` beside
+`ANCHOR_STATUS_URL` (or `ONBOARDING_STATUS_URL`).

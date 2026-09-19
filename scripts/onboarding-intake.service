@@ -1,0 +1,33 @@
+# The onboarding intake (services/mainnet-probe/src/intake-server.ts): the
+# collector's only always-on, internet-facing process. Its own unprivileged
+# user, a read-only view of the system, write access to the onboarding
+# directory alone, and no view of the collector's keys. Setup: scripts/README.md.
+[Unit]
+Description=Anchor Status onboarding intake
+After=network.target
+
+[Service]
+Type=simple
+User=anchor-intake
+Group=anchor-intake
+WorkingDirectory=/opt/anchor-status/services/mainnet-probe
+# ONBOARDING_INTAKE_TOKEN, ONBOARDING_DIR and the optional limits.
+EnvironmentFile=/etc/anchor-status/onboarding-intake.env
+ExecStart=/opt/anchor-status/services/mainnet-probe/node_modules/.bin/tsx src/intake-server.ts
+Restart=on-failure
+RestartSec=5
+
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ReadWritePaths=/var/lib/anchor-status/onboarding
+InaccessiblePaths=-/opt/anchor-status/.env
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LockPersonality=yes
+MemoryMax=256M
+
+[Install]
+WantedBy=multi-user.target

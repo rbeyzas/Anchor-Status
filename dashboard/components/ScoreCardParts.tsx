@@ -23,11 +23,15 @@ const BAND_TONE: Record<ConfidenceBand, ChipTone> = {
 export function ConfidenceChip({ confidence }: { confidence: number }) {
   const band = confidenceBand(confidence);
   return (
-    <StatusChip tone={BAND_TONE[band]} className="normal-case tracking-normal">
+    <StatusChip tone={BAND_TONE[band]}>
       <span title={`Confidence ${confidence}/100`}>{CONFIDENCE_LABEL[band]}</span>
     </StatusChip>
   );
 }
+
+// A flag is a sentence, not a label: it wraps and reads in sentence case.
+// `!` because .as-chip is declared after Tailwind's utilities.
+const FLAG_CHIP = '!h-auto !whitespace-normal !py-1 !normal-case !tracking-normal';
 
 /** Gate flags first (they cap the score), then information flags. */
 export function FlagChips({ flags, limit }: { flags: FlagName[]; limit?: number }) {
@@ -37,13 +41,13 @@ export function FlagChips({ flags, limit }: { flags: FlagName[]; limit?: number 
   return (
     <div className="flex flex-wrap gap-1.5">
       {shown.map((flag) => (
-        <StatusChip key={flag} tone={GATE_FLAGS.has(flag) ? 'danger' : 'neutral'} className="normal-case tracking-normal">
+        <StatusChip key={flag} tone={GATE_FLAGS.has(flag) ? 'danger' : 'neutral'} className={FLAG_CHIP}>
           {GATE_FLAGS.has(flag) && <WarningCircle size={11} weight="bold" aria-hidden="true" />}
           {FLAG_COPY[flag]}
         </StatusChip>
       ))}
       {limit !== undefined && ordered.length > limit && (
-        <StatusChip tone="neutral" className="normal-case tracking-normal">
+        <StatusChip tone="neutral" className={FLAG_CHIP}>
           +{ordered.length - limit} more
         </StatusChip>
       )}

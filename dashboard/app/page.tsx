@@ -95,7 +95,7 @@ export default async function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-5 sm:px-8">
           <SiteNav />
 
-          <header className="grid gap-12 pb-20 pt-12 md:grid-cols-[1.25fr_1fr] md:items-center md:pb-28 md:pt-16">
+          <header className="grid grid-cols-1 gap-12 pb-20 pt-12 md:grid-cols-[1.25fr_1fr] md:items-center md:pb-28 md:pt-16">
             <div className="min-w-0">
               <div className="mb-6 flex flex-wrap gap-2">
                 <StatusChip tone="signal" live>
@@ -236,6 +236,13 @@ export default async function LandingPage() {
             Open the scores
             <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </Link>
+          <p className="mt-6 text-sm text-as-ink-muted">
+            Run an anchor?{' '}
+            <Link href="/apply" className="font-medium text-as-signal hover:underline">
+              Apply to have it measured
+            </Link>
+            .
+          </p>
         </section>
 
         <footer className="flex flex-col gap-3 py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">

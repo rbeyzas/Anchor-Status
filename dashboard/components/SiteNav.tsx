@@ -22,16 +22,30 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
       >
         <Wordmark />
       </Link>
-      <div className="flex items-center gap-3 sm:gap-5">
-        <Link href="/methodology" className={linkClass('/methodology')} aria-current={pathname === '/methodology' ? 'page' : undefined}>
+      <div className="flex items-center gap-2 sm:gap-5">
+        <Link
+          href="/methodology"
+          className={`hidden whitespace-nowrap sm:inline ${linkClass('/methodology')}`}
+          aria-current={pathname === '/methodology' ? 'page' : undefined}
+        >
           How we measure
         </Link>
         <Link href="/#evidence" className="hidden text-sm text-as-ink-muted transition-colors hover:text-as-ink sm:inline">
           Evidence
         </Link>
-        <StatusChip tone="signal" live>
-          Live
-        </StatusChip>
+        <Link
+          href="/apply"
+          className={`hidden lg:inline ${linkClass('/apply')}`}
+          aria-current={pathname === '/apply' ? 'page' : undefined}
+        >
+          Add your anchor
+        </Link>
+        {/* A wrapper: .as-chip sets its own display, which `hidden` can't override. */}
+        <span className="hidden sm:inline-flex">
+          <StatusChip tone="signal" live>
+            Live
+          </StatusChip>
+        </span>
         <ThemeToggle />
         {showCta && (
           <Link
@@ -39,7 +53,7 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
             className="as-btn as-btn--primary as-btn--sm focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
           >
             Live scores
-            <ArrowRight size={14} weight="bold" aria-hidden="true" />
+            <ArrowRight size={14} weight="bold" aria-hidden="true" className="hidden sm:block" />
           </Link>
         )}
       </div>

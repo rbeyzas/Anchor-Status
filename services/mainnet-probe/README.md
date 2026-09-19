@@ -25,7 +25,56 @@ listed as abandoned/discontinued, yet their SEP-6 APIs still answer.)
    never be measured and its score would freeze.
 
 Mainnet anchors in `contracts/registered-anchors.json` are always tracked,
-live or not. With `--daily`, discovery skips if it ran in the last 24 hours.
+live or not. Every domain already tracked is rechecked too, so an anchor no
+directory lists (one admitted by application) keeps its `last_seen_live`
+fresh. With `--daily`, discovery skips if it ran in the last 24 hours.
+
+## Applications — `npm run onboard` and `npm run intake`
+
+An operator can apply on the dashboard's `/apply` page with nothing but a
+domain. Each round, `onboard` checks up to `ONBOARDING_MAX_PER_RUN` (5)
+applications, oldest first, and adds the ones that qualify to the anchor
+list; `register` right after puts them on-chain and the probe measures them
+from then on. Nothing else changes for an admitted anchor.
+
+| Check | Passes when |
+|---|---|
+| Public domain | every address it resolves to is public (the collector holds keys: a name pointing into a private network is never fetched) |
+| stellar.toml | fetched and parsed |
+| Transfer server | `TRANSFER_SERVER_SEP0024` or `TRANSFER_SERVER` is advertised |
+| Live check | the same probe every anchor gets passes (a policy decline counts as up) |
+| Issuer age | its oldest own issuer account is `ONBOARDING_MIN_AGE_DAYS` (7) days old or more |
+| Payments | its own assets have `ONBOARDING_MIN_TRANSFERS` (100) payments or more on the network, as StellarExpert counts them |
+
+The last two apply only to an anchor that issues its own asset (the issuer's
+`home_domain` points back at it); one that only distributes someone else's
+asset, USDC for instance, is admitted on the first four. Payments are
+StellarExpert's per-asset count, not the issuer's own mints and burns:
+anchors mint in batches to a distribution account and serve customers from
+there, so issuer-level counts are tiny (CLPX: 9, against 530,674 payments).
+
+A domain or transfer server already tracked is reported as already
+measured. A failure on our side (network, Horizon, StellarExpert) decides
+nothing and is retried next round, up to `ONBOARDING_MAX_ATTEMPTS` (6). A
+rejected domain can apply again 24 hours after its check.
+
+`npm run onboard -- --dry-run --domain example.com` checks one domain and
+prints every result without writing anything.
+
+**Files** (under `ONBOARDING_DIR`, default `output/onboarding`):
+`submissions.jsonl`, appended to by the intake only, and `onboarding.json`,
+written by `onboard` only and published as-is (every application and its
+checks are public; no client address is stored anywhere).
+
+**Intake** (`npm run intake`) is the collector's one always-on,
+internet-facing process: a small HTTP server on loopback, behind nginx,
+that appends applications to `submissions.jsonl`. It loads no `.env` and
+holds no key, refuses to start without `ONBOARDING_INTAKE_TOKEN` (32+
+characters, shared with the dashboard's `/api/onboarding` proxy, which is
+the only caller), and limits body size (2 KB), requests per client
+(`ONBOARDING_PER_CLIENT_PER_HOUR`, 10, by the address the proxy passes on)
+and unchecked applications (`ONBOARDING_MAX_PENDING`, 50).
+`ONBOARDING_INTAKE_PORT` defaults to 8787.
 
 ## Registration — `npm run register`
 
