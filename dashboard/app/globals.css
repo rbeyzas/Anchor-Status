@@ -302,9 +302,6 @@ body {
 /* The telemetry grid ground: every console page sits on this. */
 .as-grid-ground {
   background-color: rgb(var(--as-surface-0));
-  background-image: linear-gradient(to right, var(--as-grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--as-grid-line) 1px, transparent 1px);
-  background-size: 32px 32px;
 }
 
 .as-panel {
