@@ -9,6 +9,7 @@ import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
 import { CONFIDENCE_LABEL, confidenceBand, isWithheld } from '@/lib/scorecard';
 import { evidenceUrl, hasEnoughData, headlineScore, latestEvidence, listingExplanation } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
+import { PillarRadar } from './PillarRadar';
 import { ConfidenceChip, FlagChips, PillarBars } from './ScoreCardParts';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
@@ -149,7 +150,10 @@ export function AnchorDetailModal({
                 methodology v{card.methodologyVersion} · 30 days to {formatRelativeTime(card.windowEnd)}
               </span>
             </div>
-            <PillarBars card={card} marketNa={context?.marketNa} />
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+              <PillarRadar card={card} marketNa={context?.marketNa} />
+              <PillarBars card={card} marketNa={context?.marketNa} />
+            </div>
             {card.flags.length > 0 && (
               <div className="mt-4">
                 <FlagChips flags={card.flags} />

@@ -9,7 +9,7 @@ import { CONFIDENCE_TO_SHOW } from '@/lib/scorecard';
 import { hasEnoughData, headlineScore, LISTING_LABEL } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
-import { ConfidenceChip, FlagChips } from './ScoreCardParts';
+import { ConfidenceChip, FlagChips, PillarDots } from './ScoreCardParts';
 import { ScoreValue } from './ScoreValue';
 import { Sparkline } from './Sparkline';
 import { SourceBadge } from './SourceBadge';
@@ -113,6 +113,7 @@ export function AnchorCard({
           <>
             <ScoreValue score={score} size={52} />
             <Sparkline history={anchor.scoreHistory} currentScore={score} anchorId={anchor.anchorId} />
+            {card && <PillarDots card={card} />}
           </>
         ) : card && !status?.aliasOf ? (
           // Withheld: show how far the card is from having a number to show.

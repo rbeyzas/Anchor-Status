@@ -55,6 +55,28 @@ export function FlagChips({ flags, limit }: { flags: FlagName[]; limit?: number 
   );
 }
 
+/** The four pillars as a compact row of dots, for the card grid where a
+ * full radar or bar list would not fit. Same tier colors as the bars, so
+ * the two views never disagree. */
+export function PillarDots({ card }: { card: ScoreCardView }) {
+  return (
+    <div className="flex items-center gap-1" aria-hidden="true">
+      {PILLARS.map(({ key, label }) => {
+        const value = card[key];
+        return (
+          <span
+            key={key}
+            title={value === null ? `${label}: n/a` : `${label}: ${value}`}
+            className={`h-1.5 w-1.5 rounded-full ${
+              value === null ? 'bg-surface-muted' : value >= 80 ? 'bg-success' : value >= 55 ? 'bg-warning' : 'bg-danger'
+            }`}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function PillarBars({ card, marketNa }: { card: ScoreCardView; marketNa?: MarketNa }) {
   return (
     <ul className="flex flex-col gap-3">
