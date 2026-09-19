@@ -45,6 +45,13 @@ export function appendResults(dir: string, results: MainnetProbeResult[]): void 
 }
 
 async function main() {
+  // Set by `npm run probe`. With libuv's default 4 threads, dead domains'
+  // DNS lookups hold every thread for seconds and healthy anchors' lookups
+  // queue behind them past fetch's 10 s connect timeout: they were recorded
+  // as outages whenever the dormant anchors were due (README, "Probe").
+  if (!process.env.UV_THREADPOOL_SIZE) {
+    console.warn('[mainnet-probe] UV_THREADPOOL_SIZE is not set: run through `npm run probe`, or healthy anchors may fail');
+  }
   const now = new Date();
   const anchors: MainnetAnchor[] =
     loadAnchorsFile(config.anchorsPath)?.anchors ??

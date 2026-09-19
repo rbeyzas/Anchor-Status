@@ -106,6 +106,15 @@ transactions.
 - If our own network looks down (Horizon unreachable, or every anchor fails
   without an HTTP answer), failures are marked `inconclusive` and never
   submitted — our outage must not be recorded as theirs.
+- The npm scripts run with `UV_THREADPOOL_SIZE=64`. Node resolves names on
+  libuv's thread pool, 4 threads by default, and the dead domains' lookups
+  can each hold a thread for 10 s or more. With the whole list due at once
+  (every 6 hours, when the dormant anchors are), healthy anchors' lookups
+  queued behind them past `fetch`'s 10 s connect timeout and were recorded
+  as outages: 24 anchors that answer instantly on their own, CLPX and
+  MoneyGram among them, failed in one such round. With 64 threads the
+  median lookup in that round fell from 14 s to 0.2 s, and the only
+  failures left were anchors that really are down.
 
 `settlement_seconds` is the time the anchor's API took. Transaction volume
 plays no part in the score.
