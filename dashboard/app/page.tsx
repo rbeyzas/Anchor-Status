@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { ArrowRight, ArrowUpRight, Broadcast, ChartLineUp, Stamp } from '@phosphor-icons/react/dist/ssr';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Broadcast,
+  ChartLineUp,
+  Stamp,
+} from '@phosphor-icons/react/dist/ssr';
 import { Logo } from '@/components/Logo';
 import { Radar } from '@/components/Radar';
 import { SiteNav } from '@/components/SiteNav';
@@ -32,7 +38,11 @@ import { scoreTier } from '@/lib/types';
 // Same cadence as /scores: at most one chain read a minute.
 export const revalidate = 60;
 
-const TIER_TEXT = { high: 'text-as-score-high', medium: 'text-as-score-medium', low: 'text-as-score-low' } as const;
+const TIER_TEXT = {
+  high: 'text-as-score-high',
+  medium: 'text-as-score-medium',
+  low: 'text-as-score-low',
+} as const;
 
 interface HomeSnapshot {
   top: AnchorViewModel[];
@@ -53,7 +63,10 @@ async function loadSnapshot(): Promise<HomeSnapshot> {
     if (dataSource !== 'live') return EMPTY;
     const mainnet = anchors.filter((a) => a.sourceType === 'RealMainnet');
     // Only scores the dashboard would show: a card with enough confidence.
-    const top = [...mainnet].filter(hasEnoughData).sort((a, b) => headlineScore(b) - headlineScore(a)).slice(0, 5);
+    const top = [...mainnet]
+      .filter(hasEnoughData)
+      .sort((a, b) => headlineScore(b) - headlineScore(a))
+      .slice(0, 5);
     const c = counters(anchors);
     const journey = scoreJourney(anchors);
     return {
@@ -73,7 +86,9 @@ async function loadSnapshot(): Promise<HomeSnapshot> {
 }
 
 const ORACLE_ID = process.env.NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID;
-const ORACLE_URL = ORACLE_ID ? `https://stellar.expert/explorer/testnet/contract/${ORACLE_ID}` : undefined;
+const ORACLE_URL = ORACLE_ID
+  ? `https://stellar.expert/explorer/testnet/contract/${ORACLE_ID}`
+  : undefined;
 
 const STEPS = [
   {
@@ -121,7 +136,16 @@ const EVIDENCE = [
 ];
 
 export default async function LandingPage() {
-  const { top, mainnetCount, lastPublishedAt, counters: stats, probe, journey, proof, ticker } = await loadSnapshot();
+  const {
+    top,
+    mainnetCount,
+    lastPublishedAt,
+    counters: stats,
+    probe,
+    journey,
+    proof,
+    ticker,
+  } = await loadSnapshot();
   const visuals = [
     probe && <ProbeTimeline example={probe} />,
     journey && <ScoreJourney journey={journey} />,
@@ -140,31 +164,32 @@ export default async function LandingPage() {
 
           <header className="grid grid-cols-1 gap-12 pb-20 pt-12 md:grid-cols-[1.25fr_1fr] md:items-center md:pb-28 md:pt-16">
             <div className="min-w-0">
-              <div className="mb-6 flex flex-wrap gap-2">
-                <StatusChip tone="signal" live>
-                  Mainnet · {mainnetCount} anchor{mainnetCount === 1 ? '' : 's'}
-                </StatusChip>
-                {lastPublishedAt && (
-                  <StatusChip tone="pulse" dot>
-                    Last publish {formatRelativeTime(lastPublishedAt)}
-                  </StatusChip>
-                )}
-              </div>
               <h1 className="font-heading text-5xl font-bold leading-[0.96] tracking-[-0.03em] text-as-ink sm:text-6xl lg:text-[72px]">
                 Which anchor
                 <br />
                 will <span className="text-as-signal">hold?</span>
               </h1>
               <p className="mt-7 max-w-md text-base leading-relaxed text-as-ink-muted sm:text-lg">
-                Anyone can claim an anchor is reliable. We measure it, from evidence
-                a wallet can’t fake, and publish the score on-chain.
+                Anyone can claim an anchor is reliable. We measure it, from evidence a wallet can’t
+                fake, and publish the score on-chain.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
-                <Link href="/scores" className="as-btn as-btn--primary group focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse">
+                <Link
+                  href="/scores"
+                  className="as-btn as-btn--primary group focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
+                >
                   See the live scores
-                  <ArrowRight size={16} weight="bold" className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                  <ArrowRight
+                    size={16}
+                    weight="bold"
+                    className="transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
                 </Link>
-                <a href="#method" className="as-btn as-btn--outline focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse">
+                <a
+                  href="#method"
+                  className="as-btn as-btn--outline focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
+                >
                   How it works
                 </a>
               </div>
@@ -187,18 +212,31 @@ export default async function LandingPage() {
                       return (
                         <li key={a.anchorId} className="as-row">
                           <span className="flex min-w-0 items-center gap-3">
-                            <span className="as-timestamp w-[18px]">{String(i + 1).padStart(2, '0')}</span>
+                            <span className="as-timestamp w-[18px]">
+                              {String(i + 1).padStart(2, '0')}
+                            </span>
                             <span className="as-row__name">{a.name}</span>
                           </span>
                           <span className="flex items-center gap-3">
-                            {history.length >= 2 && <Sparkline history={a.scoreHistory} currentScore={score} anchorId={`home-${a.anchorId}`} />}
-                            <span className={`as-row__num ${TIER_TEXT[scoreTier(score)]}`}>{score}</span>
+                            {history.length >= 2 && (
+                              <Sparkline
+                                history={a.scoreHistory}
+                                currentScore={score}
+                                anchorId={`home-${a.anchorId}`}
+                              />
+                            )}
+                            <span className={`as-row__num ${TIER_TEXT[scoreTier(score)]}`}>
+                              {score}
+                            </span>
                           </span>
                         </li>
                       );
                     })}
                   </ol>
-                  <Link href="/scores" className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-as-signal hover:underline">
+                  <Link
+                    href="/scores"
+                    className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-as-signal hover:underline"
+                  >
                     All anchors <ArrowUpRight size={14} weight="bold" aria-hidden="true" />
                   </Link>
                 </>
@@ -206,7 +244,8 @@ export default async function LandingPage() {
                 <div className="flex min-h-56 flex-col items-center justify-center gap-4 text-center">
                   <Logo size={64} />
                   <p className="max-w-[16rem] text-sm text-as-ink-muted">
-                    No mainnet anchor has been measured long enough for a score yet. The checks behind it are live on the dashboard.
+                    No mainnet anchor has been measured long enough for a score yet. The checks
+                    behind it are live on the dashboard.
                   </p>
                 </div>
               )}
@@ -225,7 +264,9 @@ export default async function LandingPage() {
                 anchors={stats.anchors}
                 reports={stats.reports}
                 cards={stats.cards}
-                lastPublished={stats.lastPublishedAt ? formatRelativeTime(stats.lastPublishedAt) : null}
+                lastPublished={
+                  stats.lastPublishedAt ? formatRelativeTime(stats.lastPublishedAt) : null
+                }
               />
             )}
           </section>
@@ -247,14 +288,20 @@ export default async function LandingPage() {
                     <span className="as-mono mr-2 text-sm text-as-ink-faint">{s.n}</span>
                     {s.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{visuals[i] ? s.short : s.body}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">
+                    {visuals[i] ? s.short : s.body}
+                  </p>
                 </div>
                 <div className="min-w-0">{visuals[i]}</div>
               </li>
             ))}
           </ol>
-          <Link href="/methodology" className="mt-8 inline-flex items-center gap-1 text-sm font-medium text-as-signal hover:underline">
-            How each check is weighed, and how to verify a score <ArrowRight size={14} weight="bold" aria-hidden="true" />
+          <Link
+            href="/methodology"
+            className="mt-8 inline-flex items-center gap-1 text-sm font-medium text-as-signal hover:underline"
+          >
+            How each check is weighed, and how to verify a score{' '}
+            <ArrowRight size={14} weight="bold" aria-hidden="true" />
           </Link>
         </section>
 
@@ -271,13 +318,20 @@ export default async function LandingPage() {
             </div>
             <ul className="as-panel divide-y divide-as-hairline overflow-hidden">
               {EVIDENCE.map((e) => (
-                <li key={e.type} className="flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:gap-8">
+                <li
+                  key={e.type}
+                  className="flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:gap-8"
+                >
                   <div className="sm:w-40 sm:flex-shrink-0">
                     <SourceBadge sourceType={e.type} />
                   </div>
                   <div>
-                    <h3 className="font-heading text-xl font-bold tracking-[-0.01em] text-as-ink">{e.title}</h3>
-                    <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-as-ink-muted">{e.body}</p>
+                    <h3 className="font-heading text-xl font-bold tracking-[-0.01em] text-as-ink">
+                      {e.title}
+                    </h3>
+                    <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-as-ink-muted">
+                      {e.body}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -310,7 +364,9 @@ export default async function LandingPage() {
           <span className="inline-flex items-center gap-2 font-medium text-as-ink">
             <Logo size={18} /> Anchor Status
           </span>
-          <span>Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.</span>
+          <span>
+            Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.
+          </span>
         </footer>
       </div>
     </div>
