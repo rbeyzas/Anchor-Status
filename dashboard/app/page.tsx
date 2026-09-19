@@ -255,7 +255,6 @@ export default async function LandingPage() {
       </div>
 
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
-        {/* Live readings: the latest checks, and the chain's own counts. */}
         {(ticker.length > 0 || stats) && (
           <section aria-label="Live readings" className="flex flex-col gap-4">
             <Ticker items={ticker} />
