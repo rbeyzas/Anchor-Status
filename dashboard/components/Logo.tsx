@@ -4,7 +4,7 @@
 export function Logo({
   size = 28,
   className = '',
-  dot = 'rgb(var(--color-accent))',
+  dot = 'rgb(var(--as-signal))',
 }: {
   size?: number;
   className?: string;

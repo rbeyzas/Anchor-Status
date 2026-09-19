@@ -21,7 +21,7 @@ export function FilterBar({
 }) {
   return (
     <div
-      className="glass-panel inline-flex flex-wrap gap-1 rounded-pill p-1"
+      className="as-panel inline-flex flex-wrap gap-1 rounded-pill p-1"
       role="tablist"
       aria-label="Anchor source filter"
     >
@@ -37,8 +37,8 @@ export function FilterBar({
             onClick={() => onChange(filter.value)}
             className={`inline-flex cursor-pointer items-center gap-1.5 rounded-pill px-3.5 py-1.5 text-sm font-medium transition-colors duration-200 ${
               isActive
-                ? 'bg-ink text-surface'
-                : 'text-ink-muted hover:bg-surface-muted hover:text-ink'
+                ? 'bg-as-signal text-as-on-signal'
+                : 'text-as-ink-muted hover:bg-as-surface-2 hover:text-as-ink'
             }`}
           >
             <Icon size={14} weight="bold" aria-hidden="true" />

@@ -21,27 +21,32 @@ export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
   ).length;
 
   const stats = [
-    { label: 'Anchors tracked', value: String(anchors.length), icon: ShieldCheck, tone: 'text-accent' },
+    { label: 'Anchors tracked', value: String(anchors.length), icon: ShieldCheck, tone: 'text-as-pulse' },
     {
       label: scored.length ? `Average score (${scored.length} scored)` : 'Average score',
       value: scored.length ? Math.round(avgScore).toString() : '-',
       icon: ChartLineUp,
-      tone: 'text-success',
+      tone: 'text-as-signal',
     },
-    { label: 'Total stake', value: formatStakeXlm(totalStake), icon: Coins, tone: 'text-warning' },
-    { label: 'Active risk alerts', value: String(atRisk), icon: Lightning, tone: atRisk > 0 ? 'text-danger' : 'text-ink-faint' },
+    { label: 'Total stake', value: formatStakeXlm(totalStake), icon: Coins, tone: 'text-as-amber' },
+    {
+      label: 'Active risk alerts',
+      value: String(atRisk),
+      icon: Lightning,
+      tone: atRisk > 0 ? 'text-as-danger' : 'text-as-ink-faint',
+    },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {stats.map((stat) => (
-        <div key={stat.label} className="glass-panel flex items-center gap-3 rounded-card px-4 py-3.5 shadow-card">
-          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-surface-muted ${stat.tone}`}>
+        <div key={stat.label} className="as-panel flex items-center gap-3 px-4 py-3.5">
+          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-as-surface-2 ${stat.tone}`}>
             <stat.icon size={17} weight="bold" aria-hidden="true" />
           </span>
           <div className="flex min-w-0 flex-col">
-            <span className="tabular truncate font-heading text-lg font-semibold text-ink">{stat.value}</span>
-            <span className="truncate text-xs text-ink-muted">{stat.label}</span>
+            <span className="as-mono truncate text-lg font-medium text-as-ink">{stat.value}</span>
+            <span className="as-label truncate">{stat.label}</span>
           </div>
         </div>
       ))}

@@ -19,13 +19,13 @@ export function PillarRadar({ card, marketNa }: { card: ScoreCardView; marketNa?
       <div className="h-48 w-full sm:h-56">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data} outerRadius="72%">
-            <PolarGrid stroke="rgb(var(--color-border))" />
-            <PolarAngleAxis dataKey="pillar" tick={{ fontSize: 11, fill: 'rgb(var(--color-ink-muted))' }} />
+            <PolarGrid stroke="rgb(var(--as-hairline))" />
+            <PolarAngleAxis dataKey="pillar" tick={{ fontSize: 11, fill: 'rgb(var(--as-ink-muted))' }} />
             <Radar
               dataKey="value"
-              stroke="rgb(var(--color-accent))"
+              stroke="rgb(var(--as-signal))"
               strokeWidth={2}
-              fill="rgb(var(--color-accent))"
+              fill="rgb(var(--as-signal))"
               fillOpacity={0.22}
               isAnimationActive={false}
             />
@@ -33,7 +33,7 @@ export function PillarRadar({ card, marketNa }: { card: ScoreCardView; marketNa?
         </ResponsiveContainer>
       </div>
       {card.market === null && (
-        <p className="text-center text-xs text-ink-faint">
+        <p className="text-center text-xs text-as-ink-faint">
           Market plots at 0: {marketNa ? MARKET_NA_REASON[marketNa] : 'not applicable'}
         </p>
       )}

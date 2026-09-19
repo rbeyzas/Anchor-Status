@@ -11,20 +11,21 @@ import {
   type MarketNa,
 } from '@/lib/scorecard';
 import type { ScoreCardView } from '@/lib/types';
+import { StatusChip, type ChipTone } from './StatusChip';
 
-const BAND_STYLE: Record<ConfidenceBand, string> = {
-  insufficient: 'bg-surface-muted text-ink-faint',
-  low: 'bg-warning-soft text-warning',
-  medium: 'bg-accent-soft text-accent',
-  high: 'bg-success-soft text-success',
+const BAND_TONE: Record<ConfidenceBand, ChipTone> = {
+  insufficient: 'neutral',
+  low: 'amber',
+  medium: 'pulse',
+  high: 'signal',
 };
 
 export function ConfidenceChip({ confidence }: { confidence: number }) {
   const band = confidenceBand(confidence);
   return (
-    <span className={`tabular rounded-pill px-2 py-0.5 text-[11px] font-medium ${BAND_STYLE[band]}`} title={`Confidence ${confidence}/100`}>
-      {CONFIDENCE_LABEL[band]}
-    </span>
+    <StatusChip tone={BAND_TONE[band]} className="normal-case tracking-normal">
+      <span title={`Confidence ${confidence}/100`}>{CONFIDENCE_LABEL[band]}</span>
+    </StatusChip>
   );
 }
 
@@ -36,20 +37,15 @@ export function FlagChips({ flags, limit }: { flags: FlagName[]; limit?: number 
   return (
     <div className="flex flex-wrap gap-1.5">
       {shown.map((flag) => (
-        <span
-          key={flag}
-          className={`inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-[11px] font-medium ${
-            GATE_FLAGS.has(flag) ? 'bg-danger-soft text-danger' : 'bg-surface-muted text-ink-muted'
-          }`}
-        >
+        <StatusChip key={flag} tone={GATE_FLAGS.has(flag) ? 'danger' : 'neutral'} className="normal-case tracking-normal">
           {GATE_FLAGS.has(flag) && <WarningCircle size={11} weight="bold" aria-hidden="true" />}
           {FLAG_COPY[flag]}
-        </span>
+        </StatusChip>
       ))}
       {limit !== undefined && ordered.length > limit && (
-        <span className="rounded-pill bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-ink-faint">
+        <StatusChip tone="neutral" className="normal-case tracking-normal">
           +{ordered.length - limit} more
-        </span>
+        </StatusChip>
       )}
     </div>
   );
@@ -68,7 +64,13 @@ export function PillarDots({ card }: { card: ScoreCardView }) {
             key={key}
             title={value === null ? `${label}: n/a` : `${label}: ${value}`}
             className={`h-1.5 w-1.5 rounded-full ${
-              value === null ? 'bg-surface-muted' : value >= 80 ? 'bg-success' : value >= 55 ? 'bg-warning' : 'bg-danger'
+              value === null
+                ? 'bg-as-surface-2'
+                : value >= 80
+                  ? 'bg-as-score-high'
+                  : value >= 55
+                    ? 'bg-as-score-medium'
+                    : 'bg-as-score-low'
             }`}
           />
         );
@@ -85,17 +87,19 @@ export function PillarBars({ card, marketNa }: { card: ScoreCardView; marketNa?:
         return (
           <li key={key} className="flex flex-col gap-1">
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="font-medium text-ink" title={hint}>
+              <span className="font-medium text-as-ink" title={hint}>
                 {label}
               </span>
-              <span className="tabular text-ink-muted">
+              <span className="as-mono text-as-ink-muted">
                 {value === null ? `n/a${marketNa ? `: ${MARKET_NA_REASON[marketNa]}` : ''}` : value}
               </span>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-pill bg-surface-muted" aria-hidden="true">
+            <div className="h-1.5 w-full overflow-hidden rounded-pill bg-as-surface-2" aria-hidden="true">
               {value !== null && (
                 <div
-                  className={`h-full rounded-pill ${value >= 80 ? 'bg-success' : value >= 55 ? 'bg-warning' : 'bg-danger'}`}
+                  className={`h-full rounded-pill ${
+                    value >= 80 ? 'bg-as-score-high' : value >= 55 ? 'bg-as-score-medium' : 'bg-as-score-low'
+                  }`}
                   style={{ width: `${value}%` }}
                 />
               )}

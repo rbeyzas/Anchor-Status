@@ -5,9 +5,9 @@ import { scoreTier } from '@/lib/types';
 import type { ScorePoint } from '@/lib/types';
 
 const TIER_STROKE: Record<string, string> = {
-  high: 'rgb(var(--color-success))',
-  medium: 'rgb(var(--color-warning))',
-  low: 'rgb(var(--color-danger))',
+  high: 'rgb(var(--as-score-high))',
+  medium: 'rgb(var(--as-score-medium))',
+  low: 'rgb(var(--as-score-low))',
 };
 
 export function Sparkline({
