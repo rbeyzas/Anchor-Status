@@ -56,4 +56,29 @@ describe('buildStatus', () => {
     const next = buildStatus([anchor('dead')], [], previous, now, () => true);
     expect(next.anchors.dead).toMatchObject({ dormant: true, last_probe: { failed_stage: 'toml' } });
   });
+
+  it('keeps each stage of the last probe in order, with its time', () => {
+    const status = buildStatus(
+      [anchor('clpx')],
+      [
+        result('clpx', {
+          settlement_seconds: 1.2,
+          stages_expected: ['toml', 'info', 'challenge', 'token', 'initiate'],
+          stages: { info: { ok: true, ms: 300 }, toml: { ok: true, ms: 200 }, challenge: { ok: true, ms: 90, policy: true } },
+        }),
+      ],
+      null,
+      now,
+      () => false,
+    );
+    expect(status.anchors.clpx.last_probe).toMatchObject({
+      settlement_seconds: 1.2,
+      stages_expected: ['toml', 'info', 'challenge', 'token', 'initiate'],
+      stages: [
+        { stage: 'toml', ok: true, ms: 200 },
+        { stage: 'info', ok: true, ms: 300 },
+        { stage: 'challenge', ok: true, ms: 90, policy: true },
+      ],
+    });
+  });
 });

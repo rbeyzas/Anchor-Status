@@ -17,6 +17,12 @@ export interface AnchorStatus {
     error?: string;
     /** Stages the anchor declined by policy (e.g. registered wallets only). */
     policy: StageName[];
+    /** Each stage reached, in order, with its time: what a wallet waited. */
+    stages?: Array<{ stage: StageName; ok: boolean; ms?: number; policy?: boolean }>;
+    /** The stages its own toml says a full check reaches. */
+    stages_expected?: StageName[];
+    /** Total time on the anchor's API, in seconds. */
+    settlement_seconds?: number;
   };
   /** The assets its stellar.toml lists, each with whether the anchor
    * issues it (the issuer's home_domain points back at it). */
@@ -37,6 +43,8 @@ export function loadStatus(filePath: string): StatusFile | null {
   if (!fs.existsSync(filePath)) return null;
   return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as StatusFile;
 }
+
+const STAGE_ORDER: StageName[] = ['toml', 'info', 'challenge', 'token', 'initiate'];
 
 /** Builds the status for every tracked anchor. Anchors skipped this round
  * (dormant, not due) keep their previous probe verdict. */
@@ -67,6 +75,14 @@ export function buildStatus(
             policy: (Object.entries(r.stages) as [StageName, { policy?: boolean }][])
               .filter(([, s]) => s?.policy)
               .map(([k]) => k),
+            stages: STAGE_ORDER.flatMap((stage) => {
+              const s = r.stages[stage];
+              return s
+                ? [{ stage, ok: s.ok, ...(s.ms !== undefined ? { ms: s.ms } : {}), ...(s.policy ? { policy: true } : {}) }]
+                : [];
+            }),
+            ...(r.stages_expected ? { stages_expected: r.stages_expected } : {}),
+            settlement_seconds: r.settlement_seconds,
           }
         : previous?.anchors[a.anchor_id]?.last_probe,
     };
