@@ -144,7 +144,7 @@ export default async function LandingPage() {
                       return (
                         <li key={a.anchorId} className="as-row">
                           <span className="flex min-w-0 items-center gap-3">
-                            <span className="as-ts w-[18px]">{String(i + 1).padStart(2, '0')}</span>
+                            <span className="as-timestamp w-[18px]">{String(i + 1).padStart(2, '0')}</span>
                             <span className="as-row__name">{a.name}</span>
                           </span>
                           <span className="flex items-center gap-3">
