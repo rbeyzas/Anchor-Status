@@ -45,6 +45,12 @@ export function AnchorDetailModal({
     score: p.score,
   }));
 
+  const slashesAt = new Map<string, typeof anchor.slashEvents>();
+  for (const slash of anchor.slashEvents) {
+    const x = formatChartAxisLabel(slash.timestamp, historyTimestamps);
+    slashesAt.set(x, [...(slashesAt.get(x) ?? []), slash]);
+  }
+
   return (
     <motion.div
       className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
@@ -256,6 +262,20 @@ export function AnchorDetailModal({
                     fontSize: 12,
                   }}
                   labelStyle={{ color: 'rgb(var(--as-ink))' }}
+                  formatter={(value, name) => [value, name === 'score' ? 'Score' : name]}
+                  labelFormatter={(label) => {
+                    const slashes = slashesAt.get(String(label));
+                    return slashes ? (
+                      <>
+                        {label}
+                        <span className="mt-1 block font-medium text-as-danger">
+                          {slashes.length} legacy slash{slashes.length === 1 ? '' : 'es'}: {slashes.map((sl) => `${formatStakeXlm(sl.amount)} at ${new Date(sl.timestamp).toISOString().slice(11, 16)} UTC`).join(', ')}
+                        </span>
+                      </>
+                    ) : (
+                      label
+                    );
+                  }}
                 />
                 {/* One bare line per axis position: slashes can come minutes apart, and a
                     label on each one printed over the others. The text below explains them. */}
