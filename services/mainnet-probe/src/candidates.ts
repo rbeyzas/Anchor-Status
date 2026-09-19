@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 export type CandidateStatus = 'received' | 'accepted' | 'rejected' | 'already_tracked';
 
-export type CheckName = 'public_host' | 'stellar_toml' | 'transfer_server' | 'live_probe' | 'issuer_age' | 'transfer_count';
+export type CheckName = 'public_host' | 'stellar_toml' | 'network' | 'transfer_server' | 'live_probe' | 'issuer_age' | 'transfer_count';
 
 export interface CheckResult {
   name: CheckName;

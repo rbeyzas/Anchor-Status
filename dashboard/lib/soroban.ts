@@ -1,4 +1,5 @@
 import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { isDelisted } from './delisted';
 import { stroopsToXlm } from './format';
 import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchArchive, mergeArchiveInto } from './history';
@@ -218,8 +219,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
     }
     return {
-      anchors: mergeCardContext(mergeStatusInto(mergeArchiveInto(live.anchors, archive), status), summary),
-      unreadable: live.unreadable,
+      anchors: mergeCardContext(
+        mergeStatusInto(mergeArchiveInto(live.anchors.filter((a) => !isDelisted(a.anchorId)), archive), status),
+        summary,
+      ),
+      unreadable: live.unreadable.filter((u) => !isDelisted(u.anchorId)),
       dataSource: 'live',
     };
   } catch (err) {

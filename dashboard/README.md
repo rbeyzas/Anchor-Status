@@ -76,6 +76,8 @@ assets (`ANCHOR_STATUS_URL`), and the score cards' confidence factors
 (`score-summary.json` beside it, or `SCORE_SUMMARY_URL`). The factors are
 attached only when they describe the very bundle the on-chain card names.
 Each is optional: without it the page still renders from the chain.
+Registrations listed in `lib/delisted.ts` are not shown; the registry
+cannot remove an entry, so a wrong one is hidden there with its reason.
 
 If the public RPC fails, the page falls back to `SOROBAN_RPC_FALLBACK_URL`
 (server-side only; ours is an Alchemy URL with its key), with at most 8

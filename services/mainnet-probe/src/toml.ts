@@ -15,6 +15,8 @@ export interface TomlCurrency {
 
 export interface AnchorToml {
   orgName?: string;
+  /** NETWORK_PASSPHRASE, when declared: which network the anchor is on. */
+  networkPassphrase?: string;
   webAuthEndpoint?: string;
   signingKey?: string;
   sep24?: string;
@@ -50,6 +52,7 @@ export function parseAnchorToml(text: string): AnchorToml {
   const doc = t.DOCUMENTATION as Record<string, unknown> | undefined;
   return {
     orgName: str(doc?.ORG_NAME),
+    networkPassphrase: typeof t.NETWORK_PASSPHRASE === 'string' ? t.NETWORK_PASSPHRASE.trim() : undefined,
     webAuthEndpoint: str(t.WEB_AUTH_ENDPOINT),
     signingKey: str(t.SIGNING_KEY),
     sep24: str(t.TRANSFER_SERVER_SEP0024),

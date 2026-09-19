@@ -55,6 +55,7 @@ describe('evaluateCandidate', () => {
     expect(ev.checks.map((c) => [c.name, c.passed])).toEqual([
       ['public_host', true],
       ['stellar_toml', true],
+      ['network', true],
       ['transfer_server', true],
       ['live_probe', true],
       ['issuer_age', true],
@@ -155,6 +156,32 @@ describe('evaluateCandidate', () => {
     );
     expect(alias).toMatchObject({ outcome: 'already_tracked', anchor_id: 'old_anchor_com' });
     expect(probed).toBe(false);
+  });
+
+  it('rejects a testnet anchor, however well it answers (tr-mock-anchor.fly.dev was admitted this way)', async () => {
+    let probed = false;
+    const ev = await evaluateCandidate(
+      'tr-mock-anchor.fly.dev',
+      known,
+      thresholds,
+      deps({
+        fetchToml: async () => toml({ networkPassphrase: 'Test SDF Network ; September 2015', sep24: undefined, sep6: 'https://tr-mock-anchor.fly.dev/sep6' }),
+        probe: async (t) => ((probed = true), probeOk(t)),
+      }),
+    );
+    expect(ev).toMatchObject({ outcome: 'rejected', reason: 'a testnet anchor: apply in the testnet section' });
+    expect(ev.checks.find((c) => c.name === 'network')).toMatchObject({ passed: false });
+    expect(probed).toBe(false);
+  });
+
+  it('accepts a toml that names the public network, or none', async () => {
+    const pub = await evaluateCandidate(
+      'new-anchor.com',
+      known,
+      thresholds,
+      deps({ fetchToml: async () => toml({ networkPassphrase: 'Public Global Stellar Network ; September 2015' }) }),
+    );
+    expect(pub.outcome).toBe('accepted');
   });
 
   it('rejects a name that resolves into a private network before fetching anything', async () => {

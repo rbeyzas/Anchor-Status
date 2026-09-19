@@ -9,6 +9,7 @@ import type { MainnetProbeResult, ProbeTarget } from './probe.js';
 import type { AnchorToml } from './toml.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+export const MAINNET_PASSPHRASE = 'Public Global Stellar Network ; September 2015';
 
 export interface Thresholds {
   minAgeDays: number;
@@ -94,6 +95,28 @@ export async function evaluateCandidate(
   }
   checks.push({ name: 'stellar_toml', passed: true, detail: 'stellar.toml fetched and parsed.' });
   const name = cleanName(toml.orgName, domain);
+
+  // A testnet anchor answers every step the same way a mainnet one does:
+  // only the network it names tells them apart.
+  if (toml.networkPassphrase && toml.networkPassphrase !== MAINNET_PASSPHRASE) {
+    checks.push({
+      name: 'network',
+      passed: false,
+      detail: `stellar.toml declares "${toml.networkPassphrase.slice(0, 60)}", not the public network.`,
+    });
+    const testnet = /test sdf network/i.test(toml.networkPassphrase);
+    return {
+      outcome: 'rejected',
+      reason: testnet ? 'a testnet anchor: apply in the testnet section' : 'not a mainnet anchor',
+      checks,
+      name,
+    };
+  }
+  checks.push({
+    name: 'network',
+    passed: true,
+    detail: toml.networkPassphrase ? 'Declares the public network.' : 'Declares no network (mainnet is the default).',
+  });
 
   const server = toml.sep24 ?? toml.sep6;
   let transferHost: string | undefined;
