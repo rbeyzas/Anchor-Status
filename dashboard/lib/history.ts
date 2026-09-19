@@ -1,8 +1,8 @@
 import { stroopsToXlm } from './format';
 import type { AnchorViewModel, ScorePoint, SlashEvent } from './types';
 
-/** Soroban RPC only serves contract events for roughly the last 12 hours, so
- * a chart built from RPC alone can never show more than that. The
+/** The public Soroban RPC only serves contract events for the last 7 days,
+ * so a chart built from RPC alone can never show more than that. The
  * history-archiver service on the collector host merges every run's events
  * into a durable file and serves it over HTTP; this reads that file and
  * unions it with whatever the live read returned.
@@ -62,6 +62,29 @@ function toSlashEvents(entries: Array<{ timestamp: string; amountStroops: string
 }
 
 const scoreKey = (p: ScorePoint) => `${p.timestamp}|${p.score}`;
+
+// The archive holds every report ever made — the simulated anchors alone
+// reported every minute for a week — and all of it would otherwise be
+// shipped to the browser for a chart a few hundred pixels wide.
+export const MAX_CHART_POINTS = 500;
+
+/** Keeps at most `max` of the given points, evenly spread over the list.
+ * Every point kept is a real report: nothing is averaged or interpolated.
+ * The first and last points and the latest one carrying evidence are
+ * always kept, so the chart's span and the evidence link stay exact. */
+export function thinHistory(points: ScorePoint[], max = MAX_CHART_POINTS): ScorePoint[] {
+  if (points.length <= max) return points;
+  const keep = new Set<number>([0, points.length - 1]);
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].evidence) {
+      keep.add(i);
+      break;
+    }
+  }
+  const step = (points.length - 1) / (max - keep.size + 1);
+  for (let k = 1; keep.size < max; k++) keep.add(Math.round(k * step));
+  return [...keep].sort((a, b) => a - b).map((i) => points[i]);
+}
 const slashKey = (e: SlashEvent) => `${e.timestamp}|${e.amount}`;
 
 /** Unions archived history into the live anchors. Live data wins nothing and
@@ -77,7 +100,7 @@ export function mergeArchiveInto(
     if (!archived) return anchor;
     return {
       ...anchor,
-      scoreHistory: unionBy(anchor.scoreHistory, archived.scoreHistory, scoreKey),
+      scoreHistory: thinHistory(unionBy(anchor.scoreHistory, archived.scoreHistory, scoreKey)),
       slashEvents: unionBy(anchor.slashEvents, toSlashEvents(archived.slashEvents), slashKey),
     };
   });

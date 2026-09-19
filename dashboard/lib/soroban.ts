@@ -1,171 +1,51 @@
-import { contract, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { stroopsToXlm } from './format';
 import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchArchive, mergeArchiveInto } from './history';
-import type { AnchorHealth, AnchorViewModel, DashboardData, RiskReason, ScorePoint, SourceType, Trend, UnreadableAnchor } from './types';
+import {
+  anchorInfoKey,
+  decodeAnchorInfo,
+  decodeHealth,
+  healthKey,
+  instanceKey,
+  keyId,
+  NEW_HEALTH,
+  readAnchorIds,
+} from './contract-state';
+import { createRpcPool, type RpcPool } from './rpc';
+import type { AnchorViewModel, DashboardData, ScorePoint, UnreadableAnchor } from './types';
 
-const RPC_URL = process.env.NEXT_PUBLIC_SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org';
-const NETWORK_PASSPHRASE =
-  process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015';
 const REGISTRY_CONTRACT_ID = process.env.NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID ?? '';
 const ORACLE_CONTRACT_ID = process.env.NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID ?? '';
-// Any funded testnet account works here — it's only used as the (unsigned)
-// source account for read-only simulation, never to sign or submit anything.
-const READER_PUBLIC_KEY = process.env.NEXT_PUBLIC_READER_PUBLIC_KEY ?? '';
 
-// getEvents' own range-validation error ("startLedger must be within the
-// ledger range: X - Y") advertises a long window — on the public
-// soroban-testnet.stellar.org RPC this has been observed at ~7 days'
-// worth of ledgers (~121,000). That number describes how long raw ledger
-// metadata is retained, NOT how far back the event index actually serves
-// queries: empirically (tested directly against this RPC), a startLedger
-// more than ~10,000-12,000 ledgers behind the tip silently returns zero
-// events — no error, it just never finds anything — while the same
-// filters against a more recent startLedger return real results. So
-// rather than aiming for the advertised retention window (which always
-// undershoots into that dead zone and returns nothing), we deliberately
-// ask for a much shorter, empirically-safe window instead.
-const MAX_QUERYABLE_LEDGERS_BACK = 9_000; // ~12-13 hours (at ~5s/ledger); stays clear of the ~10-12k dead zone above
-
-const LEDGER_RANGE_ERROR = /ledger range:\s*(\d+)\s*-\s*(\d+)/i;
-
-/** Calls `getEvents` with an explicit `startLedger`, and if it fails
- * because our guessed `startLedger` is older than the RPC's actual
- * retention window, retries once with the real minimum valid ledger
- * parsed out of the error message. */
-async function getEventsWithRetentionFallback(
-  server: rpc.Server,
-  startLedger: number,
-  filters: rpc.Api.EventFilter[],
-  limit: number,
-): ReturnType<rpc.Server['getEvents']> {
-  try {
-    return await server.getEvents({ startLedger, filters, limit });
-  } catch (err) {
-    const match = LEDGER_RANGE_ERROR.exec((err as Error).message ?? String(err));
-    if (!match) throw err;
-    // The reported minimum is the oldest ledger already pruned (exclusive) —
-    // retrying with it as-is gets the exact same "must be within the ledger
-    // range" error back (confirmed against the live RPC), so use min + 1.
-    const minStartLedger = Number(match[1]) + 1;
-    return server.getEvents({ startLedger: minStartLedger, filters, limit });
-  }
-}
+// Score history covers the public RPC's full event retention: 7 days. A
+// backup provider may keep more, but the page stays on the same window
+// whichever node answers.
+const HISTORY_LEDGERS = 120_960;
+// getEvents scans roughly 10,000 ledgers per call. A range with no
+// matching event comes back empty with a cursor to continue from, so the
+// window is split into ranges of that size and read in parallel instead
+// of walked one cursor at a time (7 days: ~4s instead of ~23s).
+const EVENT_RANGE_LEDGERS = 10_000;
+// getLedgerEntries accepts at most 200 keys per call.
+const LEDGER_ENTRIES_BATCH = 200;
 
 function assertLiveConfigPresent() {
-  if (!REGISTRY_CONTRACT_ID || !ORACLE_CONTRACT_ID || !READER_PUBLIC_KEY) {
-    throw new Error(
-      'Missing NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID / NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID / NEXT_PUBLIC_READER_PUBLIC_KEY',
-    );
+  if (!REGISTRY_CONTRACT_ID || !ORACLE_CONTRACT_ID) {
+    throw new Error('Missing NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID / NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID');
   }
 }
 
-async function getRegistryClient(): Promise<contract.Client> {
-  return contract.Client.from({
-    contractId: REGISTRY_CONTRACT_ID,
-    networkPassphrase: NETWORK_PASSPHRASE,
-    rpcUrl: RPC_URL,
-    publicKey: READER_PUBLIC_KEY,
-  });
+/** The ledger a getEvents cursor points at (its TOID's high 32 bits). */
+export function cursorLedger(cursor: string): number {
+  return Number(BigInt(cursor.split('-')[0]) >> 32n);
 }
 
-async function getOracleClient(): Promise<contract.Client> {
-  return contract.Client.from({
-    contractId: ORACLE_CONTRACT_ID,
-    networkPassphrase: NETWORK_PASSPHRASE,
-    rpcUrl: RPC_URL,
-    publicKey: READER_PUBLIC_KEY,
-  });
-}
-
-interface RawAnchorInfo {
-  name: string;
-  domain: string;
-  source_type: { tag: SourceType };
-  operator: string;
-  stake: bigint;
-  score: number;
-  registered_at: bigint;
-  last_updated: bigint;
-}
-
-/** Every `report_submitted` event in the queryable window, grouped by
- * anchor — one paginated query for all anchors instead of one per anchor,
- * which with ~100 anchors meant ~100 extra RPC calls per page view. */
-async function fetchAllScoreHistory(server: rpc.Server): Promise<Map<string, ScorePoint[]>> {
-  const latest = await server.getLatestLedger();
-  const startLedger = Math.max(1, latest.sequence - MAX_QUERYABLE_LEDGERS_BACK);
-  const filters: rpc.Api.EventFilter[] = [
-    {
-      type: 'contract',
-      contractIds: [ORACLE_CONTRACT_ID],
-      topics: [[xdr.ScVal.scvSymbol('report_submitted').toXDR('base64'), '*']],
-    },
-  ];
-
-  const byAnchor = new Map<string, ScorePoint[]>();
-  let response = await getEventsWithRetentionFallback(server, startLedger, filters, 1000);
-  for (let page = 0; page < 20; page++) {
-    for (const event of response.events) {
-      const anchorId = event.topic[1] ? String(scValToNative(event.topic[1])) : undefined;
-      if (!anchorId) continue;
-      const data = scValToNative(event.value) as { new_score: number; evidence?: Uint8Array | null };
-      const points = byAnchor.get(anchorId) ?? [];
-      const evidence = data.evidence ? Buffer.from(data.evidence).toString('hex') : undefined;
-      points.push({ timestamp: event.ledgerClosedAt, score: Number(data.new_score), ...(evidence ? { evidence } : {}) });
-      byAnchor.set(anchorId, points);
-    }
-    if (response.events.length < 1000 || !response.cursor) break;
-    response = await server.getEvents({ cursor: response.cursor, filters, limit: 1000 });
-  }
-  for (const points of byAnchor.values()) points.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  return byAnchor;
-}
-
-interface RawAnchorHealth {
-  trend: { tag: Trend };
-  risk_reason: { tag: RiskReason };
-  consecutive_failures: number;
-  recent_outcomes: number;
-  recent_count: number;
-  observations: bigint;
-}
-
-/** Reads the oracle's trend/risk record. Returns undefined against an
- * oracle deployed before health tracking existed (no get_health). */
-async function fetchHealth(oracle: contract.Client, anchorId: string): Promise<AnchorHealth | undefined> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (typeof (oracle as any).get_health !== 'function') return undefined;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = (await (oracle as any).get_health({ anchor_id: anchorId })).result as RawAnchorHealth;
-    const count = Number(raw.recent_count);
-    const mask = count >= 32 ? 0xffffffff : (1 << count) - 1;
-    const successes = (Number(raw.recent_outcomes) & mask).toString(2).split('').filter((b) => b === '1').length;
-    return {
-      trend: raw.trend.tag,
-      riskReason: raw.risk_reason.tag,
-      consecutiveFailures: Number(raw.consecutive_failures),
-      recentSuccessPercent: count === 0 ? 100 : Math.floor((successes * 100) / count),
-      recentCount: count,
-      observations: Number(raw.observations),
-    };
-  } catch (err) {
-    console.warn(`[dashboard] failed to fetch health for ${anchorId}:`, err);
-    return undefined;
-  }
-}
-
-/** One retry after a short pause: public RPC nodes shed load with the
- * occasional 429/5xx, which is not a reason to call an anchor unreadable. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function withRetry<T = any>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch {
-    await new Promise((r) => setTimeout(r, 750));
-    return fn();
-  }
+/** Splits [start, end) into consecutive ranges of at most `size` ledgers. */
+export function ledgerRanges(start: number, end: number, size: number): [number, number][] {
+  const ranges: [number, number][] = [];
+  for (let from = start; from < end; from += size) ranges.push([from, Math.min(from + size, end)]);
+  return ranges;
 }
 
 async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -182,63 +62,129 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
   return out;
 }
 
-async function fetchAnchor(
-  registry: contract.Client,
-  oracle: contract.Client,
-  anchorId: string,
-  history: ScorePoint[],
-): Promise<AnchorViewModel> {
-  // get_anchor_info returns Result<AnchorInfo, Error> on the contract side,
-  // so the JS client wraps a success as `{ value: AnchorInfo }`. Its `score`
-  // is the one the oracle pushes on every report, so no get_score call.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const info = (await withRetry(() => (registry as any).get_anchor_info({ anchor_id: anchorId }))).result
-    .value as RawAnchorInfo;
-  const health = await fetchHealth(oracle, anchorId);
-  const score = Number(info.score);
-  const lastUpdated = new Date(Number(info.last_updated) * 1000).toISOString();
+/** Every `report_submitted` event of the last 7 days, grouped by anchor. */
+async function fetchAllScoreHistory(pool: RpcPool): Promise<Map<string, ScorePoint[]>> {
+  const health = await pool.call((s) => s.getHealth());
+  const end = health.latestLedger + 1;
+  const start = Math.max(health.oldestLedger + 1, end - HISTORY_LEDGERS);
+  const filters: rpc.Api.EventFilter[] = [
+    {
+      type: 'contract',
+      contractIds: [ORACLE_CONTRACT_ID],
+      topics: [[xdr.ScVal.scvSymbol('report_submitted').toXDR('base64'), '*']],
+    },
+  ];
 
-  return {
-    anchorId,
-    name: info.name,
-    domain: info.domain,
-    sourceType: info.source_type.tag,
-    stake: stroopsToXlm(info.stake),
-    score,
-    scoreHistory: history.length > 0 ? history : [{ timestamp: lastUpdated, score }],
-    // Only the previous oracle slashed; its events come from the archive.
-    slashEvents: [],
-    lastUpdated,
-    health,
-  };
+  // Each range is read to its end, then cut at it: cursor pages cannot
+  // carry an endLedger, so the last page may run into the next range.
+  const ranges = await mapWithConcurrency(ledgerRanges(start, end, EVENT_RANGE_LEDGERS), 16, async ([from, to]) => {
+    const events: rpc.Api.EventResponse[] = [];
+    let page = await pool.call((s) => s.getEvents({ startLedger: from, endLedger: to, filters, limit: 1000 }));
+    for (let calls = 1; ; calls++) {
+      events.push(...page.events.filter((e) => e.ledger < to));
+      const reachedEnd =
+        !page.cursor || cursorLedger(page.cursor) >= to - 1 || page.events.some((e) => e.ledger >= to);
+      if (reachedEnd || calls >= 50) break;
+      const cursor = page.cursor;
+      page = await pool.call((s) => s.getEvents({ cursor, filters, limit: 1000 }));
+    }
+    return events;
+  });
+
+  const byAnchor = new Map<string, ScorePoint[]>();
+  const seen = new Set<string>();
+  for (const event of ranges.flat()) {
+    if (seen.has(event.id)) continue;
+    seen.add(event.id);
+    const anchorId = event.topic[1] ? String(scValToNative(event.topic[1])) : undefined;
+    if (!anchorId) continue;
+    const data = scValToNative(event.value) as { new_score: number; evidence?: Uint8Array | null };
+    const points = byAnchor.get(anchorId) ?? [];
+    const evidence = data.evidence ? Buffer.from(data.evidence).toString('hex') : undefined;
+    points.push({ timestamp: event.ledgerClosedAt, score: Number(data.new_score), ...(evidence ? { evidence } : {}) });
+    byAnchor.set(anchorId, points);
+  }
+  for (const points of byAnchor.values()) points.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  return byAnchor;
 }
 
-async function fetchLiveDashboardData(): Promise<{ anchors: AnchorViewModel[]; unreadable: UnreadableAnchor[] }> {
+type Entry = rpc.Api.LedgerEntryResult;
+
+/** Reads the given keys in batches, keyed by their XDR. */
+async function fetchEntries(pool: RpcPool, keys: xdr.LedgerKey[]) {
+  const batches: xdr.LedgerKey[][] = [];
+  for (let i = 0; i < keys.length; i += LEDGER_ENTRIES_BATCH) batches.push(keys.slice(i, i + LEDGER_ENTRIES_BATCH));
+  const responses = await Promise.all(batches.map((batch) => pool.call((s) => s.getLedgerEntries(...batch))));
+  const entries = new Map<string, Entry>();
+  for (const response of responses) for (const entry of response.entries) entries.set(keyId(entry.key), entry);
+  return { entries, latestLedger: Math.max(...responses.map((r) => r.latestLedger)) };
+}
+
+/** An entry whose TTL ran out is archived: a contract call would fail on it
+ * until someone restores it, so it is not reported as current data. */
+const isArchived = (entry: Entry, latestLedger: number) =>
+  entry.liveUntilLedgerSeq !== undefined && entry.liveUntilLedgerSeq < latestLedger;
+
+async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorViewModel[]; unreadable: UnreadableAnchor[] }> {
   assertLiveConfigPresent();
-  const server = new rpc.Server(RPC_URL);
-  const registry = await getRegistryClient();
-  const oracle = await getOracleClient();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const listTx = await withRetry(() => (registry as any).list_anchors());
-  const anchorIds = listTx.result as string[];
-  const history = await fetchAllScoreHistory(server).catch((err) => {
-    console.warn('[dashboard] failed to fetch score history:', err);
-    return new Map<string, ScorePoint[]>();
-  });
+  const registryInstance = (await fetchEntries(pool, [instanceKey(REGISTRY_CONTRACT_ID)])).entries.get(
+    keyId(instanceKey(REGISTRY_CONTRACT_ID)),
+  );
+  if (!registryInstance) throw new Error('AnchorRegistry contract not found');
+  const anchorIds = readAnchorIds(registryInstance.val);
 
-  // A failure reading one anchor affects that anchor only.
-  const results = await mapWithConcurrency(anchorIds, 8, async (id) => {
-    try {
-      return { ok: true as const, anchor: await fetchAnchor(registry, oracle, id, history.get(id) ?? []) };
-    } catch (err) {
-      return { ok: false as const, unreadable: { anchorId: id, error: (err as Error).message.split('\n')[0] } };
+  // Every anchor's record and health in one or two calls, instead of two
+  // simulated contract calls per anchor.
+  const keys = anchorIds.flatMap((id) => [anchorInfoKey(REGISTRY_CONTRACT_ID, id), healthKey(ORACLE_CONTRACT_ID, id)]);
+  const [{ entries, latestLedger }, history] = await Promise.all([
+    fetchEntries(pool, keys),
+    fetchAllScoreHistory(pool).catch((err) => {
+      console.warn('[dashboard] failed to fetch score history:', err);
+      return new Map<string, ScorePoint[]>();
+    }),
+  ]);
+
+  // A problem with one anchor's record affects that anchor only.
+  const anchors: AnchorViewModel[] = [];
+  const unreadable: UnreadableAnchor[] = [];
+  for (const anchorId of anchorIds) {
+    const infoEntry = entries.get(keyId(anchorInfoKey(REGISTRY_CONTRACT_ID, anchorId)));
+    if (!infoEntry) {
+      unreadable.push({ anchorId, error: 'listed in the registry but its record is missing' });
+      continue;
     }
-  });
-  return {
-    anchors: results.flatMap((r) => (r.ok ? [r.anchor] : [])),
-    unreadable: results.flatMap((r) => (r.ok ? [] : [r.unreadable])),
-  };
+    if (isArchived(infoEntry, latestLedger)) {
+      unreadable.push({ anchorId, error: 'on-chain record archived (TTL expired)' });
+      continue;
+    }
+    let info;
+    try {
+      info = decodeAnchorInfo(infoEntry.val);
+    } catch (err) {
+      unreadable.push({ anchorId, error: `could not decode record: ${(err as Error).message}` });
+      continue;
+    }
+    const healthEntry = entries.get(keyId(healthKey(ORACLE_CONTRACT_ID, anchorId)));
+    const health = !healthEntry ? NEW_HEALTH : isArchived(healthEntry, latestLedger) ? undefined : decodeHealth(healthEntry.val);
+    const lastUpdated = new Date(Number(info.lastUpdated) * 1000).toISOString();
+    const points = history.get(anchorId) ?? [];
+    anchors.push({
+      anchorId,
+      name: info.name,
+      domain: info.domain,
+      sourceType: info.sourceType,
+      stake: stroopsToXlm(info.stake),
+      score: info.score,
+      scoreHistory: points.length > 0 ? points : [{ timestamp: lastUpdated, score: info.score }],
+      // Only the previous oracle slashed; its events come from the archive.
+      slashEvents: [],
+      lastUpdated,
+      health,
+    });
+  }
+  if (pool.activeProvider !== 'primary') console.warn('[dashboard] this render was served by the backup RPC');
+  return { anchors, unreadable };
 }
 
 /** Reads the contracts from Soroban RPC. There is no fallback data: if the
@@ -246,7 +192,11 @@ async function fetchLiveDashboardData(): Promise<{ anchors: AnchorViewModel[]; u
  * anything that looks like a real score but isn't. */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [live, archive, status] = await Promise.all([fetchLiveDashboardData(), fetchArchive(), fetchAnchorStatus()]);
+    const [live, archive, status] = await Promise.all([
+      fetchLiveDashboardData(createRpcPool()),
+      fetchArchive(),
+      fetchAnchorStatus(),
+    ]);
     if (live.anchors.length === 0 && live.unreadable.length > 0) {
       throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
     }

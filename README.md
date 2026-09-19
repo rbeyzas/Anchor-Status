@@ -32,7 +32,7 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 2. **`aggregator`** dedupes those reports and calls `PerformanceOracle.submit_report()` on testnet, signed by a reporter key authorized for that source type.
 3. **`PerformanceOracle`** updates a weighted exponential moving average per anchor (real sources move the score faster than mock ones), plus an on-chain health record: a fast and a slow EMA whose gap gives the trend, a consecutive-failure counter, and a 20-report outcome window. It flags an anchor at risk when 3 reports in a row fail, when fewer than half of the recent window succeeded, or when the score reaches 55, and emits `risk_status_changed` on each transition.
 4. **`AnchorRegistry`** is the source of truth for anchor identity, operator, staked collateral, and current score.
-5. **`dashboard`** reads both contracts straight from Soroban RPC. Score history older than the RPC's event window (~12 hours in practice) comes from `history-archiver`'s durable archive, fetched server-side and merged in; without it the dashboard still renders, with a shorter chart.
+5. **`dashboard`** reads both contracts straight from Soroban RPC. Score history older than the public RPC's 7-day event window comes from `history-archiver`'s durable archive, fetched server-side and merged in; without it the dashboard still renders, with a shorter chart.
 
 | Source type | Produced by | What "success" means |
 | --- | --- | --- |
@@ -102,6 +102,8 @@ The root `.env` is shared by every service (each one also merges its own local `
 | `REPORTER_MAINNET_SECRET_KEY` / `REPORTER_TESTNET_SECRET_KEY` / `REPORTER_MOCK_SECRET_KEY` | One authorized reporter key per source type |
 | `ANCHOR_REGISTRY_CONTRACT_ID` / `PERFORMANCE_ORACLE_CONTRACT_ID` | Filled in automatically by the deploy script |
 | `NEXT_PUBLIC_*` | Same values, re-exposed for the browser-side dashboard |
+| `SOROBAN_RPC_FALLBACK_URL` | Optional. A second RPC (we use Alchemy, whose URL carries the API key) used when the public one fails, and by the archive's backfill/verify. Server-side only: never give it a `NEXT_PUBLIC_` prefix, never commit it |
+| `HISTORY_PREVIOUS_CONTRACTS` | Optional. Earlier deployments as `ORACLE_ID:REGISTRY_ID,...`, so the archive backfill can recover their history |
 
 ### 3. Deploy the contracts
 
@@ -146,7 +148,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`. It reads `AnchorRegistry` and `PerformanceOracle` straight from `NEXT_PUBLIC_SOROBAN_RPC_URL` — no server-side component of its own. If the contract IDs aren't set yet or the RPC is unreachable, it falls back to a deterministic demo fixture and shows a banner saying so, so the UI is always reviewable even before you deploy anything.
+Open `http://localhost:3000`. It reads `AnchorRegistry` and `PerformanceOracle` straight from `NEXT_PUBLIC_SOROBAN_RPC_URL`, falling back to `SOROBAN_RPC_FALLBACK_URL` if that fails. There is no demo data: if the contract IDs aren't set or no RPC answers, the page says so and shows no scores.
 
 ### 6. Everything at once
 
@@ -193,16 +195,31 @@ survive a redeploy sits in `/var/lib/anchor-status`:
 
 | File | What it holds | Why it must not reset |
 | --- | --- | --- |
-| `history.json` | Every score point and risk transition ever observed (plus slash events from the previous oracle, which slashed) | Soroban RPC only serves events for ~12 hours, so this is the only long-term record |
+| `history.json` | Every score point and risk transition ever observed (plus slash events from the previous oracle, which slashed) | The public Soroban RPC only serves events for 7 days, so this is the only long-term record |
 | `aggregator-state.json` | Dedup keys for reports already submitted | A reset would resubmit tens of thousands of reports |
 | `probe-results/probe-log.json` | Every testnet probe run | The `RealTestnet` evidence trail |
 | `mainnet-probe/probe-YYYY-MM-DD.jsonl` | Every mainnet probe run, stage by stage, appended per day | The `RealMainnet` evidence trail |
 | `mainnet-anchors.json` | Every anchor discovery has ever found | Anchors are only added, never dropped: one that goes down must keep being measured |
 
-[`services/history-archiver`](services/history-archiver) re-reads the RPC's
-event window each round and merges it into `history.json` by
-`(timestamp, value)`, so overlapping rounds never duplicate and a failed
-round never drops what is already archived. The file is written via temp +
+[`services/history-archiver`](services/history-archiver) re-reads the public
+RPC's whole 7-day event window each round (one parallel scan for every
+anchor, about a second) and merges it into `history.json` by
+`(timestamp, value)`, so overlapping rounds never duplicate, a failed round
+never drops what is already archived, and the collector can be down for
+days without leaving a gap.
+
+Two more commands check the archive against a long-retention RPC (Alchemy
+keeps ~70 days of events on testnet):
+
+```bash
+cd services/history-archiver
+npm run verify    # read-only: which on-chain reports the archive lacks, and
+                  # which archived ones no scanned contract ever emitted
+npm run backfill  # the same report, then merges the missing reports in
+```
+
+Both read every deployment in `HISTORY_PREVIOUS_CONTRACTS` as well as the
+current one. The file is written via temp +
 rename with a `.bak` copy, and served read-only over HTTP; the dashboard
 reads it from `HISTORY_ARCHIVE_URL` server-side and unions it into the live
 contract read. If it is unreachable the dashboard still renders live data —

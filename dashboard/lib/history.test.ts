@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { mergeArchiveInto } from './history';
-import type { AnchorViewModel } from './types';
+import { MAX_CHART_POINTS, mergeArchiveInto, thinHistory } from './history';
+import type { AnchorViewModel, ScorePoint } from './types';
 
 function anchor(overrides: Partial<AnchorViewModel> = {}): AnchorViewModel {
   return {
@@ -64,5 +64,32 @@ describe('mergeArchiveInto', () => {
   it('leaves anchors that the archive has never seen alone', () => {
     const merged = mergeArchiveInto([anchor({ anchorId: 'unknown' })], archive({ a: { scoreHistory: [], slashEvents: [] } }));
     expect(merged[0].scoreHistory).toHaveLength(1);
+  });
+});
+
+describe('thinHistory', () => {
+  const points = (n: number): ScorePoint[] =>
+    Array.from({ length: n }, (_, i) => ({ timestamp: new Date(Date.UTC(2026, 8, 11) + i * 60_000).toISOString(), score: i % 101 }));
+
+  it('leaves a short history untouched', () => {
+    const p = points(200);
+    expect(thinHistory(p)).toBe(p);
+  });
+
+  it('keeps at most the limit, only real points, in order, spanning the whole range', () => {
+    const p = points(8336);
+    const thinned = thinHistory(p);
+    expect(thinned).toHaveLength(MAX_CHART_POINTS);
+    expect(thinned[0]).toBe(p[0]);
+    expect(thinned.at(-1)).toBe(p.at(-1));
+    for (const point of thinned) expect(p).toContain(point);
+    const times = thinned.map((x) => x.timestamp);
+    expect([...times].sort()).toEqual(times);
+  });
+
+  it('keeps the latest report with evidence so the evidence link stays exact', () => {
+    const p = points(5000);
+    p[4321] = { ...p[4321], evidence: 'ab'.repeat(32) };
+    expect(thinHistory(p)).toContain(p[4321]);
   });
 });

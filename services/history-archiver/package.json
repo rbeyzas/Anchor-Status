@@ -2,10 +2,12 @@
   "name": "@anchor-oracle/history-archiver",
   "version": "0.1.0",
   "private": true,
-  "description": "Appends PerformanceOracle score events and AnchorRegistry slash events to a durable archive, so the dashboard can show history older than the RPC's ~12h event window.",
+  "description": "Appends PerformanceOracle score/risk events and AnchorRegistry slash events to a durable archive, and can backfill and verify it against a long-retention RPC.",
   "type": "module",
   "scripts": {
-    "archive": "tsx src/index.ts",
+    "archive": "tsx src/index.ts archive",
+    "backfill": "tsx src/index.ts backfill",
+    "verify": "tsx src/index.ts verify",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
