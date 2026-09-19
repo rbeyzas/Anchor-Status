@@ -45,7 +45,7 @@ export function AnchorDetailModal({
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm"
       onClick={onClose}
       role="presentation"
       initial={{ opacity: 0 }}
@@ -54,15 +54,15 @@ export function AnchorDetailModal({
       transition={{ duration: prefersReducedMotion ? 0 : 0.18 }}
     >
       <motion.div
-        className="glass-panel w-full max-w-2xl rounded-card p-6 shadow-glow"
+        className="glass-panel h-full w-full max-w-2xl overflow-y-auto p-6 shadow-glow sm:rounded-l-card sm:p-8"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="anchor-detail-title"
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.97, y: 6 }}
-        transition={{ duration: prefersReducedMotion ? 0 : 0.22, ease: 'easeOut' }}
+        initial={{ x: '100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '100%' }}
+        transition={{ duration: prefersReducedMotion ? 0 : 0.24, ease: 'easeOut' }}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
