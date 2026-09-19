@@ -30,6 +30,41 @@
 
   --color-neutral: 97 93 89;
   --color-neutral-soft: 236 235 233;
+
+  /* Mission-control console tokens (design-system v2). Additive: the
+     v1 names above are untouched, these are new names components can
+     opt into. Light values here; .dark overrides below. */
+  --as-surface-0: 243 245 248;
+  --as-surface-1: 255 255 255;
+  --as-surface-2: 233 237 243;
+  --as-hairline: 217 223 232;
+  --as-hairline-strong: 184 194 209;
+  --as-border-control: 115 127 150;
+  --as-ink: 11 14 20;
+  --as-ink-muted: 77 87 104;
+  --as-ink-faint: 101 112 127;
+  --as-signal: 6 110 73;
+  --as-on-signal: 255 255 255;
+  --as-signal-soft: 220 247 236;
+  --as-pulse: 37 87 214;
+  --as-on-pulse: 255 255 255;
+  --as-pulse-soft: 227 234 255;
+  --as-amber: 154 83 0;
+  --as-on-amber: 255 255 255;
+  --as-amber-soft: 253 235 208;
+  --as-danger: 189 35 35;
+  --as-on-danger: 255 255 255;
+  --as-danger-soft: 253 229 229;
+  --as-score-high: 6 110 73;
+  --as-score-medium: 154 83 0;
+  --as-score-low: 189 35 35;
+  --as-grid-line: rgba(11, 14, 20, 0.0627);
+  --as-scan: rgba(6, 110, 73, 0.149);
+  --as-shadow-panel: 0 0 0 1px rgb(217 223 232), 0 1px 2px rgb(11 14 20 / 0.04), 0 8px 24px rgb(11 14 20 / 0.03);
+  --as-shadow-panel-hover: 0 0 0 1px rgb(184 194 209), 0 2px 4px rgb(11 14 20 / 0.06), 0 12px 32px rgb(11 14 20 / 0.06);
+  --as-shadow-glow-signal: 0 0 0 1px rgb(6 110 73 / 0.4), 0 0 20px rgb(6 110 73 / 0.12);
+  --as-shadow-glow-danger: 0 0 0 1px rgb(189 35 35 / 0.4), 0 0 16px rgb(189 35 35 / 0.12);
+  --as-shadow-focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px rgb(37 87 214);
 }
 
 .dark {
@@ -57,6 +92,39 @@
 
   --color-neutral: 168 164 158;
   --color-neutral-soft: 40 40 38;
+
+  /* Mission-control console tokens: dark is the primary theme. */
+  --as-surface-0: 11 14 20;
+  --as-surface-1: 17 21 29;
+  --as-surface-2: 24 29 39;
+  --as-hairline: 36 43 56;
+  --as-hairline-strong: 54 64 82;
+  --as-border-control: 97 112 138;
+  --as-ink: 233 237 244;
+  --as-ink-muted: 154 164 181;
+  --as-ink-faint: 125 136 155;
+  --as-signal: 46 230 166;
+  --as-on-signal: 6 19 13;
+  --as-signal-soft: 15 42 34;
+  --as-pulse: 107 155 255;
+  --as-on-pulse: 5 11 26;
+  --as-pulse-soft: 16 26 51;
+  --as-amber: 255 176 58;
+  --as-on-amber: 44 31 8;
+  --as-amber-soft: 44 31 8;
+  --as-danger: 255 98 98;
+  --as-on-danger: 46 18 18;
+  --as-danger-soft: 46 18 18;
+  --as-score-high: 46 230 166;
+  --as-score-medium: 255 176 58;
+  --as-score-low: 255 98 98;
+  --as-grid-line: rgba(255, 255, 255, 0.0509);
+  --as-scan: rgba(46, 230, 166, 0.2);
+  --as-shadow-panel: 0 0 0 1px rgb(36 43 56);
+  --as-shadow-panel-hover: 0 0 0 1px rgb(54 64 82);
+  --as-shadow-glow-signal: 0 0 0 1px rgb(46 230 166 / 0.35), 0 0 24px rgb(46 230 166 / 0.18);
+  --as-shadow-glow-danger: 0 0 0 1px rgb(255 98 98 / 0.35), 0 0 20px rgb(255 98 98 / 0.15);
+  --as-shadow-focus-ring: 0 0 0 2px rgb(11 14 20), 0 0 0 4px rgb(107 155 255);
 }
 
 html {
@@ -196,4 +264,136 @@ body {
 }
 .btn-ghost-dark:hover {
   background-color: rgb(255 255 255 / 0.1);
+}
+
+/* ============================================================
+   Mission-control console language (design-system v2). Additive:
+   new "as-" prefixed utilities that read the --as-* tokens above,
+   for components migrating to the console look. Nothing existing
+   is removed or renamed.
+   ============================================================ */
+
+.as-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.as-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--as-ink-faint));
+}
+.as-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  font-weight: 400;
+}
+.as-timestamp {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: rgb(var(--as-ink-faint));
+}
+
+/* The telemetry grid ground: every console page sits on this. */
+.as-grid-ground {
+  background-color: rgb(var(--as-surface-0));
+  background-image: linear-gradient(to right, var(--as-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--as-grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.as-panel {
+  background-color: rgb(var(--as-surface-1));
+  border-radius: 10px;
+  box-shadow: var(--as-shadow-panel);
+  transition: box-shadow 150ms cubic-bezier(0.2, 0, 0, 1), transform 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+.as-panel--hover:hover {
+  box-shadow: var(--as-shadow-panel-hover);
+  transform: translateY(-2px);
+}
+.as-panel--live {
+  box-shadow: var(--as-shadow-glow-signal);
+}
+.as-panel--danger {
+  box-shadow: var(--as-shadow-glow-danger);
+}
+
+.as-dot--beat {
+  animation: as-heartbeat 2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes as-heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+}
+
+@keyframes as-fill {
+  from {
+    transform: scaleY(0.15);
+    opacity: 0.2;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+.as-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 22%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--as-scan), transparent);
+  animation: as-sweep 6s linear infinite;
+}
+@keyframes as-sweep {
+  0% {
+    left: -25%;
+  }
+  66% {
+    left: 105%;
+  }
+  100% {
+    left: 105%;
+  }
+}
+
+@keyframes as-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.as-ticker__track {
+  animation: as-ticker-scroll 40s linear infinite;
+}
+.as-ticker:hover .as-ticker__track {
+  animation-play-state: paused;
+}
+@keyframes as-ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .as-sweep {
+    display: none;
+  }
 }

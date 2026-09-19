@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import { Geist_Mono, Inter } from 'next/font/google';
+import { Geist_Mono, Space_Grotesk } from 'next/font/google';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 
-// One family, as in the reference: Inter carries display, body and UI.
-// Tight negative tracking at display sizes is applied where it is used.
-const sans = Inter({
+// One family carries display, body and UI: Space Grotesk (design-system
+// v2's console language). Tight negative tracking at display sizes is
+// applied where it is used.
+const sans = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-body',
   display: 'swap',
