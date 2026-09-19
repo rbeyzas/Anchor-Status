@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr';
 import { ApplyForm } from '@/components/ApplyForm';
 import { Logo } from '@/components/Logo';
+import { NetworkSwitch } from '@/components/NetworkSwitch';
 import { SiteNav } from '@/components/SiteNav';
 import { StatusChip } from '@/components/StatusChip';
 import { formatRelativeTime } from '@/lib/format';
@@ -10,8 +11,8 @@ import { CHECK_LABEL, normalizeDomainInput, STATUS_COPY, type Application, type 
 import { fetchOnboarding } from '@/lib/onboarding-server';
 
 export const metadata: Metadata = {
-  title: 'Add your anchor: Anchor Status',
-  description: 'Apply to have your Stellar anchor measured: what is checked, and where each application stands.',
+  title: 'Add your mainnet anchor: Anchor Status',
+  description: 'Apply to have your Stellar mainnet anchor measured: what is checked, and where each application stands.',
 };
 
 const RECENT = 20;
@@ -80,6 +81,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
   const checks = [
     ['Public domain', 'Your domain resolves to a public address.'],
     ['stellar.toml', 'It serves a valid stellar.toml at /.well-known/stellar.toml.'],
+    ['Network', 'The toml names the public network, or none. A testnet anchor applies on the testnet page.'],
     ['Transfer server', 'The toml advertises a SEP-24 (TRANSFER_SERVER_SEP0024) or SEP-6 (TRANSFER_SERVER) transfer server.'],
     [
       'Live check',
@@ -105,9 +107,9 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
         <SiteNav />
 
         <header className="pb-10 pt-8 md:pt-14">
-          <StatusChip tone="signal">Mainnet</StatusChip>
+          <NetworkSwitch current="mainnet" />
           <h1 className="mt-5 max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-as-ink sm:text-6xl">
-            Add your anchor.
+            Add your mainnet anchor.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
             Apply with your domain. If your anchor passes the checks below, it is measured every 20 minutes like every
@@ -119,7 +121,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
         <section className="as-panel as-panel--lg p-5 sm:p-8" aria-label="Apply">
           <span className="as-label">Your anchor’s domain</span>
           <div className="mt-3">
-            <ApplyForm />
+            <ApplyForm network="mainnet" />
           </div>
         </section>
 
@@ -155,7 +157,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
             </ol>
             <p className="mt-6 text-sm leading-relaxed text-as-ink-muted">
               An anchor that only distributes someone else’s asset (USDC, for instance) has no asset of its own to age or
-              count, so it is admitted on the first four checks.
+              count, so it is admitted on the first five checks.
             </p>
           </div>
           <div>

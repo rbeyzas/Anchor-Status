@@ -4,7 +4,7 @@
 // is the trust boundary). Safe to import from client components.
 
 export type ApplicationStatus = 'received' | 'accepted' | 'rejected' | 'already_tracked';
-export type CheckName = 'public_host' | 'stellar_toml' | 'transfer_server' | 'live_probe' | 'issuer_age' | 'transfer_count';
+export type CheckName = 'public_host' | 'stellar_toml' | 'network' | 'transfer_server' | 'live_probe' | 'issuer_age' | 'transfer_count';
 
 export interface ApplicationCheck {
   name: CheckName;
@@ -53,6 +53,7 @@ export function normalizeDomainInput(input: unknown): string | null {
 export const CHECK_LABEL: Record<CheckName, string> = {
   public_host: 'Public domain',
   stellar_toml: 'stellar.toml',
+  network: 'Network',
   transfer_server: 'Transfer server',
   live_probe: 'Live check',
   issuer_age: 'Issuer age',

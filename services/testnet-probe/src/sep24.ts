@@ -28,6 +28,7 @@ export async function initiateInteractiveDeposit(
   body.set('asset_code', assetCode);
   body.set('amount', amount);
   const res = await fetch(`${transferServerUrl.replace(/\/$/, '')}/transactions/deposit/interactive`, {
+    signal: AbortSignal.timeout(20_000),
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
@@ -50,9 +51,10 @@ export async function getTransactionStatus(
   url.searchParams.set('id', id);
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) {
-    throw new Error(`SEP-24 /transaction status check failed: HTTP ${res.status}`);
+    throw new Error(`/transaction status check failed: HTTP ${res.status}`);
   }
   const { transaction } = (await res.json()) as { transaction: Sep24Transaction };
   return transaction;
@@ -90,5 +92,5 @@ export async function pollUntilTerminal(
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
   if (last) return last;
-  throw new Error('Timed out waiting for SEP-24 transaction status');
+  throw new Error('Timed out waiting for the transaction status');
 }

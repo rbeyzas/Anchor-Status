@@ -17,10 +17,11 @@ afterEach(() => {
 async function start(over: Partial<IntakeOptions> = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'intake-'));
   const paths = onboardingPaths(dir);
+  const testnetPaths = onboardingPaths(path.join(dir, 'testnet'));
   const handler = createIntakeHandler({
-    paths,
+    paths: { mainnet: paths, testnet: testnetPaths },
     token: TOKEN,
-    cooldownHours: 24,
+    cooldownHours: { mainnet: 24, testnet: 1 },
     maxPending: 50,
     perClient: { max: 10, windowMs: 3_600_000 },
     now: () => new Date('2026-09-19T12:00:00Z'),
@@ -30,13 +31,13 @@ async function start(over: Partial<IntakeOptions> = {}) {
   servers.push(server);
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  const post = (body: unknown, headers: Record<string, string> = {}) =>
-    fetch(`${base}/`, {
+  const post = (body: unknown, headers: Record<string, string> = {}, route = '/') =>
+    fetch(`${base}${route}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-onboarding-token': TOKEN, ...headers },
       body: typeof body === 'string' ? body : JSON.stringify(body),
     });
-  return { base, paths, post };
+  return { base, paths, testnetPaths, post };
 }
 
 describe('intake server', () => {
@@ -44,10 +45,10 @@ describe('intake server', () => {
     const { post, paths } = await start();
     const first = await post({ domain: 'https://New-Anchor.com/.well-known/stellar.toml' });
     expect(first.status).toBe(202);
-    expect(await first.json()).toEqual({ domain: 'new-anchor.com', status: 'received' });
+    expect(await first.json()).toEqual({ network: 'mainnet', domain: 'new-anchor.com', status: 'received' });
     const again = await post({ domain: 'new-anchor.com' });
     expect(again.status).toBe(200);
-    expect(await again.json()).toEqual({ domain: 'new-anchor.com', status: 'pending' });
+    expect(await again.json()).toEqual({ network: 'mainnet', domain: 'new-anchor.com', status: 'pending' });
     expect(readSubmissions(paths.submissions)).toHaveLength(1);
   });
 
@@ -96,9 +97,37 @@ describe('intake server', () => {
     expect(await res.json()).toMatchObject({ status: 'rejected', retry_after: '2026-09-20T10:20:00.000Z' });
   });
 
+  it('lets a rejected testnet domain try again after an hour, not a day', async () => {
+    const { post, testnetPaths } = await start();
+    saveOnboardingFile(testnetPaths.candidates, {
+      updated_at: '2026-09-19T11:00:00Z',
+      rule: 'money flow',
+      candidates: [
+        { domain: 'a.test', status: 'rejected', submitted_at: '2026-09-19T10:00:00Z', checked_at: '2026-09-19T10:30:00Z', attempts: 0, checks: [] },
+        { domain: 'b.test', status: 'rejected', submitted_at: '2026-09-19T11:00:00Z', checked_at: '2026-09-19T11:45:00Z', attempts: 0, checks: [] },
+      ],
+    });
+    // Checked 90 minutes ago: allowed. Checked 15 minutes ago: not yet.
+    expect((await post({ domain: 'a.test' }, {}, '/testnet')).status).toBe(202);
+    expect((await post({ domain: 'b.test' }, {}, '/testnet')).status).toBe(429);
+  });
+
+  it('keeps testnet applications in their own queue, apart from mainnet', async () => {
+    const { post, paths, testnetPaths } = await start();
+    const t = await post({ domain: 'tr-mock-anchor.fly.dev' }, {}, '/testnet');
+    expect(t.status).toBe(202);
+    expect(await t.json()).toEqual({ network: 'testnet', domain: 'tr-mock-anchor.fly.dev', status: 'received' });
+    expect(readSubmissions(testnetPaths.submissions).map((s) => s.domain)).toEqual(['tr-mock-anchor.fly.dev']);
+    expect(readSubmissions(paths.submissions)).toHaveLength(0);
+    // The same domain can apply on mainnet separately: another queue.
+    expect((await post({ domain: 'tr-mock-anchor.fly.dev' }, {}, '/mainnet')).status).toBe(202);
+    expect(readSubmissions(paths.submissions)).toHaveLength(1);
+  });
+
   it('answers health checks and nothing else', async () => {
     const { base } = await start();
     expect((await fetch(`${base}/health`)).status).toBe(200);
     expect((await fetch(`${base}/onboarding.json`)).status).toBe(404);
+    expect((await fetch(`${base}/devnet`, { method: 'POST' })).status).toBe(404);
   });
 });

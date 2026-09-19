@@ -17,10 +17,15 @@ interface Outcome {
 const dateTime = (iso: string) =>
   new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }) + ' UTC';
 
-function outcomeFor(status: number, body: { domain?: string; status?: string; retry_after?: string; error?: string }): Outcome {
+function outcomeFor(
+  status: number,
+  body: { domain?: string; status?: string; retry_after?: string; error?: string },
+  network: 'mainnet' | 'testnet',
+): Outcome {
   const domain = body.domain;
   if (status === 202) {
-    return { tone: 'signal', chip: 'Received', text: 'It is checked in the next round, within 20 minutes.', domain };
+    const what = network === 'testnet' ? 'Its money-flow test runs' : 'It is checked';
+    return { tone: 'signal', chip: 'Received', text: `${what} in the next round, within 20 minutes.`, domain };
   }
   if (status === 200) {
     switch (body.status) {
@@ -44,7 +49,9 @@ function outcomeFor(status: number, body: { domain?: string; status?: string; re
   return { tone: 'danger', chip: 'Not sent', text: body.error ?? 'Something went wrong. Try again in a few minutes.' };
 }
 
-export function ApplyForm() {
+export function ApplyForm({ network = 'mainnet' }: { network?: 'mainnet' | 'testnet' }) {
+  const endpoint = network === 'testnet' ? '/api/onboarding/testnet' : '/api/onboarding';
+  const statusPage = network === 'testnet' ? '/apply/testnet' : '/apply';
   const [value, setValue] = useState('');
   const [sending, setSending] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -58,12 +65,12 @@ export function ApplyForm() {
     }
     setSending(true);
     try {
-      const res = await fetch('/api/onboarding', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ domain }),
       });
-      setOutcome(outcomeFor(res.status, await res.json().catch(() => ({}))));
+      setOutcome(outcomeFor(res.status, await res.json().catch(() => ({})), network));
     } catch {
       setOutcome({ tone: 'danger', chip: 'Not sent', text: 'Could not reach the server. Check your connection and try again.' });
     } finally {
@@ -74,16 +81,16 @@ export function ApplyForm() {
   return (
     <div className="flex flex-col gap-4">
       <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row" noValidate>
-        <label htmlFor="apply-domain" className="sr-only">
+        <label htmlFor={`apply-domain-${network}`} className="sr-only">
           Your anchor’s domain
         </label>
         <input
-          id="apply-domain"
+          id={`apply-domain-${network}`}
           type="text"
           inputMode="url"
           autoComplete="url"
           spellCheck={false}
-          placeholder="anchor.example.com"
+          placeholder={network === 'testnet' ? 'testanchor.example.com' : 'anchor.example.com'}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           maxLength={300}
@@ -106,7 +113,7 @@ export function ApplyForm() {
             </StatusChip>
             <span>{outcome.text}</span>
             {outcome.domain && (
-              <Link href={`/apply?domain=${encodeURIComponent(outcome.domain)}`} className="font-medium text-as-signal hover:underline">
+              <Link href={`${statusPage}?domain=${encodeURIComponent(outcome.domain)}`} className="font-medium text-as-signal hover:underline">
                 See its checks
               </Link>
             )}

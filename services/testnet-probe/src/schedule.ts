@@ -1,12 +1,14 @@
 import schedule from 'node-schedule';
+import { loadTestnetAnchors } from './anchors.js';
 import { config } from './config.js';
-import { appendResult, runProbe } from './probe.js';
+import { appendResult, probeAnchor, REFERENCE_ANCHOR } from './probe.js';
 
 console.log(`[testnet-probe] scheduling probe with cron "${config.scheduleCron}"`);
 
 async function tick() {
-  const result = await runProbe();
-  appendResult(result);
+  for (const anchor of loadTestnetAnchors(config.anchorsPath, REFERENCE_ANCHOR)) {
+    appendResult(await probeAnchor(anchor));
+  }
 }
 
 schedule.scheduleJob(config.scheduleCron, () => {

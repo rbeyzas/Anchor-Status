@@ -5,6 +5,7 @@
 //
 //   ONBOARDING_INTAKE_TOKEN=... npm run intake
 import http from 'node:http';
+import path from 'node:path';
 import { onboardingPaths, resolveOnboardingDir } from './candidates.js';
 import { createIntakeHandler } from './intake.js';
 
@@ -17,11 +18,16 @@ if (token.length < 32) {
 const port = Number(process.env.ONBOARDING_INTAKE_PORT ?? '8787');
 const host = process.env.ONBOARDING_INTAKE_HOST ?? '127.0.0.1';
 const dir = resolveOnboardingDir();
+// Testnet applications: a queue of their own, read by services/testnet-probe.
+const testnetDir = process.env.ONBOARDING_TESTNET_DIR ?? path.join(dir, 'testnet');
 
 const handler = createIntakeHandler({
-  paths: onboardingPaths(dir),
+  paths: { mainnet: onboardingPaths(dir), testnet: onboardingPaths(testnetDir) },
   token,
-  cooldownHours: Number(process.env.ONBOARDING_REJECT_COOLDOWN_HOURS ?? '24'),
+  cooldownHours: {
+    mainnet: Number(process.env.ONBOARDING_REJECT_COOLDOWN_HOURS ?? '24'),
+    testnet: Number(process.env.ONBOARDING_TESTNET_COOLDOWN_HOURS ?? '1'),
+  },
   maxPending: Number(process.env.ONBOARDING_MAX_PENDING ?? '50'),
   perClient: { max: Number(process.env.ONBOARDING_PER_CLIENT_PER_HOUR ?? '10'), windowMs: 60 * 60 * 1000 },
 });
@@ -29,4 +35,4 @@ const handler = createIntakeHandler({
 const server = http.createServer((req, res) => void handler(req, res));
 server.requestTimeout = 10_000;
 server.headersTimeout = 5_000;
-server.listen(port, host, () => console.log(`[intake] listening on ${host}:${port}, writing to ${dir}`));
+server.listen(port, host, () => console.log(`[intake] listening on ${host}:${port}; mainnet -> ${dir}, testnet -> ${testnetDir}`));

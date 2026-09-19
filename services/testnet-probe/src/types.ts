@@ -14,12 +14,47 @@ export interface ProbeResult {
    * before the anchor could succeed or fail. Never submitted on-chain. */
   inconclusive?: boolean;
   error?: string;
+  /** Which transfer protocol the money flow used. */
+  protocol?: 'sep24' | 'sep6';
+  asset?: string;
+  /** Every step, with its time and, for payments, the ledger transaction. */
+  steps?: FlowStep[];
 }
 
 export interface StellarTomlInfo {
   webAuthEndpoint: string;
   signingKey: string;
-  transferServerSep24: string;
+  transferServerSep24?: string;
+  /** SEP-6 TRANSFER_SERVER. */
+  transferServerSep6?: string;
   /** [[CURRENCIES]] entries that declare an on-chain issuer. */
   currencies: Array<{ code: string; issuer: string }>;
+  /** ACCOUNTS: the anchor's own Stellar accounts (a deposit is paid from one). */
+  accounts: string[];
+  networkPassphrase?: string;
+  orgName?: string;
+}
+
+/** One step of the money-flow check, in order. */
+export type FlowStepName =
+  | 'toml'
+  | 'account'
+  | 'trustline'
+  | 'sep10'
+  | 'deposit'
+  | 'deposit_settled'
+  | 'deposit_onchain'
+  | 'withdraw'
+  | 'withdraw_onchain'
+  | 'withdraw_settled';
+
+export interface FlowStep {
+  step: FlowStepName;
+  /** null: does not apply to this anchor. */
+  ok: boolean | null;
+  ms?: number;
+  detail: string;
+  /** A Stellar transaction anyone can look up. */
+  tx?: string;
+  amount?: string;
 }

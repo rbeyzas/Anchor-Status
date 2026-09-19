@@ -28,7 +28,13 @@ log "mainnet-probe (SEP-1/6/10/24 reachability, no funds moved)"
 log "passive-monitor (mainnet payment activity, read-only)"
 (cd services/passive-monitor && npm run --silent start) || log "passive-monitor failed"
 
-log "testnet-probe (real SEP-10 + SEP-24 deposit)"
+# Testnet, kept apart from mainnet: its own applications queue, its own
+# anchor list, and a real money flow instead of a read-only check.
+log "testnet-probe: admit testnet applicants, register them on-chain (RealTestnet)"
+(cd services/testnet-probe && npm run --silent onboard) || log "testnet onboarding failed"
+(cd services/testnet-probe && npm run --silent register) || log "testnet registration failed"
+
+log "testnet-probe (money flow: SEP-10, deposit and withdrawal, every payment checked on the ledger)"
 (cd services/testnet-probe && npm run --silent probe) || log "testnet-probe reported a failure"
 
 log "aggregator (submit new reports to PerformanceOracle)"

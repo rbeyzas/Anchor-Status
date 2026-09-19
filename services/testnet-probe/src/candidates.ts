@@ -1,15 +1,15 @@
-// Self-service onboarding: anchors applying to be measured. Two files, so
-// that the always-on intake server and the cron round never write the same
-// file: the intake only appends to submissions.jsonl; the cron round is the
-// only writer of onboarding.json, which is published as-is (nothing in it is
-// private: a domain its owner submitted, and what we measured).
+// Testnet applications: the same two-file contract as mainnet's
+// (services/mainnet-probe/src/candidates.ts), in a directory of their own.
+// The intake only appends to submissions.jsonl; this service's onboarding
+// step is the only writer of onboarding.json, published as-is.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import type { FlowStepName } from './types.js';
 
 export type CandidateStatus = 'received' | 'accepted' | 'rejected' | 'already_tracked';
 
-export type CheckName = 'public_host' | 'stellar_toml' | 'network' | 'transfer_server' | 'live_probe' | 'issuer_age' | 'transfer_count';
+/** 'public_host', then the money-flow steps (flow.ts). */
+export type CheckName = 'public_host' | FlowStepName;
 
 export interface CheckResult {
   name: CheckName;
@@ -17,8 +17,10 @@ export interface CheckResult {
   passed: boolean | null;
   /** What was measured, against which threshold, in a sentence. */
   detail: string;
-  value?: number;
-  threshold?: number;
+  ms?: number;
+  /** A ledger transaction anyone can look up. */
+  tx?: string;
+  amount?: string;
 }
 
 export interface OnboardingCandidate {
@@ -40,9 +42,8 @@ export interface OnboardingFile {
   updated_at: string;
   /** Latest submitted_at read from submissions.jsonl: anything later is unread. */
   ingested_through?: string;
-  thresholds?: { min_age_days: number; min_transfers: number };
-  /** Testnet's file says its rule in words instead. */
-  rule?: string;
+  /** What admission takes, in words (there is no numeric threshold). */
+  rule: string;
   candidates: OnboardingCandidate[];
 }
 
@@ -50,19 +51,6 @@ export interface Submission {
   domain: string;
   submitted_at: string;
 }
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-/** Shared by the cron round and the intake server, which loads no .env of
- * its own (it is the one process facing the internet, and needs no secret). */
-export function resolveOnboardingDir(): string {
-  return path.resolve(__dirname, '../../..', process.env.ONBOARDING_DIR ?? 'services/mainnet-probe/output/onboarding');
-}
-
-export const onboardingPaths = (dir: string) => ({
-  submissions: path.join(dir, 'submissions.jsonl'),
-  candidates: path.join(dir, 'onboarding.json'),
-});
 
 // A hostname with a public-looking TLD, 253 characters at most. No ports,
 // paths, IP literals or single-label names: we only ever fetch
@@ -113,40 +101,6 @@ export function readSubmissions(filePath: string): Submission[] {
         return [];
       }
     });
-}
-
-export function appendSubmission(filePath: string, s: Submission): void {
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.appendFileSync(filePath, `${JSON.stringify(s)}\n`);
-}
-
-const HOUR_MS = 60 * 60 * 1000;
-
-export type Decision =
-  | { kind: 'new' }
-  | { kind: 'existing'; status: CandidateStatus | 'pending' }
-  | { kind: 'cooldown'; retry_after: string };
-
-/**
- * What a new submission of `domain` means, given what is already known. A
- * domain is checked once: again only once it was rejected, and not sooner
- * than `cooldownHours` after that check (it is what changes an age or a
- * transfer count). `pending` is a submission the cron round has not read yet.
- */
-export function decideSubmission(
-  domain: string,
-  file: OnboardingFile | null,
-  submissions: Submission[],
-  now: Date,
-  cooldownHours: number,
-): Decision {
-  const existing = file?.candidates.find((c) => c.domain === domain);
-  const readUpTo = file?.ingested_through ?? '';
-  if (submissions.some((s) => s.domain === domain && s.submitted_at > readUpTo)) return { kind: 'existing', status: 'pending' };
-  if (!existing) return { kind: 'new' };
-  if (existing.status !== 'rejected') return { kind: 'existing', status: existing.status };
-  const retryAt = Date.parse(existing.checked_at ?? existing.submitted_at) + cooldownHours * HOUR_MS;
-  return now.getTime() >= retryAt ? { kind: 'new' } : { kind: 'cooldown', retry_after: new Date(retryAt).toISOString() };
 }
 
 /** Folds the unread submissions into the candidate list: a new domain, or a

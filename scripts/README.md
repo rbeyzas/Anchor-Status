@@ -34,6 +34,13 @@ systemctl daemon-reload && systemctl enable --now onboarding-intake
 curl -s http://127.0.0.1:8787/health   # {"ok":true}
 ```
 
+Testnet applications have their own queue under the same intake:
+
+```bash
+install -d -o anchor-intake -g anchor-intake -m 755 /var/lib/anchor-status/onboarding/testnet
+echo 'TESTNET_ANCHORS_PATH=/var/lib/anchor-status/testnet-anchors.json' >> /opt/anchor-status/.env
+```
+
 nginx: `limit_req_zone $binary_remote_addr zone=onboarding:1m rate=30r/m;` in
 the `http` block, and in the server block:
 
@@ -43,8 +50,17 @@ location = /api/onboarding {
     client_max_body_size 4k;
     proxy_pass http://127.0.0.1:8787/;
 }
+location = /api/onboarding/testnet {
+    limit_req zone=onboarding burst=10 nodelay;
+    client_max_body_size 4k;
+    proxy_pass http://127.0.0.1:8787/testnet;
+}
 location = /onboarding.json {
     alias /var/lib/anchor-status/onboarding/onboarding.json;
+    add_header Cache-Control "no-cache";
+}
+location = /onboarding-testnet.json {
+    alias /var/lib/anchor-status/onboarding/testnet/onboarding.json;
     add_header Cache-Control "no-cache";
 }
 ```

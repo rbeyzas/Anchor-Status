@@ -29,9 +29,10 @@ and visualizes it (read-only — never signs a transaction).
   lands exactly on the on-chain score), and the chain from that check's
   evidence hash to the card. Whatever cannot be drawn from real data falls
   back to text; nothing is filled in.
-- `/apply`: an anchor operator applies with a domain; the page lists what
-  is checked, each application's results, and recent applications (see
-  below).
+- `/apply` (mainnet) and `/apply/testnet`: an anchor operator applies with
+  a domain. Two pages, two queues, two published files: mainnet is checked
+  read-only, testnet with a real money flow whose ledger transactions are
+  linked from each step.
 
 ## Score cards
 
@@ -86,12 +87,14 @@ scores. There is no demo data.
 
 ## Applications
 
-`/apply` posts to `/api/onboarding`, the dashboard's only API route: it
-validates the domain and forwards it, server-side, to the collector's
-intake with a shared token and the caller's address (for the intake's
-per-client limit; never stored). The page reads the collector's public
-`onboarding.json` for thresholds and results; nothing about applications
-is decided here. See `services/mainnet-probe/README.md` for the checks.
+`/apply` posts to `/api/onboarding` and `/apply/testnet` to
+`/api/onboarding/testnet`: each validates the domain and forwards it,
+server-side, to that network's queue on the collector's intake, with a
+shared token and the caller's address (for the intake's per-client limit;
+never stored). The pages read the collector's public `onboarding.json` and
+`onboarding-testnet.json`; nothing about an application is decided here.
+The checks: `services/mainnet-probe/README.md` (mainnet, read-only) and
+`services/testnet-probe/README.md` (testnet, a real money flow).
 
 ## Setup and running
 
@@ -110,5 +113,7 @@ and `NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID`. Optional, server-side:
 `SCORE_SUMMARY_URL`, and `NEXT_PUBLIC_EVIDENCE_BASE_URL` for the evidence
 links. Applications need `ONBOARDING_INTAKE_URL` and
 `ONBOARDING_INTAKE_TOKEN` (server-side; without them `/apply` says
-applications are not open yet), and read `onboarding.json` beside
-`ANCHOR_STATUS_URL` (or `ONBOARDING_STATUS_URL`).
+applications are not open yet; the testnet route uses the same intake at
+`…/testnet`, or `ONBOARDING_TESTNET_INTAKE_URL`), and read
+`onboarding.json` and `onboarding-testnet.json` beside `ANCHOR_STATUS_URL`
+(or `ONBOARDING_STATUS_URL` / `ONBOARDING_TESTNET_STATUS_URL`).

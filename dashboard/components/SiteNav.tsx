@@ -11,8 +11,9 @@ import { ThemeToggle } from './ThemeToggle';
 // scores page, where the CTA would point at itself.
 export function SiteNav({ showCta = true }: { showCta?: boolean }) {
   const pathname = usePathname();
+  const isCurrent = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const linkClass = (href: string) =>
-    `text-sm transition-colors ${pathname === href ? 'text-as-ink' : 'text-as-ink-muted hover:text-as-ink'}`;
+    `text-sm transition-colors ${isCurrent(href) ? 'text-as-ink' : 'text-as-ink-muted hover:text-as-ink'}`;
   return (
     <nav className="flex items-center justify-between gap-4 py-6" aria-label="Primary">
       <Link
@@ -26,7 +27,7 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
         <Link
           href="/methodology"
           className={`hidden whitespace-nowrap sm:inline ${linkClass('/methodology')}`}
-          aria-current={pathname === '/methodology' ? 'page' : undefined}
+          aria-current={isCurrent('/methodology') ? 'page' : undefined}
         >
           How we measure
         </Link>
@@ -36,7 +37,7 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
         <Link
           href="/apply"
           className={`hidden lg:inline ${linkClass('/apply')}`}
-          aria-current={pathname === '/apply' ? 'page' : undefined}
+          aria-current={isCurrent('/apply') ? 'page' : undefined}
         >
           Add your anchor
         </Link>

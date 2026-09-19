@@ -1,146 +1,121 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { config } from './config.js';
-import { createAndFundAccount } from './friendbot.js';
-import { completeInteractiveFlow } from './interactive.js';
-import { authenticateSep10 } from './sep10.js';
-import { initiateInteractiveDeposit, pollUntilTerminal } from './sep24.js';
-import { fetchAnchorToml } from './toml.js';
 import { addTrustline } from './trustline.js';
-import type { ProbeResult } from './types.js';
+import { loadTestnetAnchors, type TestnetAnchor } from './anchors.js';
+import { config } from './config.js';
 import { writeEvidence } from './evidence.js';
+import { runMoneyFlow, type FlowDeps, type FlowResult, type FlowTarget } from './flow.js';
+import { createAndFundAccount } from './friendbot.js';
+import { verifyPayment } from './horizon-verify.js';
+import { completeInteractiveFlow } from './interactive.js';
+import { balanceOf, memoFor, sendPayment } from './payment.js';
+import { resolvesToPublicAddress } from './public-host.js';
+import { authenticateSep10 } from './sep10.js';
+import { completeSandboxLeg, getSep6Info, requestDeposit, requestWithdraw } from './sep6.js';
+import { getTransactionStatus, initiateInteractiveDeposit, pollUntilTerminal } from './sep24.js';
+import { fetchAnchorToml } from './toml.js';
+import type { ProbeResult } from './types.js';
 
 /** True when the run failed on our side (browser missing or unlaunchable,
  * Friendbot down) rather than on the anchor's. Blaming an anchor for our
  * own broken tooling puts a false failure on-chain, which cannot be undone,
  * so these are recorded as inconclusive and never submitted. */
 export function isProbeEnvironmentError(message: string): boolean {
-  return /browserType\.launch|Executable doesn't exist|playwright install|Friendbot funding failed/i.test(
-    message,
-  );
+  return /browserType\.launch|Executable doesn't exist|playwright install|Friendbot funding failed/i.test(message);
 }
 
-/** Publishes the evidence for a conclusive run and returns its hash. */
-function publishEvidence(result: ProbeResult, evidence: Record<string, unknown>): string {
-  return writeEvidence(config.evidenceDir, {
-    kind: 'testnet-probe',
-    network: 'testnet',
-    anchor_id: result.anchor_id,
-    domain: result.domain,
-    started_at: result.timestamp,
-    verdict: {
-      success: result.success,
-      settlement_seconds: result.settlement_seconds,
-      final_transaction_status: result.final_transaction_status,
-      ...(result.error ? { error: result.error } : {}),
+/** The anchor that is always measured: SDF's reference anchor. */
+export const REFERENCE_ANCHOR: TestnetAnchor = {
+  anchor_id: config.anchorId,
+  name: 'Stellar test anchor',
+  domain: config.anchorDomain,
+  asset_code: config.assetCode,
+  first_seen: '2026-09-01T00:00:00.000Z',
+  origin: 'reference',
+};
+
+/** The real network, behind the flow's seams. */
+export function liveDeps(target: FlowTarget): FlowDeps {
+  return {
+    fetchToml: (domain) => fetchAnchorToml(domain),
+    createAccount: () => createAndFundAccount(config.friendbotUrl),
+    addTrustline: (kp, code, issuer) => addTrustline(config.horizonTestnetUrl, kp, code, issuer, config.networkPassphrase),
+    sep10: (toml, kp) => authenticateSep10(toml, kp, config.networkPassphrase),
+    sep24Deposit: (server, token, code, amount) => initiateInteractiveDeposit(server, token, code, amount),
+    sep24Interactive: (url, amount) => completeInteractiveFlow(url, amount, config.interactiveTimeoutMs, config.headless),
+    sep6Info: (server) => getSep6Info(server),
+    sep6Deposit: (server, token, p) => requestDeposit(server, token, p),
+    sep6Withdraw: (server, token, p) => requestWithdraw(server, token, p),
+    // Only a page on the anchor's own host or its transfer server's, and
+    // only a public address: the button is pressed from our server.
+    sandbox: async (url) => {
+      const u = new URL(url);
+      const toml = await fetchAnchorToml(target.domain);
+      const allowed = new Set([target.domain, toml.transferServerSep6, toml.transferServerSep24].filter(Boolean).map((h) => (h!.includes('/') ? new URL(h!).host : h!)));
+      if (u.protocol !== 'https:' || !allowed.has(u.host)) throw new Error(`more_info_url ${u.host} is not the anchor's own host`);
+      if (!(await resolvesToPublicAddress(u.hostname))) throw new Error('more_info_url does not resolve to a public address');
+      return completeSandboxLeg(url);
     },
-    ...evidence,
-  });
+    poll: async (server, token, id) => (await pollUntilTerminal(server, token, id, config.pollIntervalMs, config.pollTimeoutMs)) as never,
+    getTransaction: async (server, token, id) => (await getTransactionStatus(server, token, id)) as never,
+    pay: (kp, p) =>
+      sendPayment(
+        config.horizonTestnetUrl,
+        kp,
+        { destination: p.destination, code: p.code, issuer: p.issuer, amount: p.amount, memo: memoFor(p.memoType, p.memo) },
+        config.networkPassphrase,
+      ),
+    verify: (hash, want) => verifyPayment(config.horizonTestnetUrl, hash, want),
+    balance: (account, code, issuer) => balanceOf(config.horizonTestnetUrl, account, code, issuer),
+    depositAmount: config.depositAmount,
+    now: () => Date.now(),
+  };
 }
 
-export async function runProbe(): Promise<ProbeResult> {
-  const startedAt = new Date();
-  const startMs = Date.now();
-  // Filled in as the run goes, so a failure still publishes what it reached.
-  const evidence: Record<string, unknown> = {};
-
-  try {
-    console.log(`[testnet-probe] funding a fresh testnet account via ${config.friendbotUrl}`);
-    const keypair = await createAndFundAccount(config.friendbotUrl);
-    evidence.probe_account = keypair.publicKey();
-
-    console.log(`[testnet-probe] fetching stellar.toml from ${config.anchorDomain}`);
-    const toml = await fetchAnchorToml(config.anchorDomain);
-    evidence.stellar_toml = { signing_key: toml.signingKey };
-
-    const currency = toml.currencies.find((c) => c.code === config.assetCode);
-    if (!currency) {
-      throw new Error(`${config.anchorDomain}'s stellar.toml lists no issuer for ${config.assetCode}`);
-    }
-    console.log(`[testnet-probe] adding trustline to ${currency.code}:${currency.issuer}`);
-    await addTrustline(config.horizonTestnetUrl, keypair, currency.code, currency.issuer, config.networkPassphrase);
-
-    console.log('[testnet-probe] performing SEP-10 authentication');
-    const { token, challenge } = await authenticateSep10(toml, keypair, config.networkPassphrase);
-    evidence.sep10_challenge = challenge;
-
-    console.log(`[testnet-probe] initiating SEP-24 interactive deposit (${config.assetCode} ${config.depositAmount})`);
-    const deposit = await initiateInteractiveDeposit(
-      toml.transferServerSep24,
-      token,
-      config.assetCode,
-      config.depositAmount,
-    );
-    evidence.sep24_transaction_id = deposit.id;
-
-    console.log(`[testnet-probe] driving interactive flow at ${deposit.url}`);
-    const interacted = await completeInteractiveFlow(deposit.url, config.depositAmount, config.interactiveTimeoutMs, config.headless);
-    if (!interacted) {
-      // The anchor's API answered SEP-1/10/24 correctly; only our headless
-      // browser failed to render its UI. That says nothing about the anchor.
-      const settlementSeconds = (Date.now() - startMs) / 1000;
-      console.warn('[testnet-probe] interactive form never rendered in headless browser; recording as inconclusive');
-      return {
-        anchor_id: config.anchorId,
-        domain: config.anchorDomain,
-        source_type: 'RealTestnet',
-        success: false,
-        inconclusive: true,
-        settlement_seconds: settlementSeconds,
-        timestamp: startedAt.toISOString(),
-        final_transaction_status: null,
-        error: 'interactive UI did not render in headless browser',
-      };
-    }
-
-    console.log('[testnet-probe] polling transaction status until terminal');
-    const finalTx = await pollUntilTerminal(
-      toml.transferServerSep24,
-      token,
-      deposit.id,
-      config.pollIntervalMs,
-      config.pollTimeoutMs,
-    );
-
-    const settlementSeconds = (Date.now() - startMs) / 1000;
-    const success = finalTx.status === 'completed';
-
-    const result: ProbeResult = {
-      anchor_id: config.anchorId,
-      domain: config.anchorDomain,
-      source_type: 'RealTestnet',
-      success,
-      settlement_seconds: settlementSeconds,
-      timestamp: startedAt.toISOString(),
-      final_transaction_status: finalTx.status,
-    };
-    if (finalTx.stellar_transaction_id) evidence.stellar_transaction_id = finalTx.stellar_transaction_id;
-    result.evidence_hash = publishEvidence(result, evidence);
-    console.log(`[testnet-probe] done: ${success ? 'SUCCESS' : 'FAILURE'} in ${settlementSeconds.toFixed(1)}s (status=${finalTx.status})`);
-    return result;
-  } catch (err) {
-    const settlementSeconds = (Date.now() - startMs) / 1000;
-    const message = (err as Error).message;
-    const environmentFailure = isProbeEnvironmentError(message);
-    const result: ProbeResult = {
-      anchor_id: config.anchorId,
-      domain: config.anchorDomain,
-      source_type: 'RealTestnet',
-      success: false,
-      ...(environmentFailure ? { inconclusive: true } : {}),
-      settlement_seconds: settlementSeconds,
-      timestamp: startedAt.toISOString(),
-      final_transaction_status: null,
-      error: (err as Error).message,
-    };
-    // An anchor-side failure is a claim too, and gets the same evidence.
-    if (!environmentFailure) result.evidence_hash = publishEvidence(result, evidence);
-    console.error(
-      `[testnet-probe] failed after ${settlementSeconds.toFixed(1)}s: ${result.error}` +
-        (environmentFailure ? ' (our environment, recorded as inconclusive)' : ''),
-    );
-    return result;
+/** One anchor's money-flow run as the result the aggregator reads, with its
+ * evidence published (unless the failure was ours). */
+export function toProbeResult(anchor: FlowTarget, startedAt: Date, flow: FlowResult): ProbeResult {
+  const inconclusive = flow.inconclusive || (!flow.success && isProbeEnvironmentError(flow.error ?? ''));
+  const result: ProbeResult = {
+    anchor_id: anchor.anchor_id,
+    domain: anchor.domain,
+    source_type: 'RealTestnet',
+    success: flow.success,
+    ...(inconclusive ? { inconclusive: true } : {}),
+    settlement_seconds: flow.seconds,
+    timestamp: startedAt.toISOString(),
+    final_transaction_status: flow.final_transaction_status,
+    ...(flow.error ? { error: flow.error } : {}),
+    ...(flow.protocol ? { protocol: flow.protocol } : {}),
+    ...(flow.asset ? { asset: flow.asset } : {}),
+    steps: flow.steps,
+  };
+  if (!inconclusive) {
+    result.evidence_hash = writeEvidence(config.evidenceDir, {
+      kind: 'testnet-probe',
+      network: 'testnet',
+      anchor_id: result.anchor_id,
+      domain: result.domain,
+      started_at: result.timestamp,
+      verdict: {
+        success: result.success,
+        settlement_seconds: result.settlement_seconds,
+        final_transaction_status: result.final_transaction_status,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      ...(flow.protocol ? { protocol: flow.protocol } : {}),
+      steps: flow.steps,
+      ...flow.evidence,
+    });
   }
+  return result;
+}
+
+export async function probeAnchor(anchor: TestnetAnchor): Promise<ProbeResult> {
+  const startedAt = new Date();
+  const target: FlowTarget = { anchor_id: anchor.anchor_id, domain: anchor.domain, ...(anchor.asset_code ? { asset_code: anchor.asset_code } : {}) };
+  const flow = await runMoneyFlow(target, liveDeps(target));
+  return toProbeResult(target, startedAt, flow);
 }
 
 export function appendResult(result: ProbeResult, resultsPath: string = config.resultsPath): void {
@@ -157,9 +132,24 @@ export function appendResult(result: ProbeResult, resultsPath: string = config.r
   fs.writeFileSync(resultsPath, JSON.stringify(existing, null, 2));
 }
 
+const verdict = (r: ProbeResult) => (r.inconclusive ? 'INCONCLUSIVE' : r.success ? 'SUCCESS' : 'FAILURE');
+
 const isMainModule = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
-  const result = await runProbe();
-  appendResult(result);
-  process.exitCode = result.success ? 0 : 1;
+  const anchors = loadTestnetAnchors(config.anchorsPath, REFERENCE_ANCHOR);
+  console.log(`[testnet-probe] money-flow check of ${anchors.length} testnet anchor(s)`);
+  let failures = 0;
+  // One at a time: each run funds its own account through Friendbot.
+  for (const anchor of anchors) {
+    const r = await probeAnchor(anchor);
+    appendResult(r);
+    if (!r.success && !r.inconclusive) failures++;
+    const last = r.steps?.filter((s) => s.ok !== null).at(-1);
+    console.log(
+      `[testnet-probe] ${anchor.anchor_id.padEnd(28)} ${verdict(r).padEnd(12)} ${r.settlement_seconds.toFixed(1)}s ` +
+        `${r.protocol ?? ''} ${r.success ? '' : `at ${last?.step}: ${r.error}`}`,
+    );
+    for (const s of r.steps ?? []) if (s.tx) console.log(`[testnet-probe]     ${s.step}: ${s.tx}`);
+  }
+  process.exitCode = failures > 0 ? 1 : 0;
 }

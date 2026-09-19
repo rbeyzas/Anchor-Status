@@ -8,6 +8,12 @@ const repoRoot = path.resolve(__dirname, '../../..');
 loadDotenv({ path: path.join(__dirname, '..', '.env') });
 loadDotenv({ path: path.join(repoRoot, '.env') });
 
+function required(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required env var: ${name}`);
+  return value;
+}
+
 export const config = {
   anchorDomain: process.env.TESTNET_PROBE_ANCHOR_DOMAIN ?? 'testanchor.stellar.org',
   // Soroban's `Symbol` type (used for AnchorRegistry/PerformanceOracle's
@@ -30,6 +36,20 @@ export const config = {
   // a visible browser, which is useful for debugging a new anchor's UI.
   headless: process.env.PROBE_HEADLESS !== 'false',
   resultsPath: path.join(__dirname, '..', 'results', 'probe-log.json'),
+  // Every testnet anchor measured each round (the reference anchor is
+  // always added). On the collector host it lives with the other data.
+  anchorsPath: path.resolve(repoRoot, process.env.TESTNET_ANCHORS_PATH ?? 'services/testnet-probe/output/testnet-anchors.json'),
+  // Testnet applications: kept apart from mainnet's (ONBOARDING_DIR).
+  onboardingDir: path.resolve(
+    repoRoot,
+    process.env.ONBOARDING_TESTNET_DIR ?? path.join(process.env.ONBOARDING_DIR ?? 'services/mainnet-probe/output/onboarding', 'testnet'),
+  ),
+  onboardingMaxPerRun: Number(process.env.ONBOARDING_TESTNET_MAX_PER_RUN ?? '3'),
+  onboardingMaxAttempts: Number(process.env.ONBOARDING_MAX_ATTEMPTS ?? '6'),
+  // On-chain registration of admitted testnet anchors.
+  rpcUrl: process.env.SOROBAN_RPC_URL ?? 'https://soroban-testnet.stellar.org',
+  registryContractId: () => required('ANCHOR_REGISTRY_CONTRACT_ID'),
+  deployerSecretKey: () => required('DEPLOYER_SECRET_KEY'),
   // Content-addressed evidence documents; on the collector host this is the
   // same published directory mainnet-probe writes to.
   evidenceDir: path.resolve(repoRoot, process.env.EVIDENCE_DIR ?? 'services/testnet-probe/evidence'),

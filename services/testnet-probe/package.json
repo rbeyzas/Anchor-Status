@@ -6,6 +6,8 @@
   "type": "module",
   "scripts": {
     "probe": "tsx src/probe.ts",
+    "onboard": "tsx src/onboard.ts",
+    "register": "tsx src/register.ts",
     "schedule": "tsx src/schedule.ts",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",

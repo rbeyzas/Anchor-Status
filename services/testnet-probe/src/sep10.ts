@@ -24,7 +24,7 @@ export async function authenticateSep10(
   const challengeUrl = new URL(toml.webAuthEndpoint);
   challengeUrl.searchParams.set('account', keypair.publicKey());
 
-  const challengeRes = await fetch(challengeUrl.toString());
+  const challengeRes = await fetch(challengeUrl.toString(), { signal: AbortSignal.timeout(20_000) });
   if (!challengeRes.ok) {
     throw new Error(`SEP-10 challenge request failed: HTTP ${challengeRes.status}`);
   }
@@ -50,6 +50,7 @@ export async function authenticateSep10(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ transaction: tx.toXDR() }),
+    signal: AbortSignal.timeout(20_000),
   });
   if (!tokenRes.ok) {
     const body = await tokenRes.text();
