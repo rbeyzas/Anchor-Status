@@ -13,7 +13,7 @@ and visualizes it (read-only — never signs a transaction).
   chart and the health summary (recent success rate, failure streak,
   number of checks). Slashes from the previous oracle version are marked
   as legacy.
-- **Visual direction**: a dark-first "console" (the Anchor Status design
+- **Visual direction**: a dark-first "console" (the Mona design
   system): flat `surface-0` ground, `as-panel` cards with a 1px ring,
   one accent (`signal` green) for live readings and primary actions,
   `pulse` blue for on-chain references and focus rings, Space Grotesk for

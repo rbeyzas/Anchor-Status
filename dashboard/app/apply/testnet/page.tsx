@@ -13,7 +13,7 @@ import { fetchTestnetOnboarding } from '@/lib/onboarding-server';
 import { TESTNET_CHECK_LABEL, testnetTxUrl, type TestnetApplication, type TestnetCheck } from '@/lib/onboarding-testnet';
 
 export const metadata: Metadata = {
-  title: 'Add your testnet anchor: Anchor Status',
+  title: 'Add your testnet anchor: Mona',
   description: 'Apply to have your Stellar testnet anchor tested with a real money flow: deposit and withdrawal, every payment checked on the ledger.',
 };
 
@@ -200,7 +200,7 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
 
         <footer className="flex flex-col gap-3 border-t border-as-hairline py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2 font-medium text-as-ink">
-            <Logo size={18} /> Anchor Status
+            <Logo size={18} /> Mona
           </span>
           <span>Every testnet application, its steps and its ledger transactions are public.</span>
         </footer>

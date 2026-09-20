@@ -19,7 +19,7 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
       <Link
         href="/"
         className="rounded text-as-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse"
-        aria-label="Anchor Status home"
+        aria-label="Mona home"
       >
         <Wordmark />
       </Link>

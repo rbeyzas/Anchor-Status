@@ -37,7 +37,7 @@ export function Wordmark({ className = '', dot }: { className?: string; dot?: st
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <Logo dot={dot} />
-      <span className="whitespace-nowrap font-heading text-xl font-bold tracking-[-0.03em]">Anchor Status</span>
+      <span className="whitespace-nowrap font-heading text-xl font-bold tracking-[-0.03em]">Mona</span>
     </span>
   );
 }

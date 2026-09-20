@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="Anchor Reliability Oracle Network — a Soroban SEP-24 reliability oracle scoring anchors from real mainnet activity, real testnet probes, and controlled mock anchors">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Mona — a Soroban SEP-24 reliability oracle scoring Stellar anchors from real mainnet activity, real testnet probes, and controlled mock anchors">
 </p>
 
 <p align="center">
@@ -12,9 +12,9 @@
   <a href="#docs"><b>Docs</b></a>
 </p>
 
-## What this is
+## What is Mona?
 
-Anyone can *claim* a Stellar SEP-24 anchor is reliable. This project measures it, on-chain, from evidence a wallet or user can't fake:
+Anyone can *claim* a Stellar SEP-24 anchor is reliable. Mona measures it, on-chain, from evidence a wallet or user can't fake:
 
 - **Real mainnet reachability** — does the anchor's live API actually answer a wallet today? Every live SEP-6/24 anchor on mainnet is discovered automatically and checked without moving funds.
 - **Real testnet behavior** — does a live SEP-10 + SEP-24 deposit against it actually complete?

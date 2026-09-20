@@ -4,11 +4,11 @@ Paste everything below the line into a new Claude Code session opened in this re
 
 ---
 
-You are implementing a new score mechanism for Anchor Status, and removing the TRY-specific focus from the project's docs. The methodology is fully specified in `docs/SCORING.md`. **Read it completely before writing any code**, then read the code it touches. The spec is the source of truth; if you find it wrong or ambiguous, say so and propose a fix in your report rather than silently deviating.
+You are implementing a new score mechanism for Mona, and removing the TRY-specific focus from the project's docs. The methodology is fully specified in `docs/SCORING.md`. **Read it completely before writing any code**, then read the code it touches. The spec is the source of truth; if you find it wrong or ambiguous, say so and propose a fix in your report rather than silently deviating.
 
 ## Context you must know
 
-- Anchor Status probes Stellar anchors, submits reports to a Soroban `PerformanceOracle`, which updates `AnchorRegistry`. A Next.js dashboard reads both contracts.
+- Mona probes Stellar anchors, submits reports to a Soroban `PerformanceOracle`, which updates `AnchorRegistry`. A Next.js dashboard reads both contracts.
 - The live score today is a per-report EMA (`contracts/performance-oracle/src/scoring.rs`). Volume is already excluded from it. The new score is a windowed, multi-pillar **score card** with a separate **confidence**, computed off-chain by the aggregator and published on-chain with the hash of its inputs.
 - Data flow: `services/mainnet-probe` (JSONL results, `status.json`, evidence docs) → `services/aggregator` (submits reports) → `contracts/performance-oracle` → `dashboard`. `services/passive-monitor` scans Horizon and is currently "kept as data, not scored". `scripts/collect.sh` runs the collectors every 20 minutes.
 - Existing conventions to follow, not reinvent: content-addressed evidence via `canonicalJson` + sha256 (`services/mainnet-probe/src/evidence.ts`; `testnet-probe` already keeps its own copy, so a copy in the aggregator is consistent with the repo), env-overridable paths in each package's `config.ts`, atomic writes for status files, the dashboard tolerating contracts deployed before a feature exists, `vitest` in every TS package, contract tests in `test.rs`.

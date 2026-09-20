@@ -17,7 +17,7 @@ import {
 } from '@/lib/methodology';
 
 export const metadata: Metadata = {
-  title: 'How we measure: Anchor Status',
+  title: 'How we measure: Mona',
   description: 'How an anchor score card is measured and computed: the checks, the four pillars, confidence, gates, and how to verify a score yourself.',
 };
 
@@ -455,7 +455,7 @@ confidence  = 100 · sufficiency · depth`}
 
       <footer className="flex flex-col gap-3 border-t border-as-hairline py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">
         <span className="inline-flex items-center gap-2 font-medium text-as-ink">
-          <Logo size={18} /> Anchor Status
+          <Logo size={18} /> Mona
         </span>
         <span>Changing any number on this page means a new methodology version. This is version {METHODOLOGY_VERSION}.</span>
       </footer>

@@ -3,7 +3,7 @@
 # user, a read-only view of the system, write access to the onboarding
 # directory alone, and no view of the collector's keys. Setup: scripts/README.md.
 [Unit]
-Description=Anchor Status onboarding intake
+Description=Mona onboarding intake
 After=network.target
 
 [Service]

@@ -4,8 +4,8 @@ import { Logo } from '@/components/Logo';
 import { SiteNav } from '@/components/SiteNav';
 
 export const metadata: Metadata = {
-  title: 'Project structure: Anchor Status',
-  description: 'An interactive map of the Anchor Status codebase: contracts, collectors, aggregator and dashboard, and how they connect.',
+  title: 'Project structure: Mona',
+  description: 'An interactive map of the Mona codebase: contracts, collectors, aggregator and dashboard, and how they connect.',
 };
 
 const GRAPH_SRC = '/structure/graph.html';
@@ -29,7 +29,7 @@ export default function StructurePage() {
       <div className="overflow-hidden rounded-as-md border border-as-hairline bg-as-surface-1 shadow-as-panel">
         <iframe
           src={GRAPH_SRC}
-          title="Interactive graph of the Anchor Status codebase"
+          title="Interactive graph of the Mona codebase"
           loading="lazy"
           className="block h-[70vh] min-h-[480px] w-full border-0"
         />
@@ -47,7 +47,7 @@ export default function StructurePage() {
       </p>
 
       <footer className="mt-10 flex items-center gap-2 py-8 text-sm font-medium text-as-ink">
-        <Logo size={18} /> Anchor Status
+        <Logo size={18} /> Mona
       </footer>
     </div>
     </div>

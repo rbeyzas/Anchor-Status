@@ -359,7 +359,7 @@ export default async function LandingPage() {
 
         <footer className="flex flex-col gap-3 py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2 font-medium text-as-ink">
-            <Logo size={18} /> Anchor Status
+            <Logo size={18} /> Mona
           </span>
           <span className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
             <Link href="/structure" className="transition-colors hover:text-as-ink">

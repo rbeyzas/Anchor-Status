@@ -44,7 +44,7 @@ const nodes = {
 const cut = html.indexOf('</style>');
 html = swap(html.slice(0, cut), chrome) + swap(html.slice(cut), nodes);
 html = html
-  .replace('<title>graphify - graphify-out/graph.html</title>', '<title>Project structure: Anchor Status</title>')
+  .replace('<title>graphify - graphify-out/graph.html</title>', '<title>Project structure: Mona</title>')
   .replace('edges: { smooth:', "edges: { color: { color: '#364052', highlight: '#2ee6a6', hover: '#6B9BFF' }, smooth:")
   .replace("ctx.fillStyle = '#6366f1'", "ctx.fillStyle = '#2ee6a6'")
   .replace("ctx.strokeStyle = '#6366f1'", "ctx.strokeStyle = '#2ee6a6'")

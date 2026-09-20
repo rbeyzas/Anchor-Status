@@ -11,7 +11,7 @@ import { CHECK_LABEL, normalizeDomainInput, STATUS_COPY, type Application, type 
 import { fetchOnboarding } from '@/lib/onboarding-server';
 
 export const metadata: Metadata = {
-  title: 'Add your mainnet anchor: Anchor Status',
+  title: 'Add your mainnet anchor: Mona',
   description: 'Apply to have your Stellar mainnet anchor measured: what is checked, and where each application stands.',
 };
 
@@ -219,7 +219,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
 
         <footer className="flex flex-col gap-3 border-t border-as-hairline py-8 text-sm text-as-ink-muted sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2 font-medium text-as-ink">
-            <Logo size={18} /> Anchor Status
+            <Logo size={18} /> Mona
           </span>
           <span>Every application and its checks are public, like every score.</span>
         </footer>

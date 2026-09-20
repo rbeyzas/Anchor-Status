@@ -20,7 +20,7 @@ const mono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Anchor Status: which anchor will hold?',
+  title: 'Mona: which anchor will hold?',
   description:
     'Stellar SEP-24 anchor reliability, from live mainnet, live testnet, and simulated sources.',
 };
