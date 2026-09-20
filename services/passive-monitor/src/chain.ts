@@ -5,7 +5,9 @@ import fs from 'node:fs';
 import { Horizon } from '@stellar/stellar-sdk';
 import { config } from './config.js';
 import { loadFlows, saveFlows, updateFlows, type IssuedAsset } from './flows.js';
-import { loadFxTable, usdPerUnit } from './fx.js';
+import { loadFxTable } from './fx.js';
+import { ReferenceRates } from './reference.js';
+import { Reflector } from './reflector.js';
 import { fetchRecentPayments, sleep } from './horizon.js';
 import { appendSamples, fetchQuotes, sample, USDC, type MarketSample } from './market.js';
 import { appendSupplySamples, sampleSupply, type SupplySample } from './supply.js';
@@ -97,12 +99,16 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
   );
 
   const fx = await loadFxTable(config.fxCachePath, now);
+  const references = new ReferenceRates(
+    fx,
+    config.reflectorRpcUrl ? new Reflector({ rpcUrl: config.reflectorRpcUrl }) : undefined,
+  );
   const samples: MarketSample[] = [];
   for (const asset of fiat) {
     const base = { timestamp: new Date().toISOString(), anchor_id: asset.anchor_id, code: asset.code, issuer: asset.issuer, anchor_asset: asset.anchor_asset };
     try {
       const { book, amm } = await fetchQuotes(fetch, config.horizonMainnetUrl, asset, config.requestTimeoutMs);
-      samples.push(sample(base, book, amm, usdPerUnit(fx, asset.anchor_asset)));
+      samples.push(sample(base, book, amm, await references.forCurrency(asset.anchor_asset)));
     } catch (err) {
       // A Horizon failure is ours: no sample at all, rather than a false
       // "no liquidity".
@@ -111,6 +117,11 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
     await sleep(config.requestDelayMs);
   }
   appendSamples(config.marketDir, samples);
+  const refs = references.summary();
+  console.log(
+    `[passive-monitor] reference rates: ${refs.reflector} from Reflector, ${refs.table} from the currency table` +
+      (refs.missing ? `, ${refs.missing} with no rate at all` : ''),
+  );
   const usable = samples.filter((s) => s.dev_bps !== undefined);
   console.log(
     `[passive-monitor] market: ${samples.length} attempt(s), ${usable.length} usable` +

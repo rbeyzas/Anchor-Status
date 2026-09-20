@@ -39,6 +39,10 @@ export const config = {
   marketDir: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_MARKET_DIR ?? 'services/passive-monitor/output/market'),
   // Total outstanding per issued asset, one reading a round. See supply.ts.
   supplyDir: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_SUPPLY_DIR ?? 'services/passive-monitor/output/supply'),
+  // Reflector's feeds live on pubnet; this project writes to testnet, so
+  // the read-only RPC for them is configured on its own. Unset means the
+  // HTTP currency table is the only reference source.
+  reflectorRpcUrl: process.env.SOROBAN_PUBNET_RPC_URL ?? 'https://mainnet.sorobanrpc.com',
   // A 30-day backfill of a busy issuer takes minutes; this many new issuers
   // per round keeps a first run from holding up the 20-minute collection.
   maxBackfillsPerRun: Number(process.env.PASSIVE_MONITOR_MAX_BACKFILLS_PER_RUN ?? '5'),

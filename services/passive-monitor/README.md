@@ -31,6 +31,15 @@ sections 6.4 and 8). Only for assets an anchor issues itself, as found by
   balance is counted here, so an issuer whose asset moves only through
   Soroban is no longer read as having done nothing. An asset Horizon does
   not know is recorded as `not_found`, never as a supply of zero.
+- **Reference rates.** The rate a peg is measured against comes from
+  [Reflector](https://reflector.network)'s fiat feed on pubnet
+  (`CBKGPWGK…`), read by simulation over `SOROBAN_PUBNET_RPC_URL`: nothing is
+  signed or submitted. It matters that this is on-chain rather than an HTTP
+  call, because a reader checking a score card can fetch the same rate from
+  the same contract themselves. The feed carries 24 currencies, which covers
+  most of what anchors peg to but not all of it (GHS, for one), so the free
+  currency API stays as the fallback and every sample records which of the
+  two it used.
 - **Market samples** (`PASSIVE_MONITOR_MARKET_DIR`, one JSON-lines file a
   day): for each issued fiat asset, its price against Circle's USDC from the
   DEX order book mid (both sides present, spread under 5%) and the AMM pool

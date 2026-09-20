@@ -169,7 +169,8 @@ The root `.env` is shared by every service (each one also merges its own local `
 | Variable group | Purpose |
 | --- | --- |
 | `SOROBAN_RPC_URL`, `SOROBAN_NETWORK_PASSPHRASE`, `HORIZON_TESTNET_URL`, `FRIENDBOT_URL` | Testnet network config |
-| `HORIZON_MAINNET_URL` | Mainnet, read-only, `passive-monitor` only |
+| `HORIZON_MAINNET_URL` | Mainnet, read-only, `mainnet-probe` and `passive-monitor` |
+| `SOROBAN_PUBNET_RPC_URL` | Read-only pubnet RPC, for Reflector's price feeds. Defaults to a public endpoint; nothing is ever signed or submitted against it |
 | `DEPLOYER_SECRET_KEY` / `DEPLOYER_PUBLIC_KEY` | The account that deploys contracts and registers/stakes anchors |
 | `REPORTER_MAINNET_SECRET_KEY` / `REPORTER_TESTNET_SECRET_KEY` / `REPORTER_MOCK_SECRET_KEY` | One authorized reporter key per source type |
 | `ANCHOR_REGISTRY_CONTRACT_ID` / `PERFORMANCE_ORACLE_CONTRACT_ID` | Filled in automatically by the deploy script |
