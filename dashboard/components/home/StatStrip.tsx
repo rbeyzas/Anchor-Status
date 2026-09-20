@@ -50,7 +50,7 @@ export function StatStrip({
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Stat label="Mainnet anchors" value={anchors} hint="measured every 20 minutes" />
+      <Stat label="Mainnet anchors" value={anchors} hint="checked every 20 minutes, or every 6 hours once silent" />
       <Stat label="Reports on-chain" value={reports} hint="the oracle’s own count" />
       <Stat label="Score cards" value={cards} hint="published on-chain" />
       <Stat label="Last publish" text={lastPublished ?? '-'} hint="to the oracle contract" />

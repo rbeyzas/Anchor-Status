@@ -36,13 +36,13 @@ and visualizes it (read-only — never signs a transaction).
 
 ## Score cards
 
-Mainnet anchors are scored by a windowed score card
-([`docs/SCORING.md`](../docs/SCORING.md)); testnet and reference anchors
-keep the per-report score.
+Mainnet and testnet anchors are both scored by a windowed score card
+([`docs/SCORING.md`](../docs/SCORING.md)), by the same engine; only the
+reference mock anchors keep the per-report score.
 
 - The number is shown only when the card's **confidence** is at least 40.
   Below that the card says "Not enough data yet", and the flags are still
-  shown. A mainnet anchor without a published card says the same. The page
+  shown. A measured anchor without a published card says the same. The page
   never shows a placeholder that looks like a score.
 - The detail view shows the four pillars as bars (Availability, Speed,
   Integrity, Market; Market reads "n/a" with its reason: the anchor does
@@ -94,7 +94,8 @@ shared token and the caller's address (for the intake's per-client limit;
 never stored). The pages read the collector's public `onboarding.json` and
 `onboarding-testnet.json`; nothing about an application is decided here.
 The checks: `services/mainnet-probe/README.md` (mainnet, read-only) and
-`services/testnet-probe/README.md` (testnet, a real money flow).
+`services/testnet-probe/README.md` (testnet: the same read-only checks,
+then a real money flow).
 
 ## Setup and running
 

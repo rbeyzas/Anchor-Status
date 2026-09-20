@@ -57,7 +57,7 @@ function ApplicationDetail({ app }: { app: Application }) {
       {(app.status === 'accepted' || app.status === 'already_tracked') && (
         <p className="mt-4 text-sm text-as-ink-muted">
           {app.status === 'accepted'
-            ? 'It is registered on-chain and measured every 20 minutes. Its score appears once there is enough data to show it, usually within a few days.'
+            ? 'It is registered on-chain and measured every 20 minutes like every other anchor. Its score appears once there is enough data to show it, usually within a few days.'
             : 'This anchor was already being measured before it applied.'}{' '}
           <Link href={app.anchor_id ? `/scores?anchor=${encodeURIComponent(app.anchor_id)}` : '/scores'} className="inline-flex items-center gap-1 font-medium text-as-signal hover:underline">
             See the scores <ArrowUpRight size={13} weight="bold" aria-hidden="true" />
@@ -113,7 +113,8 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
             Apply with your domain. If your anchor passes the checks below, it is measured every 20 minutes like every
-            other anchor, and its score card is published on-chain. Nothing else is asked of you: everything is read
+            other anchor, and its score card is published on-chain. An anchor that stops answering for a week is
+            checked every six hours instead, until it answers again. Nothing else is asked of you: everything is read
             from your stellar.toml and the public network, and nothing here moves funds.
           </p>
         </header>

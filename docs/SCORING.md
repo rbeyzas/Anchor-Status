@@ -1,6 +1,6 @@
 # Scoring methodology (v1)
 
-This is the single source of truth for how an anchor's score is computed, published and verified. It replaces the per-report EMA as the headline score for mainnet anchors. The implementation plan is in [`docs/prompts/scoring-v2-implementation.md`](prompts/scoring-v2-implementation.md); where the implementation departs from this text, section 19 says how and why.
+This is the single source of truth for how an anchor's score is computed, published and verified. It replaces the per-report EMA as the headline score for every anchor we measure, on mainnet and on testnet. The implementation plan is in [`docs/prompts/scoring-v2-implementation.md`](prompts/scoring-v2-implementation.md); where the implementation departs from this text, section 19 says how and why.
 
 ## 1. Why the current score is not enough
 
@@ -22,7 +22,7 @@ The live score is an exponential moving average of one observation per probe (fa
 
 ## 3. Scope: what is scored
 
-- Score cards are produced for **`RealMainnet` anchors** only. `RealTestnet` and `SimulatedMock` anchors keep the existing per-report EMA (they are demo and reference anchors).
+- Score cards are produced for every measured anchor: **`RealMainnet`** from `mainnet-probe`'s log, and **`RealTestnet`** from `testnet-probe`'s, by the same engine and the same constants. A testnet anchor is probed on the same public surface as a mainnet one and then, additionally, through a real deposit and withdrawal; only the card's source type differs. `SimulatedMock` anchors keep the per-report EMA: they exist to check the maths against ground truth, not to be judged.
 - **An anchor is scored on an asset only if it issues that asset**: the asset's issuer account has `home_domain` equal to the anchor's domain, and the anchor's `stellar.toml` lists that asset (SEP-1 bidirectional check). Anchors that only distribute a third party's asset (for example USDC by Circle) are not blamed for that asset's peg or issuance flow. For them the Market pillar and the flow gates are `n/a`.
 
 ## 4. Overview
@@ -30,6 +30,8 @@ The live score is an exponential moving average of one observation per probe (fa
 ```
 mainnet-probe ──► results/probe-YYYY-MM-DD.jsonl ─┐
    (+ status.json: assets, issuer verification)   │
+testnet-probe ──► results/probe-log.json ─────────┤
+   (public_checks: the same stages, then money)   │
 passive-monitor ─► market samples, flows.json ────┤
                                                   ▼
                         aggregator: inputs builder ─► computeCard() ─► card
@@ -50,6 +52,7 @@ Cards are computed off-chain (rolling windows and percentiles are impractical in
 | Input | Produced by | Notes |
 | --- | --- | --- |
 | Conclusive probe results, last 30 days | `mainnet-probe` (`results/probe-*.jsonl`) | Inconclusive runs (our own failures) are excluded, as today, along with rounds a declared collector incident covers (section 5.1). |
+| The same, for testnet anchors | `testnet-probe` (`results/probe-log.json`) | Each run carries `public_checks`: the same stages a mainnet anchor is scored on, run before the money flow. A run counts as a success only if the money flow passed too. |
 | `stages_expected`, `checks`, `assets` per probe | `mainnet-probe` (new fields) | See sections 6.2 and 6.3. |
 | Issuer verification per asset | `mainnet-probe` (`status.json`, cached 24h) | Horizon `GET /accounts/{issuer}` → `home_domain`. |
 | Market samples, last 7 days | `passive-monitor` (new) | Only for verified issuer assets with a fiat reference. |
@@ -245,7 +248,7 @@ New functions:
 Changes to existing behavior:
 
 - `get_score`: the card's score if a card exists, else the stored EMA, else **0** (unscored), never 100.
-- `record_report` (`submit_report*`): still updates the EMA and the health record and still publishes `report_submitted`, but the score it publishes and returns is the **headline** (card score if a card exists, else the EMA), and it calls `registry.update_score` **only when the anchor has no card**. This keeps testnet and mock anchors unchanged and removes any flicker between two writers for carded anchors. `ScoreBelowFloor` evaluates against the headline.
+- `record_report` (`submit_report*`): still updates the EMA and the health record and still publishes `report_submitted`, but the score it publishes and returns is the **headline** (card score if a card exists, else the EMA), and it calls `registry.update_score` **only when the anchor has no card**. This removes any flicker between two writers for carded anchors, and leaves the mock anchors, which have no card, on the EMA. `ScoreBelowFloor` evaluates against the headline.
 - `AnchorRegistry.register_anchor`: initial score is **0** instead of 100. 0 with no report means unscored; consumers must read confidence from the card.
 
 Upgrades use `scripts/upgrade-contracts.sh` (same contract IDs, same state). The dashboard and aggregator must tolerate a contract that has not been upgraded yet (no `get_score_card`), as the dashboard already does for health.
@@ -256,7 +259,7 @@ Upgrades use `scripts/upgrade-contracts.sh` (same contract IDs, same state). The
 
 **Inputs builder**, `services/aggregator/src/scoring/inputs.ts`: reads the last 30 daily probe files (streaming), `status.json`, and the passive-monitor outputs, and returns the aggregate inputs per anchor. First version reads raw JSONL each run; add daily rollups only if a run takes uncomfortably long.
 
-**Publisher**, in `services/aggregator/src/index.ts` after the report loop: for each `RealMainnet` anchor with at least one conclusive probe in 30 days, build inputs, write the inputs bundle, compute the card, and publish when the card differs from the last published one or the last publish is older than 24 hours. `window_end` is the current time floored to the hour. At most 40 publishes per run, oldest first, so a first run or backlog cannot stall the 20-minute round. Last-published state goes in a small JSON state file next to the existing dedup state.
+**Publisher**, in `services/aggregator/src/scoring/run.ts` after the report loop: for each `RealMainnet` or `RealTestnet` anchor with at least one conclusive probe in 30 days, build inputs, write the inputs bundle, compute the card, and publish when the card differs from the last published one or the last publish is older than 24 hours. `window_end` is the current time floored to the hour. At most 40 publishes per run, oldest first, so a first run or backlog cannot stall the 20-minute round. Last-published state goes in a small JSON state file next to the existing dedup state.
 
 **Inputs bundle**: content-addressed `<sha256>.json` in the evidence directory, schema `anchor-status/score-inputs/v1`, written with the same canonical-JSON scheme as probe evidence (the aggregator gets its own copy of that small module, as `testnet-probe` already does). Contents: `methodology_version`, `anchor_id`, `window_end`, uptime counts for 7 and 30 days, the Speed p95 and its sample count, the integrity check results, coverage, market and flow aggregates with the FX source and rate, `monitored_days`, `n30`, and per-day `{date, n, ok, digest}` for 30 days, where `digest` is the SHA-256 of that day's sorted `timestamp|success|evidence_hash` lines for the anchor.
 
@@ -269,7 +272,7 @@ Upgrades use `scripts/upgrade-contracts.sh` (same contract IDs, same state). The
 
 ## 15. Dashboard
 
-- Read `get_score_card` per anchor. If the call does not exist (older contract) or returns none, fall back to the current display. A `RealMainnet` anchor without a card shows "Not enough data".
+- Read `get_score_card` per anchor. If the call does not exist (older contract) or returns none, fall back to the current display. A measured anchor without a card, mainnet or testnet, shows "Not enough data"; only the mock anchors fall back to the per-report score.
 - Card: the score and tier as today, plus a confidence chip (Low / Medium / High). Confidence below 40 withholds the number; flag chips are still shown.
 - Detail modal: four pillar bars (Market shows "n/a" with the reason: "this anchor does not issue the asset", "no fiat reference", or "no liquid market"), the confidence factors (days monitored, checks in 30 days, test depth), active flags in plain language, the methodology version, "on-chain since", and a link to the inputs bundle.
 - Flag copy, without em dashes: OUTAGE "Outage: last 3 checks failed"; LOW_UPTIME "Uptime under 90% this week"; SEP10_MISMATCH "Sign-in challenge not signed by the published key"; DEPEG "Asset more than 3% off its peg for over 24 hours"; ONE_WAY_FLOW "Assets issued but none redeemed in 14 days"; SILENT "No issuance or redemption in 30 days"; LOW_COVERAGE "Only partly testable: declines anonymous wallets"; NO_MARKET "No liquid market to measure a peg".
@@ -355,4 +358,6 @@ Where the implementation had to choose, or departs from the text above.
 
 **Published files.** Besides the bundles, the aggregator writes `score-summary.json` (for each published card: its bundle hash, monitored days, checks in 30 days, coverage, and why Market is n/a), so the dashboard can show the confidence factors from one file. The dashboard uses it only when the hash matches the on-chain card.
 
-**Observed on the first run (19 September 2026), for calibration.** Only one day of probes with the new fields existed, so every card's confidence was under 40 and every number was withheld; that is expected and resolves within days. None of the 28 issued fiat assets had a usable market: order-book spreads of 120-200% and near-zero depth, the best being ZARZ (40 bps off its peg with a 0.3% spread, but $225 of depth). The $500 depth threshold and the single USDC numeraire (several of these assets trade against XLM, not USDC) are the first constants to revisit.
+**Observed on the first run (19 September 2026).** Only one day of probes with the new fields existed, so every card's confidence was under 40 and every number was withheld. That resolved within days, as expected: cards are shown from 20 September.
+
+**Standing limitation: the Market pillar does not fire.** None of the 28 issued fiat assets has ever produced a usable market sample. Order-book spreads run 120-200% with near-zero depth; the best seen was ZARZ, 40 bps off its peg with a 0.3% spread but only $225 of depth. Two causes, both still present: the $500 depth threshold, and the single USDC numeraire (several of these assets trade against XLM, not USDC). The sampler also reads only resting orders, so an asset that trades every day can still be reported as having no market: CLPX has 20-90 trades a day and fell 24% between 11 and 20 September 2026, while its card said `no_market`. Reading executed trades rather than the order book alone is the first thing to change.

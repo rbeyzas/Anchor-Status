@@ -94,8 +94,8 @@ const STEPS = [
     icon: Broadcast,
     sticker: 'bg-sticker-sky',
     title: 'Probe',
-    short: 'Every 20 minutes, the steps a wallet takes. No funds move.',
-    body: 'Independent collectors call each anchor the way a wallet would: stellar.toml, transfer server, SEP-10 challenge, SEP-24 deposit. No funds move.',
+    short: 'Every 20 minutes, the steps a wallet takes. On mainnet, no funds move.',
+    body: 'Independent collectors call each anchor the way a wallet would: stellar.toml, transfer server, SEP-10 challenge, SEP-24 deposit. Mainnet is read-only, so no funds move; on testnet the same check runs and then a real deposit and withdrawal follow.',
   },
   {
     n: '02',
@@ -124,12 +124,20 @@ const EVIDENCE = [
   {
     type: 'RealTestnet' as const,
     title: 'Does a deposit finish?',
-    body: 'A real SEP-10 login and SEP-24 interactive deposit, run end to end against a live testnet anchor.',
+    body: 'The same read-only check mainnet gets, then a real deposit and withdrawal against every listed testnet anchor, each payment verified on the ledger.',
   },
   {
     type: 'SimulatedMock' as const,
     title: 'Is the math honest?',
     body: 'A known-good and a known-bad reference anchor, so the scoring can be checked against ground truth.',
+  },
+  {
+    // Chain signals are read straight from the ledger, so they carry no
+    // source type: nothing is reported, only observed.
+    type: null,
+    label: 'On-chain',
+    title: 'Does the money move?',
+    body: 'The supply, mints, burns and market price of the assets an anchor issues, read from the ledger itself.',
   },
 ];
 
@@ -271,7 +279,7 @@ export default async function LandingPage() {
 
         <section id="method" className="scroll-mt-8 py-20 md:py-28">
           <h2 className="max-w-xl font-heading text-[44px] font-bold leading-[1.02] tracking-[-0.025em] text-as-ink">
-            Measured three times, published once.
+            Measured four ways, published once.
           </h2>
           <ol className="mt-12 flex flex-col gap-14">
             {STEPS.map((s, i) => (
@@ -306,7 +314,7 @@ export default async function LandingPage() {
           <div className="grid gap-10 md:grid-cols-[1fr_2fr]">
             <div>
               <h2 className="font-heading text-4xl font-bold tracking-[-0.025em] text-as-ink">
-                Three kinds of evidence.
+                Four kinds of evidence.
               </h2>
               <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-as-ink-muted">
                 Every score says where it came from. Simulated data is always labelled as simulated.
@@ -315,11 +323,11 @@ export default async function LandingPage() {
             <ul className="as-panel divide-y divide-as-hairline overflow-hidden">
               {EVIDENCE.map((e) => (
                 <li
-                  key={e.type}
+                  key={e.title}
                   className="flex flex-col gap-3 p-6 sm:flex-row sm:items-start sm:gap-8"
                 >
                   <div className="sm:w-40 sm:flex-shrink-0">
-                    <SourceBadge sourceType={e.type} />
+                    {e.type ? <SourceBadge sourceType={e.type} /> : <StatusChip tone="neutral">{e.label}</StatusChip>}
                   </div>
                   <div>
                     <h3 className="font-heading text-xl font-bold tracking-[-0.01em] text-as-ink">

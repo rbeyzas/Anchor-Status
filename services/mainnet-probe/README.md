@@ -41,6 +41,7 @@ from then on. Nothing else changes for an admitted anchor.
 |---|---|
 | Public domain | every address it resolves to is public (the collector holds keys: a name pointing into a private network is never fetched) |
 | stellar.toml | fetched and parsed |
+| Network | its toml names the public network, or none. A testnet anchor is rejected and pointed at the testnet page |
 | Transfer server | `TRANSFER_SERVER_SEP0024` or `TRANSFER_SERVER` is advertised |
 | Live check | the same probe every anchor gets passes (a policy decline counts as up) |
 | Issuer age | its oldest own issuer account is `ONBOARDING_MIN_AGE_DAYS` (7) days old or more |
@@ -48,7 +49,7 @@ from then on. Nothing else changes for an admitted anchor.
 
 The last two apply only to an anchor that issues its own asset (the issuer's
 `home_domain` points back at it); one that only distributes someone else's
-asset, USDC for instance, is admitted on the first four. Payments are
+asset, USDC for instance, is admitted on the first five. Payments are
 StellarExpert's per-asset count, not the issuer's own mints and burns:
 anchors mint in batches to a distribution account and serve customers from
 there, so issuer-level counts are tiny (CLPX: 9, against 530,674 payments).

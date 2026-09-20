@@ -9,11 +9,14 @@ Node/TypeScript service. Two jobs, in this order, every collection round:
    log (RealTestnet), and the mock anchors' logs (SimulatedMock, skipped on
    the collector host). Dedup keys live in `AGGREGATOR_STATE_PATH`.
 2. **Score cards** ([`docs/SCORING.md`](../../docs/SCORING.md)). For every
-   mainnet anchor with a conclusive probe in 30 days: build its inputs from
-   the probe log, `mainnet-probe`'s status file (listed and issued assets)
-   and `passive-monitor`'s flows and market samples; compute the card; and
+   measured anchor with a conclusive probe in 30 days, mainnet or testnet:
+   build its inputs from the probe logs (`mainnet-probe`'s daily JSONL and
+   `testnet-probe`'s log, which carries the same public-surface stages),
+   `mainnet-probe`'s status file (listed and issued assets) and
+   `passive-monitor`'s flows and market samples; compute the card; and
    publish the ones that changed, or are a day old, with
-   `publish_score_card`, at most 40 per run. Each card's inputs are written
+   `publish_score_card`, signed by the reporter key of that anchor's source
+   type, at most 40 per run. Each card's inputs are written
    first as a content-addressed bundle (`anchor-status/score-inputs/v1`)
    into `EVIDENCE_DIR`, and its SHA-256 goes on-chain with the card.
 

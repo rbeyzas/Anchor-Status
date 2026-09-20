@@ -31,6 +31,10 @@ const STAGES = [
   { stage: 'Deposit start', what: 'Start a SEP-24 interactive deposit, receive its URL, then abandon it. No money moves.' },
 ];
 
+/** What a testnet anchor gets on top of the five above. */
+const TESTNET_EXTRA =
+  'On testnet the same five steps run first, and then money actually moves: a fresh wallet funded by Friendbot opens a trustline, deposits with the anchor and withdraws back, and every payment is checked on the ledger rather than taken from the anchor’s word.';
+
 const PILLAR_COPY = [
   {
     key: 'availability' as const,
@@ -121,9 +125,10 @@ export default function MethodologyPage() {
           How we measure an anchor.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
-          Every mainnet anchor gets a score card built from 30 days of checks. It says how well the anchor did on what
-          we measured, and, as a separate number, how much we measured. Nothing is guessed, traffic never adds points,
-          and every number can be recomputed by anyone from what we publish.
+          Every anchor we measure, on mainnet and on testnet, gets a score card built from 30 days of checks, by the
+          same engine and the same numbers. It says how well the anchor did on what we measured, and, as a separate
+          number, how much we measured. Nothing is guessed, traffic never adds points, and every number can be
+          recomputed by anyone from what we publish.
         </p>
         <nav className="mt-8 flex flex-wrap gap-2 text-sm" aria-label="On this page">
           {[
@@ -144,8 +149,8 @@ export default function MethodologyPage() {
 
       <Section
         id="checks"
-        title="Every 20 minutes, a check like a wallet’s."
-        lead="We call each anchor’s public API the way a wallet would, from a fresh throwaway wallet each time, and stop before any money moves. Which steps apply depends on what the anchor’s own stellar.toml advertises."
+        title="A check like a wallet’s, every 20 minutes."
+        lead="We call each anchor’s public API the way a wallet would, from a fresh throwaway wallet each time. On mainnet we stop before any money moves. An anchor that has not answered for a week is checked every six hours instead, until it answers again. Which steps apply depends on what the anchor’s own stellar.toml advertises."
       >
         <ol className="grid gap-3 md:grid-cols-5">
           {STAGES.map((s, i) => (
@@ -156,6 +161,9 @@ export default function MethodologyPage() {
             </li>
           ))}
         </ol>
+        <p className="mt-6 rounded-as-md border border-as-pulse/30 bg-as-pulse-soft p-4 text-sm leading-relaxed text-as-ink-muted">
+          <span className="font-medium text-as-ink">On testnet, further.</span> {TESTNET_EXTRA}
+        </p>
         <div className="mt-6 grid gap-3 text-sm text-as-ink-muted md:grid-cols-3">
           <p className="rounded-as-md border border-as-hairline p-4">
             <span className="font-medium text-as-danger">Failure:</span> no answer, a server error, or an endpoint the anchor
@@ -175,12 +183,12 @@ export default function MethodologyPage() {
       <Section
         id="pillars"
         title="Four pillars, weighted."
-        lead="Each pillar is a number from 0 to 100. The weights say how much each moves the score. Market applies to few anchors; when it does not, its weight is spread over the other three."
+        lead="Each pillar is a number from 0 to 100. The weights say how much each moves the score. Market applies only to an anchor that issues its own fiat asset and trades on a market we can measure; when it does not, its weight is spread over the other three."
       >
         <div className="mb-10 grid gap-4 md:grid-cols-2">
           {[
             { title: 'When Market applies', s: withMarket },
-            { title: 'When it does not (most anchors)', s: withoutMarket },
+            { title: 'When it does not', s: withoutMarket },
           ].map(({ title, s }) => (
             <div key={title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
               <span className="text-xs font-semibold text-as-ink-faint">{title}</span>

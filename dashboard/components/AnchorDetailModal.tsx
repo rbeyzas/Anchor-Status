@@ -365,7 +365,8 @@ export function AnchorDetailModal({
             : the anchor&apos;s own signed SEP-10 challenge and, for testnet deposits, the payout transaction on the
             ledger. Check it independently:
             <code className="mt-2 block overflow-x-auto rounded bg-as-surface-2 px-2 py-1 font-mono text-xs text-as-ink">
-              cd services/mainnet-probe && npm run verify -- {evidence.hash}
+              cd services/{anchor.sourceType === 'RealTestnet' ? 'testnet-probe' : 'mainnet-probe'} &amp;&amp; npm run verify --{' '}
+              {evidence.hash}
             </code>
           </div>
         )}

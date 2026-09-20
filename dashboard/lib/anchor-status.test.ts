@@ -43,10 +43,19 @@ const anchor = (extra: Partial<AnchorViewModel> = {}): AnchorViewModel => ({
 });
 
 describe('status labels', () => {
-  it('hides a per-report score until the anchor has been checked a few times', () => {
+  it('hides a reference anchor’s per-report score until it has been checked a few times', () => {
+    // Only the mock anchors still keep a per-report score: they exist to
+    // check the maths against ground truth, not to be judged.
     const health = { trend: 'Stable', riskReason: 'None', consecutiveFailures: 0, recentSuccessPercent: 100, recentCount: 1 } as const;
-    expect(hasEnoughData(anchor({ sourceType: 'RealTestnet', health: { ...health, observations: 1 } }))).toBe(false);
-    expect(hasEnoughData(anchor({ sourceType: 'RealTestnet', health: { ...health, observations: 3 } }))).toBe(true);
+    expect(hasEnoughData(anchor({ sourceType: 'SimulatedMock', health: { ...health, observations: 1 } }))).toBe(false);
+    expect(hasEnoughData(anchor({ sourceType: 'SimulatedMock', health: { ...health, observations: 3 } }))).toBe(true);
+  });
+
+  it('scores a testnet anchor by its card too, never by the per-report score', () => {
+    // Testnet anchors are scored by the same engine as mainnet ones, so a
+    // testnet anchor without a card shows nothing rather than an EMA.
+    const health = { trend: 'Stable', riskReason: 'None', consecutiveFailures: 0, recentSuccessPercent: 100, recentCount: 1 } as const;
+    expect(hasEnoughData(anchor({ sourceType: 'RealTestnet', health: { ...health, observations: 200 } }))).toBe(false);
   });
 
   it('scores a mainnet anchor by its card, and shows nothing without one', () => {

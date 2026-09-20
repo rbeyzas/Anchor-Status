@@ -13,21 +13,24 @@ bash scripts/demo.sh
 
 `scripts/demo.sh` (see the comments at the top of the script for exact
 detail): verifies the deployer account, deploys the contracts if needed,
-runs `passive-monitor` once, starts the 4 `mock-anchors` instances (plus
+runs `mainnet-probe` and `passive-monitor` once, starts the 4 `mock-anchors` instances (plus
 demo traffic) in the background, runs `testnet-probe` once, runs
 `aggregator` to write everything to testnet, and prints the command to
 start the dashboard.
 
 ## Presentation flow
 
-### 1) Introduce the three layers
+### 1) Introduce the four collectors
 
-- **Layer 1 — RealMainnet** (`services/passive-monitor`): real mainnet
-  anchors, monitored **read-only** via Horizon. No money moves — we're
-  only observing real-world activity.
-- **Layer 2 — RealTestnet** (`services/testnet-probe`): a real SEP-10 +
-  SEP-24 flow run against `testanchor.stellar.org` on testnet — this
-  simulates an actual user experience.
+- **RealMainnet** (`services/mainnet-probe`): every live SEP-6/24 anchor on
+  mainnet, discovered automatically and checked **read-only** every 20
+  minutes. No money moves.
+- **RealTestnet** (`services/testnet-probe`): every listed testnet anchor
+  gets the same read-only check and then a real deposit and withdrawal,
+  each payment verified on the ledger.
+- **Chain signals** (`services/passive-monitor`): read-only Horizon context
+  for the assets anchors issue: mints, burns and market price. Never a
+  report of its own; it feeds the Market pillar and the flow flags.
 - **Layer 3 — SimulatedMock** (`services/mock-anchors`): 4 fully
   controlled mock anchors. We script their behavior
   (`behavior_profiles/anchor-N.json`) ourselves, which is what lets us
@@ -40,7 +43,7 @@ cd dashboard && npm run dev
 ```
 
 At `http://localhost:3000`, with the "All" filter active, show anchors
-from all three sources side by side (green "Live mainnet", blue "Live
+from every collector side by side (green "Live mainnet", blue "Live
 testnet", gray "Simulated" badges). Point out that each source is
 distinguished by badge color and text, the score is large and
 color-coded (green/amber/red), and the sparkline summarizes recent

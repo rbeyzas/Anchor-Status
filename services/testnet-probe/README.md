@@ -1,13 +1,28 @@
 # testnet-probe
 
-Node/TypeScript service. Tests testnet anchors with a real money flow, every
-round, and admits new ones that apply. On testnet, money moves: every
-payment is checked on the ledger, not taken from the anchor's word.
+Node/TypeScript service. Every round it gives each testnet anchor the same
+read-only check a mainnet anchor gets, and then, if that passed, moves real
+money through it. It admits new anchors that apply. On testnet, money moves:
+every payment is checked on the ledger, not taken from the anchor's word.
+
+Because both halves are measured, a testnet anchor gets a full score card by
+the same engine and the same constants as a mainnet one
+([`docs/SCORING.md`](../../docs/SCORING.md)); only the source type differs.
+
+## The public check (`src/probe.ts`)
+
+`runChecks()` imports `probeAnchor` from `mainnet-probe` rather than copying
+it, so the two networks can never be judged by different checks: stellar.toml,
+`/info`, the SEP-10 challenge and token, and, when the anchor offers SEP-24, a
+deposit start. A hard failure here is the anchor's outage already, so the
+money flow is skipped and no Friendbot account is spent on it. Its stages are
+recorded as `public_checks` on the run and are what the scorer reads.
 
 ## The money-flow check (`src/flow.ts`)
 
 For each anchor on the list (`TESTNET_ANCHORS_PATH`; SDF's reference
-anchor `testanchor.stellar.org` is always on it):
+anchor `testanchor.stellar.org` is seeded on it, the rest arrive through
+`/apply/testnet`):
 
 | Step | What happens |
 |---|---|
@@ -22,7 +37,8 @@ anchor `testanchor.stellar.org` is always on it):
 A failure on our side (Friendbot, our browser) is inconclusive and never
 submitted. Each conclusive run publishes an evidence document with every
 step and its ledger transactions, and is appended to
-`results/probe-log.json`, which the aggregator submits as `RealTestnet`.
+`results/probe-log.json`, which the aggregator submits as `RealTestnet` and
+also scores into that anchor's card.
 
 ## Applications (`npm run onboard`, `npm run register`)
 
@@ -30,8 +46,8 @@ Testnet applications are kept apart from mainnet's: the dashboard's
 `/apply/testnet` posts to `/api/onboarding/testnet`, the collector's intake
 appends to `ONBOARDING_TESTNET_DIR` (default `<ONBOARDING_DIR>/testnet`),
 and `onboard` checks up to `ONBOARDING_TESTNET_MAX_PER_RUN` (3) per round:
-the domain must resolve to a public address, then the money flow must pass
-once. An admitted anchor joins the list under an id ending in `_testnet`
+the domain must resolve to a public address, then the public check must pass,
+then the money flow must pass once. An admitted anchor joins the list under an id ending in `_testnet`
 (never colliding with the same domain's mainnet id), `register` registers it
 on-chain as `RealTestnet` with the deployer key, and the probe tests it from
 then on. `onboarding.json` in that directory is published as

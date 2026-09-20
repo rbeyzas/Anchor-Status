@@ -78,7 +78,7 @@ function ApplicationDetail({ app }: { app: TestnetApplication }) {
       {(app.status === 'accepted' || app.status === 'already_tracked') && (
         <p className="mt-4 text-sm text-as-ink-muted">
           {app.status === 'accepted'
-            ? 'It is registered on-chain as a testnet anchor, and the same money-flow test runs on it every 20 minutes.'
+            ? 'It is registered on-chain as a testnet anchor, the same test runs on it every 20 minutes, and it gets a score card by the same methodology as a mainnet anchor.'
             : 'This testnet anchor was already being tested before it applied.'}{' '}
           <Link href={app.anchor_id ? `/scores?anchor=${encodeURIComponent(app.anchor_id)}` : '/scores'} className="inline-flex items-center gap-1 font-medium text-as-signal hover:underline">
             See the scores <ArrowUpRight size={13} weight="bold" aria-hidden="true" />
@@ -93,6 +93,8 @@ function ApplicationDetail({ app }: { app: TestnetApplication }) {
 }
 
 const STEPS = [
+  ['Public domain', 'Your domain resolves to a public address. A name pointing into a private network is never fetched.'],
+  ['The read-only check', 'The same check every mainnet anchor gets: stellar.toml, /info, a SEP-10 sign-in, and a SEP-24 deposit start. If this fails, the money flow is not attempted.'],
   ['stellar.toml', 'It names the testnet (or no network) and advertises SEP-10 and a SEP-24 or SEP-6 transfer server.'],
   ['Test wallet', 'A fresh testnet account, funded by Friendbot, opens a trustline to your asset.'],
   ['SEP-10 sign-in', 'The challenge must be signed by the SIGNING_KEY your toml publishes.'],
@@ -122,7 +124,8 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
             On testnet, money moves. A fresh wallet deposits with your anchor and withdraws back, and every payment is
-            checked on the ledger, not taken from your API’s word. Pass once and the same test runs every 20 minutes.
+            checked on the ledger, not taken from your API’s word. Pass once and the same test runs every 20 minutes,
+            and your anchor is scored by the same methodology as a mainnet one.
           </p>
         </header>
 
@@ -162,7 +165,7 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
           </ol>
           <p className="mt-6 max-w-3xl text-sm leading-relaxed text-as-ink-muted">
             Admitted when every step that applies passes. A failure on our side (Friendbot down, our browser) decides
-            nothing and is retried. Testnet results are shown as testnet, never mixed with mainnet’s.
+            nothing and is retried. Testnet anchors are scored by the same engine and the same numbers as mainnet ones; the card says which network it came from.
           </p>
         </section>
 
