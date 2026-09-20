@@ -10,6 +10,7 @@ import {
   INFO_FLAGS,
   INTEGRITY_CHECKS,
   MARKET_CURVE,
+  MARKET_PENALTIES,
   METHODOLOGY_VERSION,
   shares,
   SPEED_CURVE,
@@ -18,7 +19,7 @@ import {
 
 export const metadata: Metadata = {
   title: 'How we measure: Mona',
-  description: 'How an anchor score card is measured and computed: the checks, the four pillars, confidence, gates, and how to verify a score yourself.',
+  description: 'How an anchor score card is measured and computed: the checks, what the ledger says, the four pillars, confidence, gates, and how to verify a score yourself.',
 };
 
 const SPEC_URL = 'https://github.com/rbeyzas/Anchor-Status/blob/main/docs/SCORING.md';
@@ -67,10 +68,10 @@ const PILLAR_COPY = [
     key: 'market' as const,
     title: 'Market',
     question: 'Does its own asset hold its peg?',
-    body: 'Only for a fiat asset the anchor issues itself (its issuer points back at the anchor). The price against USDC on the Stellar DEX, from the order book and the AMM pool, compared with a daily reference rate. A sample counts only on a liquid market: both sides of the book, a spread under 5%, and at least $500 within 1% of the price.',
+    body: 'Only for an asset the anchor issues itself and declares to be worth one unit of a currency. The price against USDC on the Stellar DEX, compared with a reference rate for that currency. Three price sources: the order book when it is tight and deep, the AMM pool when it holds enough, and the price the asset last actually traded at. The traded price has no depth threshold, because a settled trade cannot be withdrawn the way a resting order can.',
     curveTitle: 'Median deviation to score',
     curve: MARKET_CURVE.map(([x, y]) => [`${x} bps`, y] as const),
-    note: 'Minus 20 if over a quarter of samples are more than 0.5% off, minus 20 if a gap over 1% lasted more than 6 hours: a gap arbitrage cannot close is the failure users feel. Not applicable (n/a) for anchors that only distribute someone else’s asset, have no fiat reference, or no liquid market; its weight then moves to the other three.',
+    note: 'Not applicable (n/a) for an anchor that only distributes someone else’s asset, whose asset claims no peg, whose currency we have no reference rate for, or that nothing traded; its weight then moves to the other three.',
   },
 ];
 
@@ -125,14 +126,15 @@ export default function MethodologyPage() {
           How we measure an anchor.
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
-          Every anchor we measure, on mainnet and on testnet, gets a score card built from 30 days of checks, by the
-          same engine and the same numbers. It says how well the anchor did on what we measured, and, as a separate
-          number, how much we measured. Nothing is guessed, traffic never adds points, and every number can be
-          recomputed by anyone from what we publish.
+          Every anchor we measure, on mainnet and on testnet, gets a score card built from 30 days of checks and of
+          ledger readings, by the same engine and the same numbers. It says how well the anchor did on what we
+          measured, and, as a separate number, how much we measured. Nothing is guessed, traffic never adds points, and
+          every number can be recomputed by anyone from what we publish.
         </p>
         <nav className="mt-8 flex flex-wrap gap-2 text-sm" aria-label="On this page">
           {[
             ['#checks', 'The checks'],
+            ['#chain', 'What the ledger says'],
             ['#pillars', 'Four pillars'],
             ['#confidence', 'Confidence'],
             ['#score', 'The score'],
@@ -181,9 +183,53 @@ export default function MethodologyPage() {
       </Section>
 
       <Section
+        id="chain"
+        title="What the ledger says, not what the API says."
+        lead="An API that answers is not an anchor that works. In the same round we read the public ledger for every asset an anchor issues, because the ledger cannot be styled, cached or claimed. All of it is read-only: no key of ours signs anything on mainnet."
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            {
+              title: 'Outstanding supply',
+              body: 'The total amount of the asset in existence: every trustline, plus claimable balances, liquidity pools, and balances held by Soroban contracts. That last part is what makes the number whole, because an anchor can issue and redeem entirely through a contract without a single classic payment.',
+              why: 'A mint or a redemption moves this total to the seventh decimal. Two readings twenty minutes apart are identical only when nothing settled at all, so a total that never changes is not a quiet week, it is no money moving.',
+            },
+            {
+              title: 'Issuance and redemption',
+              body: 'Payments into and out of the issuing account over 14 and 30 days, counted separately: how often the asset was created, and how often it was destroyed.',
+              why: 'An asset issued again and again but never redeemed is one users can get into and not out of. When the history is longer than we can page through, the counts are lower bounds and the flags stand down.',
+            },
+            {
+              title: 'What it traded at',
+              body: 'Daily candles of the asset against USDC for the last 7 days: the price it last actually changed hands at, and the worst peak-to-trough fall inside the week.',
+              why: 'Resting orders can be withdrawn; a settled trade cannot. This is also the only way to see a token that fell hard and recovered, which an average price hides completely.',
+            },
+            {
+              title: 'The reference rate',
+              body: 'What one unit of the currency the asset claims is worth in USD, from Reflector’s on-chain oracle where it carries that currency, and from a published daily rate table otherwise.',
+              why: 'A peg is a claim about the outside world, so it cannot be checked against another number of ours. Every sample names the source it used, and the card carries it.',
+            },
+          ].map((c) => (
+            <div key={c.title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
+              <h3 className="font-heading text-lg font-bold text-as-ink">{c.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{c.body}</p>
+              <p className="mt-2 text-sm leading-relaxed text-as-ink-faint">{c.why}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 rounded-as-md border border-as-amber/30 bg-as-surface-1 p-4 text-sm leading-relaxed text-as-ink-muted">
+          <span className="font-medium text-as-ink">A reading is not a history.</span> Supply cannot be fetched
+          backwards, so it is only worth judging once we have watched it ourselves: an asset needs at least 200 readings
+          spread over at least 7 days before the frozen-supply gate is even asked of it. Until then it is shown and not
+          scored. On the first day of sampling every asset looks frozen, and that says something about us, not about the
+          anchor.
+        </p>
+      </Section>
+
+      <Section
         id="pillars"
         title="Four pillars, weighted."
-        lead="Each pillar is a number from 0 to 100. The weights say how much each moves the score. Market applies only to an anchor that issues its own fiat asset and trades on a market we can measure; when it does not, its weight is spread over the other three."
+        lead="Each pillar is a number from 0 to 100. The weights say how much each moves the score. Market applies only to an anchor that issues its own asset, declares what it is worth, and trades where we can see it; when it does not, its weight is spread over the other three."
       >
         <div className="mb-10 grid gap-4 md:grid-cols-2">
           {[
@@ -242,7 +288,20 @@ export default function MethodologyPage() {
                     </tbody>
                   </table>
                 ) : (
-                  <CurveTable title={p.curveTitle} rows={p.curve} />
+                  <>
+                    <CurveTable title={p.curveTitle} rows={p.curve} />
+                    {p.key === 'market' && (
+                      <ul className="mt-4 flex flex-col gap-1.5 border-t border-as-hairline pt-3 text-xs text-as-ink-muted">
+                        <li className="font-semibold text-as-ink-faint">Then subtract</li>
+                        {MARKET_PENALTIES.map((m) => (
+                          <li key={m.when} className="flex gap-2">
+                            <span className="tabular shrink-0 font-mono text-as-danger">−{m.minus}</span>
+                            <span>{m.when}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
                 )}
               </div>
             </article>
@@ -334,7 +393,7 @@ confidence  = 100 · sufficiency · depth`}
       <Section
         id="gates"
         title="Gates and flags."
-        lead="A gate is a hard cap for a failure no average should hide. Information flags cap nothing; they explain the card. Both are always shown, whatever the confidence."
+        lead="A gate is a hard cap for a failure no average should hide: three of them come from the API, four from the ledger. Information flags cap nothing; they explain the card. Both are always shown, whatever the confidence."
       >
         <div className="grid gap-4 md:grid-cols-2">
           <table className="w-full overflow-hidden rounded-as-md border border-as-hairline bg-as-surface-1 text-sm shadow-as-panel">
@@ -377,7 +436,7 @@ confidence  = 100 · sufficiency · depth`}
       <Section id="not-scored" title="What never adds points." lead="Some signals are easy to show and easy to fake. They are context at most.">
         <ul className="grid gap-3 md:grid-cols-2">
           {[
-            ['Transaction volume', 'A payment on Stellar costs a fraction of a cent, so volume can be inflated by anyone, and a busy anchor is not a reliable one. It feeds the SILENT flag only.'],
+            ['Transaction volume', 'A payment on Stellar costs a fraction of a cent, so volume can be inflated by anyone, and a busy anchor is not a reliable one. Movement is read as a yes-or-no: money moved, or it did not.'],
             ['Age', 'An old, abandoned anchor is old. “On-chain since” is shown as context; our own monitoring time feeds confidence.'],
             ['Stake', 'Optional, and nobody is ever slashed. Shown only where an operator has staked.'],
             ['Machine learning', 'There is no labelled ground truth and the score must be explainable to the anchor it describes. Plain statistics: windows, percentiles, and a pull toward the middle.'],

@@ -3,7 +3,7 @@
 // (methodology version 2); the tests pin them to the worked examples of
 // docs/SCORING.md, so the page cannot drift from what is published.
 
-export const METHODOLOGY_VERSION = 1;
+export const METHODOLOGY_VERSION = 2;
 
 export const WEIGHTS = { availability: 450, speed: 200, integrity: 200, market: 150 } as const;
 export type Pillar = keyof typeof WEIGHTS;
@@ -35,6 +35,15 @@ export const MARKET_CURVE: [number, number][] = [
   [300, 25],
   [500, 0],
 ];
+
+/** The Market pillar's penalties, each subtracted from the curve above.
+ * Below the peg is its own penalty because it is the side a holder cannot
+ * escape: above the peg they can still sell at par, below it they cannot. */
+export const MARKET_PENALTIES = [
+  { when: 'More than a quarter of the samples sat over 0.5% off the reference rate.', minus: 20 },
+  { when: 'A gap over 1% lasted more than 6 hours: arbitrage had time and did not close it.', minus: 20 },
+  { when: 'More than a quarter of the samples sat over 0.5% below the peg.', minus: 20 },
+] as const;
 
 export const INTEGRITY_CHECKS = [
   { key: 'toml_valid', weight: 1, label: 'stellar.toml', passes: 'Fetched, parsed, and advertises a SEP-6 or SEP-24 transfer server.' },
