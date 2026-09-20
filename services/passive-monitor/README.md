@@ -21,6 +21,16 @@ sections 6.4 and 8). Only for assets an anchor issues itself, as found by
   that has never been in a classic operation — a Stellar Asset Contract
   issuer, for one) is read as zero mint and zero burn, because that is what
   can be seen.
+- **Supply** (`PASSIVE_MONITOR_SUPPLY_DIR`, one JSON-lines file a day): the
+  total outstanding amount of each issued asset, read once a round from
+  Horizon's `/assets`, with the buckets it is made of (trustlines, claimable
+  balances, liquidity pools, Stellar Asset Contract balances) and the number
+  of holders. A mint or a burn moves this number to the seventh decimal, so
+  a supply identical across two samples twenty minutes apart means nothing
+  settled in between. It also sees what the payment scan cannot: a SAC
+  balance is counted here, so an issuer whose asset moves only through
+  Soroban is no longer read as having done nothing. An asset Horizon does
+  not know is recorded as `not_found`, never as a supply of zero.
 - **Market samples** (`PASSIVE_MONITOR_MARKET_DIR`, one JSON-lines file a
   day): for each issued fiat asset, its price against Circle's USDC from the
   DEX order book mid (both sides present, spread under 5%) and the AMM pool

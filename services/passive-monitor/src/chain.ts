@@ -8,6 +8,7 @@ import { loadFlows, saveFlows, updateFlows, type IssuedAsset } from './flows.js'
 import { loadFxTable, usdPerUnit } from './fx.js';
 import { fetchRecentPayments, sleep } from './horizon.js';
 import { appendSamples, fetchQuotes, sample, USDC, type MarketSample } from './market.js';
+import { appendSupplySamples, sampleSupply, type SupplySample } from './supply.js';
 
 interface StatusFile {
   anchors: Record<
@@ -75,6 +76,25 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
   if (scanned === 0 && failures.length > 0) {
     throw new Error(`could not read any of the ${failures.length} issuer(s) scanned: ${failures[0].message}`);
   }
+
+  // Supply, for every issued asset: one cheap request each, and the only
+  // signal that sees a mint or burn made through the Stellar Asset Contract.
+  const supplies: SupplySample[] = [];
+  for (const asset of issued) {
+    try {
+      supplies.push(await sampleSupply(fetch, config.horizonMainnetUrl, asset, config.requestTimeoutMs));
+    } catch (err) {
+      console.warn(`[passive-monitor] supply ${asset.code}: ${(err as Error).message}`);
+    }
+    await sleep(config.requestDelayMs);
+  }
+  appendSupplySamples(config.supplyDir, supplies);
+  const missing = supplies.filter((s) => s.reason === 'not_found').length;
+  console.log(
+    `[passive-monitor] supply: ${supplies.length} asset(s) read` +
+      (missing ? `, ${missing} unknown to Horizon` : '') +
+      (supplies.length ? ` (largest ${Math.max(...supplies.map((s) => s.supply)).toLocaleString('en-US')})` : ''),
+  );
 
   const fx = await loadFxTable(config.fxCachePath, now);
   const samples: MarketSample[] = [];
