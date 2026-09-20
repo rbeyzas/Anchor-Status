@@ -40,6 +40,7 @@ export interface SupplySample {
 
 /** Horizon's `/assets` record, as far as this reads it. */
 interface AssetRecord {
+  asset_code?: string;
   balances?: { authorized?: string; authorized_to_maintain_liabilities?: string };
   claimable_balances_amount?: string;
   liquidity_pools_amount?: string;
@@ -64,29 +65,38 @@ export function totalSupply(r: AssetRecord): { supply: number; parts: SupplySamp
 }
 
 /**
- * Samples one asset. A missing asset is recorded as `not_found` rather than
+ * Samples every asset one issuer has, in a single request. Horizon returns
+ * all of an issuer's assets on one page (the widest issuer we track has 139),
+ * which is why this is keyed by issuer rather than by asset: 73 requests a
+ * round instead of 425.
+ *
+ * An asset the issuer does not report is recorded as `not_found` rather than
  * as a zero supply: "Horizon has never heard of this" and "nobody holds any"
  * are different claims, and only the second one is about the anchor.
  */
-export async function sampleSupply(
+export async function sampleIssuerSupply(
   fetchImpl: typeof fetch,
   horizonUrl: string,
-  asset: IssuedAsset,
+  issuer: string,
+  assets: IssuedAsset[],
   timeoutMs: number,
   now: Date = new Date(),
-): Promise<SupplySample> {
-  const url =
-    `${horizonUrl}/assets?asset_code=${encodeURIComponent(asset.code)}` +
-    `&asset_issuer=${encodeURIComponent(asset.issuer)}&limit=1`;
+): Promise<SupplySample[]> {
+  const url = `${horizonUrl}/assets?asset_issuer=${encodeURIComponent(issuer)}&limit=200`;
   const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
   const body = (await res.json()) as { _embedded?: { records?: AssetRecord[] } };
-  const base = { timestamp: now.toISOString(), anchor_id: asset.anchor_id, code: asset.code, issuer: asset.issuer };
-  const record = body._embedded?.records?.[0];
-  if (!record) {
-    return { ...base, supply: 0, parts: { trustlines: 0, claimable: 0, liquidity_pools: 0, contracts: 0 }, holders: 0, reason: 'not_found' };
-  }
-  return { ...base, ...totalSupply(record) };
+  // Asset codes are case-sensitive on Stellar, and at least one issuer we
+  // track has both `CLPX` and `clpx`, so this matches exactly.
+  const byCode = new Map((body._embedded?.records ?? []).map((r) => [r.asset_code, r]));
+  const timestamp = now.toISOString();
+  return assets.map((asset) => {
+    const base = { timestamp, anchor_id: asset.anchor_id, code: asset.code, issuer: asset.issuer };
+    const record = byCode.get(asset.code);
+    return record
+      ? { ...base, ...totalSupply(record) }
+      : { ...base, supply: 0, parts: { trustlines: 0, claimable: 0, liquidity_pools: 0, contracts: 0 }, holders: 0, reason: 'not_found' as const };
+  });
 }
 
 /** One JSON-lines file a day, beside the market samples. */

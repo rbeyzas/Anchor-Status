@@ -10,7 +10,7 @@ import { ReferenceRates } from './reference.js';
 import { Reflector } from './reflector.js';
 import { fetchRecentPayments, sleep } from './horizon.js';
 import { appendSamples, fetchQuotes, sample, USDC, type MarketSample } from './market.js';
-import { appendSupplySamples, sampleSupply, type SupplySample } from './supply.js';
+import { appendSupplySamples, sampleIssuerSupply, type SupplySample } from './supply.js';
 
 interface StatusFile {
   anchors: Record<
@@ -82,18 +82,21 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
   // Supply, for every issued asset: one cheap request each, and the only
   // signal that sees a mint or burn made through the Stellar Asset Contract.
   const supplies: SupplySample[] = [];
-  for (const asset of issued) {
+  const assetsByIssuer = new Map<string, typeof issued>();
+  for (const a of issued) assetsByIssuer.set(a.issuer, [...(assetsByIssuer.get(a.issuer) ?? []), a]);
+  for (const [issuer, assets] of assetsByIssuer) {
     try {
-      supplies.push(await sampleSupply(fetch, config.horizonMainnetUrl, asset, config.requestTimeoutMs));
+      supplies.push(...(await sampleIssuerSupply(fetch, config.horizonMainnetUrl, issuer, assets, config.requestTimeoutMs)));
     } catch (err) {
-      console.warn(`[passive-monitor] supply ${asset.code}: ${(err as Error).message}`);
+      // One unreadable issuer costs its own assets a sample, not the round.
+      console.warn(`[passive-monitor] supply ${issuer.slice(0, 8)}…: ${(err as Error).message}`);
     }
     await sleep(config.requestDelayMs);
   }
   appendSupplySamples(config.supplyDir, supplies);
   const missing = supplies.filter((s) => s.reason === 'not_found').length;
   console.log(
-    `[passive-monitor] supply: ${supplies.length} asset(s) read` +
+    `[passive-monitor] supply: ${supplies.length} asset(s) across ${assetsByIssuer.size} issuer(s)` +
       (missing ? `, ${missing} unknown to Horizon` : '') +
       (supplies.length ? ` (largest ${Math.max(...supplies.map((s) => s.supply)).toLocaleString('en-US')})` : ''),
   );

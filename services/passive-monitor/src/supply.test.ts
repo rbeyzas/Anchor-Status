@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sampleSupply, totalSupply } from './supply.js';
+import { sampleIssuerSupply, totalSupply } from './supply.js';
 
 const ASSET = { anchor_id: 'a', code: 'CLPX', issuer: 'GISSUER' };
 
@@ -49,25 +49,34 @@ describe('totalSupply', () => {
   });
 });
 
-describe('sampleSupply', () => {
+describe('sampleIssuerSupply', () => {
   const at = new Date('2026-09-20T10:00:00.000Z');
 
-  it('reads the asset and stamps it', async () => {
-    const s = await sampleSupply(horizon({ _embedded: { records: [record()] } }), 'https://h', ASSET, 100, at);
-    expect(s).toMatchObject({ anchor_id: 'a', code: 'CLPX', issuer: 'GISSUER', supply: 106, holders: 42 });
-    expect(s.timestamp).toBe('2026-09-20T10:00:00.000Z');
-    expect(s.reason).toBeUndefined();
+  it('reads every asset of an issuer from one request', async () => {
+    const f = horizon({ _embedded: { records: [record({ asset_code: 'CLPX' }), record({ asset_code: 'XCHF', balances: { authorized: '7' } })] } });
+    const out = await sampleIssuerSupply(f, 'https://h', 'GISSUER', [ASSET, { ...ASSET, code: 'XCHF' }], 100, at);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toMatchObject({ code: 'CLPX', supply: 106, holders: 42 });
+    expect(out[1]).toMatchObject({ code: 'XCHF', supply: 13 });
+    expect(out[0].timestamp).toBe('2026-09-20T10:00:00.000Z');
   });
 
-  it('marks an asset Horizon does not know, rather than calling it zero', async () => {
-    // "Never heard of it" and "nobody holds any" are different claims, and
-    // only the second one is about the anchor.
-    const s = await sampleSupply(horizon({ _embedded: { records: [] } }), 'https://h', ASSET, 100, at);
+  it('matches asset codes case-sensitively', async () => {
+    // One issuer we track has both CLPX and clpx, and only one of them has
+    // any supply.
+    const f = horizon({ _embedded: { records: [record({ asset_code: 'clpx', balances: { authorized: '0' }, claimable_balances_amount: '0', liquidity_pools_amount: '0', contracts_amount: '0' }), record({ asset_code: 'CLPX' })] } });
+    const [s] = await sampleIssuerSupply(f, 'https://h', 'GISSUER', [ASSET], 100, at);
+    expect(s.supply).toBe(106);
+  });
+
+  it('marks an asset the issuer does not report, rather than calling it zero', async () => {
+    const f = horizon({ _embedded: { records: [record({ asset_code: 'OTHER' })] } });
+    const [s] = await sampleIssuerSupply(f, 'https://h', 'GISSUER', [ASSET], 100, at);
     expect(s.reason).toBe('not_found');
     expect(s.supply).toBe(0);
   });
 
   it('throws on a Horizon error so the round records nothing rather than a wrong zero', async () => {
-    await expect(sampleSupply(horizon({}, false), 'https://h', ASSET, 100, at)).rejects.toThrow('HTTP 500');
+    await expect(sampleIssuerSupply(horizon({}, false), 'https://h', 'GISSUER', [ASSET], 100, at)).rejects.toThrow('HTTP 500');
   });
 });
