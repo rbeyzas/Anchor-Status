@@ -1,13 +1,23 @@
 // npm run calibrate
 //
-// What the new signals would do, before any of them is allowed to. Computes
-// every anchor's card twice from the same inputs: once with the supply and
-// trade measures present, once with them stripped out, which is exactly the
-// card today's methodology produces. Prints the difference.
+// What a threshold would catch, before it is allowed to catch anything. It
+// computes every anchor's card twice from the same inputs, once with the
+// supply and trade measures present and once with them stripped, and prints
+// the difference. It writes nothing and sends nothing.
 //
-// It writes nothing and sends nothing. The point is to see which anchors a
-// threshold catches, and whether the ones it catches deserve it, before the
-// thresholds are switched on.
+// Read the difference for what it is: the contribution of those measures
+// alone, with everything else held equal. It is not a diff against the code
+// running on the collector, because both halves run this checkout. When the
+// question is "what changes when I deploy this", score the same data with
+// both checkouts and diff the two outputs; anything else quietly compares a
+// change against itself. Doing that caught a filter here whose whole effect
+// was invisible to this report, and an anchor that gained seven points from
+// it.
+//
+// One trap if you do run this from a copy of the tree: the testnet probe log
+// is the one input with no env override, so it is found relative to the
+// source file. A copy at the wrong depth reads an empty log and silently
+// scores two fewer anchors.
 import { config } from '../config.js';
 import { computeCard, flagNames } from './engine.js';
 import { buildInputs, floorToHour } from './inputs.js';
