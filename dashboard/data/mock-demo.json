@@ -196,6 +196,7 @@
     }
   },
   "mock_anchor_2": {
+    "imported": true,
     "score": 54,
     "scoreHistory": [
       {
