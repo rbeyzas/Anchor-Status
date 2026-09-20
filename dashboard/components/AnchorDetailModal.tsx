@@ -103,6 +103,15 @@ export function AnchorDetailModal({
           </div>
         )}
 
+        {anchor.sourceType === 'RealTestnet' && (
+          <div className="mb-5 rounded-as-md border border-as-pulse/30 bg-as-pulse-soft px-4 py-3 text-sm text-as-ink-muted">
+            This anchor gets the same check as every mainnet anchor: its stellar.toml, its transfer server, and a SEP-10
+            sign-in. On testnet we then go further and
+            <span className="font-medium text-as-ink"> complete a real deposit</span>, funded through Friendbot, and check
+            every payment on the ledger. The score card below is computed exactly as on mainnet.
+          </div>
+        )}
+
         <div className="mb-5 grid grid-cols-3 gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-xs text-as-ink-muted">Score</span>
@@ -117,7 +126,7 @@ export function AnchorDetailModal({
               <span className="text-sm text-as-ink-faint">
                 {CONFIDENCE_LABEL[confidenceBand(card.confidence)]} yet (confidence {card.confidence} of the 40 needed)
               </span>
-            ) : anchor.sourceType === 'RealMainnet' ? (
+            ) : anchor.sourceType !== 'SimulatedMock' ? (
               <span className="text-sm text-as-ink-faint">Not enough data yet: no score card published</span>
             ) : (
               <span className="text-sm text-as-ink-faint">

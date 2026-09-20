@@ -11,6 +11,7 @@ import {
   readFlows,
   readMarketSamples,
   readProbeHistory,
+  readTestnetProbeLines,
   writeIncidents,
   writeInputsBundle,
 } from './load.js';
@@ -24,7 +25,7 @@ export interface ScoringResult {
 }
 
 /**
- * Computes every RealMainnet anchor's card and publishes the ones due. With
+ * Computes every RealMainnet and RealTestnet anchor's card and publishes the ones due. With
  * `dryRun`, computes and returns them without writing a bundle or sending a
  * transaction.
  */
@@ -32,6 +33,10 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
   const windowEnd = floorToHour(now);
   const probes = await readProbeHistory(config.mainnetProbeResultsDir, windowEnd);
   fillLegacySigningKeys(probes, config.evidenceDir);
+  // Testnet anchors are scored the same way, from their own log.
+  const testnetProbes = readTestnetProbeLines(config.testnetProbeLogPath);
+  const testnetIds = new Set(testnetProbes.map((p) => p.anchor_id));
+  probes.push(...testnetProbes);
   const assets = readAssets(config.mainnetStatusPath);
   const samples = await readMarketSamples(config.marketSamplesDir, windowEnd);
   const flows = readFlows(config.flowsPath);
@@ -56,7 +61,7 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
     const inputs = cards.find((c) => c.anchorId === anchorId)!.inputs;
     const inputsHash = writeInputsBundle(config.evidenceDir, inputs);
     try {
-      await publishScoreCard(anchorId, card, inputsHash);
+      await publishScoreCard(anchorId, card, inputsHash, testnetIds.has(anchorId) ? 'RealTestnet' : 'RealMainnet');
       state[anchorId] = {
         published_at: new Date(now).toISOString(),
         inputs_hash: inputsHash,

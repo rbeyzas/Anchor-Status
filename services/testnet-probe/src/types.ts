@@ -19,6 +19,9 @@ export interface ProbeResult {
   asset?: string;
   /** Every step, with its time and, for payments, the ledger transaction. */
   steps?: FlowStep[];
+  /** The same public-surface check mainnet anchors get (stellar.toml, /info,
+   * SEP-10, deposit start, TLS), run before the money flow. */
+  public_checks?: Record<string, unknown>;
 }
 
 export interface StellarTomlInfo {

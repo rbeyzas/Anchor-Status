@@ -44,6 +44,40 @@ export async function readProbeHistory(dir: string, windowEnd: number): Promise<
 }
 
 /**
+ * testnet-probe's log as probe lines. Each run carries the same public-surface
+ * check mainnet anchors get (`public_checks`), so a testnet anchor is scored
+ * on the same stages; `success` also needs the money flow to have passed.
+ * Runs from before that check was added have no stages and are left out.
+ */
+export function readTestnetProbeLines(file: string): ProbeLine[] {
+  if (!fs.existsSync(file)) return [];
+  let runs: Array<Record<string, any>>;
+  try {
+    runs = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(runs)) return [];
+  return runs.flatMap((r) => {
+    const pub = r.public_checks;
+    if (!pub?.stages) return [];
+    return [
+      {
+        anchor_id: r.anchor_id,
+        timestamp: r.timestamp,
+        success: r.success,
+        ...(r.inconclusive ? { inconclusive: true } : {}),
+        ...(pub.failed_stage ? { failed_stage: pub.failed_stage } : {}),
+        stages: pub.stages,
+        ...(pub.stages_expected ? { stages_expected: pub.stages_expected } : {}),
+        ...(pub.checks ? { checks: pub.checks } : {}),
+        ...(r.evidence_hash ? { evidence_hash: r.evidence_hash } : {}),
+      } as ProbeLine,
+    ];
+  });
+}
+
+/**
  * Log lines from before the probe recorded `checks` have no SIGNING_KEY of
  * their own, but their evidence document does. Fills it in, reading each
  * document once.

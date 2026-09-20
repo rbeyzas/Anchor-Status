@@ -130,7 +130,7 @@ export function AnchorCard({
             <span className="as-mono text-lg text-as-ink-muted">-</span>
             {status?.aliasOf
               ? `Scored as ${status.aliasOf.domain}`
-              : anchor.sourceType === 'RealMainnet'
+              : anchor.sourceType !== 'SimulatedMock'
                 ? 'No score card yet'
                 : 'Not enough checks yet'}
           </span>

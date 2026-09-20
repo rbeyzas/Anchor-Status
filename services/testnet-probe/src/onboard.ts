@@ -16,9 +16,8 @@ import {
 } from './candidates.js';
 import { registeredAnchorIds } from './chain.js';
 import { config } from './config.js';
-import { runMoneyFlow } from './flow.js';
 import { ADMISSION_RULE, evaluateTestnetCandidate, type OnboardingDeps } from './onboarding.js';
-import { liveDeps, REFERENCE_ANCHOR } from './probe.js';
+import { REFERENCE_ANCHOR, runChecks } from './probe.js';
 import { resolvesToPublicAddress } from './public-host.js';
 
 /** True when we, not the anchor, are offline. */
@@ -33,7 +32,7 @@ async function networkDown(): Promise<boolean> {
 
 const deps: OnboardingDeps = {
   isPublic: (domain) => resolvesToPublicAddress(domain),
-  runFlow: (target) => runMoneyFlow(target, liveDeps(target)),
+  runFlow: async (target) => (await runChecks(target)).flow,
   networkDown,
 };
 

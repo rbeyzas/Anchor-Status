@@ -65,15 +65,20 @@ export class ScoreCardsUnsupported extends Error {}
 
 /**
  * Publishes a score card with PerformanceOracle.publish_score_card, signed
- * by the RealMainnet reporter (the contract checks it against the anchor's
- * source type in the registry).
+ * by the reporter of the anchor's source type (the contract checks it
+ * against the source type in the registry).
  */
-export async function publishScoreCard(anchorId: string, card: ScoreCard, inputsHash: string): Promise<void> {
-  const client = await getReporterClient('RealMainnet');
+export async function publishScoreCard(
+  anchorId: string,
+  card: ScoreCard,
+  inputsHash: string,
+  sourceType: 'RealMainnet' | 'RealTestnet' = 'RealMainnet',
+): Promise<void> {
+  const client = await getReporterClient(sourceType);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const c = client as any;
   if (typeof c.publish_score_card !== 'function') throw new ScoreCardsUnsupported('the oracle has no publish_score_card yet');
-  const reporter = Keypair.fromSecret(config.reporterSecretKeys.RealMainnet()).publicKey();
+  const reporter = Keypair.fromSecret(config.reporterSecretKeys[sourceType]()).publicKey();
   const assembled = await c.publish_score_card({
     reporter,
     anchor_id: anchorId,

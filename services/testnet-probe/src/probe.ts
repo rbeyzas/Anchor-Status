@@ -7,6 +7,9 @@ import { writeEvidence } from './evidence.js';
 import { runMoneyFlow, type FlowDeps, type FlowResult, type FlowTarget } from './flow.js';
 import { createAndFundAccount } from './friendbot.js';
 import { verifyPayment } from './horizon-verify.js';
+// The very probe every mainnet anchor gets, imported rather than copied so the
+// two networks can never be judged by different checks.
+import { probeAnchor as probePublicSurface, type MainnetProbeResult } from '../../mainnet-probe/src/probe.js';
 import { completeInteractiveFlow } from './interactive.js';
 import { balanceOf, memoFor, sendPayment } from './payment.js';
 import { resolvesToPublicAddress } from './public-host.js';
@@ -74,7 +77,7 @@ export function liveDeps(target: FlowTarget): FlowDeps {
 
 /** One anchor's money-flow run as the result the aggregator reads, with its
  * evidence published (unless the failure was ours). */
-export function toProbeResult(anchor: FlowTarget, startedAt: Date, flow: FlowResult): ProbeResult {
+export function toProbeResult(anchor: FlowTarget, startedAt: Date, flow: FlowResult, pub?: MainnetProbeResult): ProbeResult {
   const inconclusive = flow.inconclusive || (!flow.success && isProbeEnvironmentError(flow.error ?? ''));
   const result: ProbeResult = {
     anchor_id: anchor.anchor_id,
@@ -89,6 +92,7 @@ export function toProbeResult(anchor: FlowTarget, startedAt: Date, flow: FlowRes
     ...(flow.protocol ? { protocol: flow.protocol } : {}),
     ...(flow.asset ? { asset: flow.asset } : {}),
     steps: flow.steps,
+    ...(pub ? { public_checks: publicChecks(pub) } : {}),
   };
   if (!inconclusive) {
     result.evidence_hash = writeEvidence(config.evidenceDir, {
@@ -105,17 +109,49 @@ export function toProbeResult(anchor: FlowTarget, startedAt: Date, flow: FlowRes
       },
       ...(flow.protocol ? { protocol: flow.protocol } : {}),
       steps: flow.steps,
+      ...(pub ? { public_checks: publicChecks(pub), public_transcript: pub.transcript } : {}),
       ...flow.evidence,
     });
   }
   return result;
 }
 
+const publicChecks = (pub: MainnetProbeResult) => ({
+  success: pub.success,
+  ...(pub.failed_stage ? { failed_stage: pub.failed_stage } : {}),
+  ...(pub.error ? { error: pub.error } : {}),
+  stages: pub.stages,
+  stages_expected: pub.stages_expected,
+  checks: pub.checks,
+});
+
+/** The mainnet check (toml, /info, SEP-10, deposit start, TLS), then, if the
+ * anchor passed it, the testnet-only money flow. Admission uses it too. */
+export async function runChecks(target: FlowTarget): Promise<{ flow: FlowResult; pub: MainnetProbeResult }> {
+  const pub = await probePublicSurface(target, { fetchImpl: fetch, requestTimeoutMs: 20_000, networkPassphrase: config.networkPassphrase });
+  // A hard failure of the public surface is the anchor's outage already; no
+  // need to spend a Friendbot account proving the money flow cannot work.
+  if (!pub.success) {
+    const flow: FlowResult = {
+      success: false,
+      inconclusive: false,
+      steps: [],
+      seconds: pub.settlement_seconds,
+      final_transaction_status: null,
+      error: `public check failed at ${pub.failed_stage}: ${pub.error}`,
+      evidence: {},
+    };
+    return { flow, pub };
+  }
+  const flow = await runMoneyFlow(target, liveDeps(target));
+  return { flow: { ...flow, seconds: flow.seconds + pub.settlement_seconds }, pub };
+}
+
 export async function probeAnchor(anchor: TestnetAnchor): Promise<ProbeResult> {
   const startedAt = new Date();
   const target: FlowTarget = { anchor_id: anchor.anchor_id, domain: anchor.domain, ...(anchor.asset_code ? { asset_code: anchor.asset_code } : {}) };
-  const flow = await runMoneyFlow(target, liveDeps(target));
-  return toProbeResult(target, startedAt, flow);
+  const { flow, pub } = await runChecks(target);
+  return toProbeResult(target, startedAt, flow, pub);
 }
 
 export function appendResult(result: ProbeResult, resultsPath: string = config.resultsPath): void {
