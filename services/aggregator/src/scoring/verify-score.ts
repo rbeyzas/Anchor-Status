@@ -1,4 +1,4 @@
-// npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>]
+// npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>] [--testnet-log <file>]
 //
 // Checks that a score-inputs bundle hashes to its name, recomputes the card
 // from it, and optionally compares that card with the one on-chain and the
@@ -11,6 +11,7 @@ import { SCORE_INPUTS_SCHEMA, sha256Hex } from '../evidence.js';
 import { computeCard, flagNames } from './engine.js';
 import { applyIncidents } from './incidents.js';
 import { dayDigest, type ProbeLine } from './inputs.js';
+import { readTestnetProbeLines } from './load.js';
 import type { ScoreCard, ScoreInputs } from './types.js';
 
 const DEFAULT_EVIDENCE_URL = process.env.EVIDENCE_BASE_URL ?? 'http://37.221.76.23/evidence/';
@@ -77,7 +78,7 @@ export async function onChainCard(rpcUrl: string, oracleId: string, anchorId: st
  * that cites one would look altered; `applyIncidents` reads its evidence
  * from the log, so it needs every day of it, not one day at a time.
  */
-export function checkDays(inputs: ScoreInputs, logsDir: string): string[] {
+export function checkDays(inputs: ScoreInputs, logsDir: string, testnetLog?: string): string[] {
   const problems: string[] = [];
   const all: ProbeLine[] = [];
   // Every day in the directory, not only the days this card covers: an
@@ -88,8 +89,12 @@ export function checkDays(inputs: ScoreInputs, logsDir: string): string[] {
     }
   }
   applyIncidents(all);
+  // A testnet anchor's runs are in testnet-probe's single log, not the daily files.
+  const testnet = testnetLog ? readTestnetProbeLines(testnetLog) : [];
+  all.push(...testnet);
   for (const day of inputs.days) {
-    if (!fs.existsSync(path.join(logsDir, `probe-${day.date}.jsonl`))) {
+    const haveLog = fs.existsSync(path.join(logsDir, `probe-${day.date}.jsonl`)) || testnet.some((p) => p.timestamp.slice(0, 10) === day.date);
+    if (!haveLog) {
       problems.push(`${day.date}: no log file`);
       continue;
     }
@@ -115,9 +120,9 @@ async function main() {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
   };
-  const ref = args.find((a, i) => !a.startsWith('--') && !['--anchor', '--logs'].includes(args[i - 1]));
+  const ref = args.find((a, i) => !a.startsWith('--') && !['--anchor', '--logs', '--testnet-log'].includes(args[i - 1]));
   if (!ref) {
-    console.error('usage: npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>]');
+    console.error('usage: npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>] [--testnet-log <file>]');
     process.exitCode = 2;
     return;
   }
@@ -148,7 +153,7 @@ async function main() {
   }
   const logs = opt('--logs');
   if (logs) {
-    const problems = checkDays(inputs, logs);
+    const problems = checkDays(inputs, logs, opt('--testnet-log'));
     console.log(problems.length ? `probe logs DIFFER:\n  ${problems.join('\n  ')}` : `probe logs match all ${inputs.days.length} daily digests`);
     failed ||= problems.length > 0;
   }
