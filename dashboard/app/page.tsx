@@ -75,7 +75,6 @@ async function loadSnapshot(): Promise<HomeSnapshot> {
       counters: c,
       probe: probeExample(anchors),
       journey,
-      // The same anchor as the walkthrough above it, when it has evidence.
       proof: proofChain(anchors, journey?.anchorId),
       ticker: tickerItems(anchors),
     };
