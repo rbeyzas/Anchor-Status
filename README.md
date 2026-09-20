@@ -7,7 +7,9 @@
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#running-the-full-system"><b>Run it locally</b></a> ·
   <a href="#deployed-testnet-contracts"><b>Deployed contracts</b></a> ·
-  <a href="#repository-layout"><b>Repository layout</b></a>
+  <a href="#repository-layout"><b>Repository layout</b></a> ·
+  <a href="#anchor-onboarding"><b>Apply as an anchor</b></a> ·
+  <a href="#docs"><b>Docs</b></a>
 </p>
 
 ## What this is
@@ -40,18 +42,33 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 | `RealTestnet` | `services/testnet-probe` | A real SEP-10 auth + SEP-24 interactive deposit against the anchor actually reaches a terminal state |
 | `SimulatedMock` | `services/mock-anchors` | A scripted, seeded behavior profile (success rate, latency, optional time-based degradation) |
 
+### Architecture at a glance
+
+| Layer | Components | Reads | Writes | Network |
+| --- | --- | --- | --- | --- |
+| **Collect** | `mainnet-probe`, `passive-monitor`, `testnet-probe`, `mock-anchors` | Anchor public APIs, Horizon (mainnet, read-only), testnet anchors | Normalized reports and evidence documents on the collector host | Mainnet read-only, testnet |
+| **Aggregate** | `aggregator` | Collector output | `PerformanceOracle.submit_report()`, `publish_score_card()` | Testnet |
+| **On-chain** | `PerformanceOracle` → `AnchorRegistry` | Signed reports from authorized reporters | Score cards, EMA, trend, risk flag; registry score of record | Testnet (Soroban) |
+| **Archive** | `history-archiver` | Soroban RPC events (7-day window) | `history.json`, served read-only | Testnet |
+| **Present** | `dashboard` (Next.js) | Both contracts via RPC, the archive, `/anchor-status.json` | Nothing on-chain; applications go to the onboarding intake | Read-only |
+
+**Explore the code graph:** [interactive knowledge graph](https://htmlpreview.github.io/?https://github.com/rbeyzas/Anchor-Status/blob/main/graphify-out/graph.html) of the whole repository (1,894 nodes, 128 communities, built with [graphify](https://github.com/safishamsi/graphify)), and its [summary report](graphify-out/GRAPH_REPORT.md) with the central nodes and community map.
+
+Trust boundary: only the reporter keys write scores, the oracle is the only caller `AnchorRegistry` accepts, and everything the dashboard shows can be recomputed from the published hashes.
+
 ## Repository layout
 
 | Path | Stack | Role |
 | --- | --- | --- |
 | [`contracts/anchor-registry`](contracts/anchor-registry) | Rust / Soroban | Anchor identity, optional stake, score of record (0 until scored) |
 | [`contracts/performance-oracle`](contracts/performance-oracle) | Rust / Soroban | Score cards, per-report EMA, trend and risk floor, cross-contract calls into `anchor-registry` |
-| [`services/mainnet-probe`](services/mainnet-probe) | Node / TypeScript | Discovers every live SEP-6/24 anchor on mainnet and probes its public API without moving funds |
+| [`services/mainnet-probe`](services/mainnet-probe) | Node / TypeScript | Discovers every live SEP-6/24 anchor on mainnet, probes its public API without moving funds, and runs the onboarding intake for anchors that apply |
 | [`services/passive-monitor`](services/passive-monitor) | Node / TypeScript | Read-only mainnet context and chain signals: mint/burn flows and peg samples of the assets anchors issue. Volume is never scored |
 | [`services/testnet-probe`](services/testnet-probe) | Node / TypeScript / Playwright | Live SEP-10 + SEP-24 test against a real testnet anchor |
 | [`services/mock-anchors`](services/mock-anchors) | Python / Django / django-polaris | Four fully-controlled SEP-24 anchors with scripted behavior |
 | [`services/aggregator`](services/aggregator) | Node / TypeScript | Submits reports from all three sources, and computes, publishes and verifies score cards |
-| [`dashboard`](dashboard) | Next.js / TypeScript / Tailwind | Live read-only view of on-chain state |
+| [`services/history-archiver`](services/history-archiver) | Node / TypeScript | Durable score and risk history beyond the public RPC's 7-day event window, with `verify` and `backfill` against a long-retention RPC |
+| [`dashboard`](dashboard) | Next.js / TypeScript / Tailwind | Live read-only view of on-chain state, plus the anchor application pages |
 | [`scripts`](scripts) | Bash | One-shot setup, deploy, and demo scripts |
 
 Each directory has its own README with implementation-level detail.
@@ -150,6 +167,15 @@ npm run dev
 
 Open `http://localhost:3000`. It reads `AnchorRegistry` and `PerformanceOracle` straight from `NEXT_PUBLIC_SOROBAN_RPC_URL`, falling back to `SOROBAN_RPC_FALLBACK_URL` if that fails. There is no demo data: if the contract IDs aren't set or no RPC answers, the page says so and shows no scores.
 
+The dashboard's pages:
+
+| Route | What it shows |
+| --- | --- |
+| `/` | Home: a live ticker and radar built from real figures, no demo data |
+| `/scores` | Every tracked anchor with score, confidence, pillars and flags, searchable, with the score card and history in a detail view |
+| `/methodology` | How a score card is computed, for readers who don't open `docs/SCORING.md` |
+| `/apply`, `/apply/testnet` | Anchors apply to be measured (mainnet, or testnet with a real money-flow test) |
+
 ### 6. Everything at once
 
 ```bash
@@ -233,6 +259,14 @@ reads it from `HISTORY_ARCHIVE_URL` server-side and unions it into the live
 contract read. If it is unreachable the dashboard still renders live data —
 just with a shorter chart.
 
+## Anchor onboarding
+
+Discovery finds anchors that publish a SEP-6/24 server; an anchor that doesn't yet appear can apply to be measured instead.
+
+1. The anchor submits its domain on `/apply` (mainnet) or `/apply/testnet` (testnet).
+2. The dashboard's `/api/onboarding` routes hand it to the **onboarding intake**, a small always-on process ([`services/mainnet-probe/src/intake-server.ts`](services/mainnet-probe/src/intake-server.ts)) that runs as its own unprivileged user, can write only to the onboarding directory, and never sees the collector's keys. Setup: [`scripts/README.md`](scripts/README.md).
+3. The 20-minute round checks each application (`npm run onboard`): eligibility first (a testnet anchor is rejected from a mainnet application), then admission and registration on-chain.
+
 ## Deployed testnet contracts
 
 | Contract | Contract ID |
@@ -252,6 +286,8 @@ Every contract and service ships with its own test suite; none require network a
 (cd services/passive-monitor && npm test)
 (cd services/testnet-probe && npm test)
 (cd services/aggregator && npm test)
+(cd services/mainnet-probe && npm test)
+(cd services/history-archiver && npm test)
 (cd services/mock-anchors && .venv/bin/pytest)
 (cd dashboard && npm test)
 ```
@@ -265,6 +301,17 @@ Every contract and service ships with its own test suite; none require network a
 - **Cross-contract authorization**: `PerformanceOracle` is the only caller `AnchorRegistry` accepts for `update_score`, enforced by Soroban's own invoker-authentication — no shared secret or allowlist needed.
 - **Verifiable, not trusted.** Each report can carry the SHA-256 of a published evidence document, emitted on-chain with the score change: the anchor's own signed SEP-10 challenge and, for testnet deposits, the payout on the ledger. `npm run verify -- <hash>` in `services/mainnet-probe` checks one independently. A score card's inputs bundle is checked the same way with `npm run verify-score` in `services/aggregator`, which recomputes the card and compares it with the one on-chain.
 - **Upgrades keep the address.** Both contracts have an admin-only `upgrade`; `scripts/upgrade-contracts.sh` replaces the code in place, so a fix doesn't change contract IDs or reset state.
+
+## Docs
+
+| Document | What it covers |
+| --- | --- |
+| [`docs/SCORING.md`](docs/SCORING.md) | The scoring method: pillars, confidence, gates, verification |
+| [`docs/DEMO.md`](docs/DEMO.md) | Guided walkthrough, including watching `mock_anchor_3` degrade |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and known limitations |
+| [`docs/TODO.md`](docs/TODO.md) | Open work in priority order (in Turkish) |
+| [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) | Auto-generated map of the codebase: central nodes, communities, cross-module links |
+| [`scripts/README.md`](scripts/README.md) | Collector-host setup and the onboarding intake |
 
 ## License
 
