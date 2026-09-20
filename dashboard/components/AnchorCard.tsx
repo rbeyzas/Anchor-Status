@@ -57,6 +57,14 @@ export function AnchorCard({
         </span>
       )}
 
+      {/* Top-right, mirroring the risk badge on the left: a card can carry
+          both, and neither should push the other out of view. */}
+      {anchor.imported && (
+        <span className="as-card__tag">
+          <StatusChip tone="pulse">Imported</StatusChip>
+        </span>
+      )}
+
       <div className="as-card__main">
         <span className="as-card__name">{anchor.name}</span>
         <SourceBadge sourceType={anchor.sourceType} />

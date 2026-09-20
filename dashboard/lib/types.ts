@@ -103,6 +103,11 @@ export interface AnchorViewModel {
   name: string;
   domain: string;
   sourceType: SourceType;
+  /** Admitted through /apply rather than registered by us or found by
+   * discovery. Kept on the view model, not in `status`, because testnet has
+   * no status file: the applications files are the only record both
+   * networks share (see fetchImportedAnchorIds). */
+  imported?: boolean;
   /** Stake, in XLM (already converted from stroops). */
   stake: number;
   score: number;

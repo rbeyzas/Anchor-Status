@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { describeProblem, issuedAssets, mergeStatusInto, policyNote } from './anchor-status';
+import { acceptedAnchorIds } from './onboarding-server';
 import { compareAnchors, hasEnoughData, headlineScore, listingExplanation, statusRank } from './status-labels';
 import type { AnchorViewModel } from './types';
 
@@ -168,5 +169,13 @@ describe('compareAnchors', () => {
     const failingShown = anchor({ anchorId: 'failing', card: card(45, 90), status: down });
     const reachableWithheld = anchor({ anchorId: 'reachable', card: card(80, 10), status: up });
     expect([failingShown, reachableWithheld].sort(compareAnchors).map((a) => a.anchorId)).toEqual(['reachable', 'failing']);
+  });
+});
+
+describe('acceptedAnchorIds', () => {
+  it('counts only admitted applications, across both networks', () => {
+    const main = { candidates: [{ status: 'accepted', anchor_id: 'a' }, { status: 'already_tracked', anchor_id: 'b' }, { status: 'rejected' }] };
+    const test = { candidates: [{ status: 'accepted', anchor_id: 'c' }, { status: 'received' }] };
+    expect([...acceptedAnchorIds(main, test, null)].sort()).toEqual(['a', 'c']);
   });
 });

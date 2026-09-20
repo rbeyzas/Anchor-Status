@@ -2,6 +2,7 @@ import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { isDelisted } from './delisted';
 import { stroopsToXlm } from './format';
 import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
+import { fetchImportedAnchorIds, mergeImportedInto } from './onboarding-server';
 import { fetchArchive, mergeArchiveInto } from './history';
 import {
   anchorInfoKey,
@@ -210,11 +211,12 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
  * anything that looks like a real score but isn't. */
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [live, archive, status, summary] = await Promise.all([
+    const [live, archive, status, summary, importedIds] = await Promise.all([
       fetchLiveDashboardData(createRpcPool()),
       fetchArchive(),
       fetchAnchorStatus(),
       fetchScoreSummary(),
+      fetchImportedAnchorIds(),
     ]);
     if (live.anchors.length === 0 && live.unreadable.length > 0) {
       throw new Error(`could not read any of the ${live.unreadable.length} registered anchors`);
@@ -222,7 +224,12 @@ export async function getDashboardData(): Promise<DashboardData> {
     return {
       anchors: mergeMockDemoInto(
         mergeCardContext(
-          mergeStatusInto(mergeArchiveInto(live.anchors.filter((a) => !isDelisted(a.anchorId)), archive), status),
+          // Last of the enrichments: it only tags, so it can't be undone by
+          // the merges that rebuild view models from the chain data.
+          mergeImportedInto(
+            mergeStatusInto(mergeArchiveInto(live.anchors.filter((a) => !isDelisted(a.anchorId)), archive), status),
+            importedIds,
+          ),
           summary,
         ),
       ),
