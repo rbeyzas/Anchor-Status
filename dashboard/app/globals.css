@@ -654,6 +654,19 @@ body {
   flex-wrap: wrap;
   gap: 6px;
 }
+/* A long chip ("Requires a funded or verified account to start a deposit")
+   must wrap inside the text column: the base chip never wraps and would
+   run under the score column beside it. Scoped to the card so chips
+   elsewhere keep their single-line pill shape. */
+.as-card__main .as-chip {
+  height: auto;
+  min-height: 24px;
+  max-width: 100%;
+  padding-block: 4px;
+  border-radius: 12px;
+  line-height: 1.35;
+  white-space: normal;
+}
 .as-card__side {
   display: flex;
   flex-direction: column;
