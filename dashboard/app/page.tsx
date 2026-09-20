@@ -362,8 +362,11 @@ export default async function LandingPage() {
           <span className="inline-flex items-center gap-2 font-medium text-as-ink">
             <Logo size={18} /> Anchor Status
           </span>
-          <span>
-            Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.
+          <span className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
+            <Link href="/structure" className="transition-colors hover:text-as-ink">
+              Project structure
+            </Link>
+            <span>Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.</span>
           </span>
         </footer>
       </div>
