@@ -35,7 +35,6 @@ import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 
-// Same cadence as /scores: at most one chain read a minute.
 export const revalidate = 60;
 
 const TIER_TEXT = {
@@ -365,7 +364,9 @@ export default async function LandingPage() {
             <Link href="/structure" className="transition-colors hover:text-as-ink">
               Project structure
             </Link>
-            <span>Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.</span>
+            <span>
+              Read-only. Nothing here trades or moves real assets. Writes happen on testnet only.
+            </span>
           </span>
         </footer>
       </div>
