@@ -42,6 +42,61 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 | `RealTestnet` | `services/testnet-probe` | A real SEP-10 auth + SEP-24 interactive deposit against the anchor actually reaches a terminal state |
 | `SimulatedMock` | `services/mock-anchors` | A scripted, seeded behavior profile (success rate, latency, optional time-based degradation) |
 
+### System diagram
+
+```mermaid
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'Space Grotesk, ui-sans-serif, system-ui, sans-serif','fontSize':'15px','lineColor':'#7D889B','textColor':'#E9EDF4','clusterBkg':'#11151D','clusterBorder':'#364052','edgeLabelBackground':'#0B0E14'},'flowchart':{'curve':'basis','nodeSpacing':40,'rankSpacing':60,'htmlLabels':true}}}%%
+flowchart LR
+    ANCH(["Stellar anchors<br/>mainnet read-only · testnet"])
+
+    subgraph COLLECT["Collect"]
+        direction TB
+        MP["mainnet-probe"]
+        PM["passive-monitor"]
+        TP["testnet-probe"]
+        MA["mock-anchors"]
+    end
+
+    AGG["aggregator<br/>reports · score cards"]
+
+    subgraph CHAIN["Soroban · testnet"]
+        direction TB
+        ORA["PerformanceOracle<br/>EMA · trend · risk"]
+        REG["AnchorRegistry<br/>identity · score of record"]
+    end
+
+    ARC["history-archiver<br/>durable history"]
+    DASH["dashboard<br/>read-only"]
+    INTAKE["onboarding intake<br/>/apply"]
+
+    ANCH --> MP & PM & TP
+    MP & PM & TP & MA -->|"reports + evidence"| AGG
+    AGG -->|"submit_report<br/>publish_score_card"| ORA
+    ORA -->|"update_score"| REG
+    ORA -.->|"events"| ARC
+    ORA --> DASH
+    REG --> DASH
+    ARC --> DASH
+    MP -->|"anchor-status.json"| DASH
+    DASH -.->|"applications"| INTAKE
+    INTAKE -.->|"checked each round"| MP
+
+    classDef ext fill:#181D27,stroke:#7D889B,color:#E9EDF4,stroke-width:1.5px
+    classDef collect fill:#0F2A22,stroke:#2EE6A6,color:#E9EDF4,stroke-width:1.5px
+    classDef agg fill:#101A33,stroke:#6B9BFF,color:#E9EDF4,stroke-width:1.5px
+    classDef chain fill:#2C1F08,stroke:#FFB03A,color:#E9EDF4,stroke-width:1.5px
+    classDef view fill:#181D27,stroke:#B79CFF,color:#E9EDF4,stroke-width:1.5px
+    class ANCH ext
+    class MP,PM,TP,MA collect
+    class AGG agg
+    class ORA,REG chain
+    class ARC,DASH,INTAKE view
+    style COLLECT fill:#0B0E14,stroke:#2EE6A6,stroke-dasharray:4 4,color:#2EE6A6
+    style CHAIN fill:#0B0E14,stroke:#FFB03A,stroke-dasharray:4 4,color:#FFB03A
+```
+
+Solid arrows carry data on every round; dashed ones are event reads and the application path. Only the reporter keys write scores.
+
 ### Architecture at a glance
 
 | Layer | Components | Reads | Writes | Network |
