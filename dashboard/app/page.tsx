@@ -337,7 +337,6 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* CTA */}
         <section className="as-panel as-panel--lg as-panel--live mb-16 px-8 py-16 text-center sm:px-14 md:mb-24">
           <h2 className="mx-auto max-w-lg font-heading text-4xl font-bold leading-tight tracking-[-0.025em] text-as-ink">
             Check an anchor before you route money through it.
