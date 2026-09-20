@@ -40,11 +40,19 @@ sections 6.4 and 8). Only for assets an anchor issues itself, as found by
   most of what anchors peg to but not all of it (GHS, for one), so the free
   currency API stays as the fallback and every sample records which of the
   two it used.
+- **Traded price and drawdown.** Horizon's `/trade_aggregations` gives daily
+  candles of the asset against USDC, which serve two purposes the order book
+  cannot. They price a market that is real but thin: the book-and-pool rule
+  alone rejected every issued fiat asset tracked here, including CLPX at 20
+  to 90 trades a day. And they carry history, so a week of price exists the
+  first time this runs rather than a week later. The worst peak-to-trough
+  fall in that week is recorded as `drawdown_pct`.
 - **Market samples** (`PASSIVE_MONITOR_MARKET_DIR`, one JSON-lines file a
   day): for each issued fiat asset, its price against Circle's USDC from the
-  DEX order book mid (both sides present, spread under 5%) and the AMM pool
-  spot, each counted only with at least $500 on each side within 1% of the
-  price; against a daily reference rate from
+  DEX order book mid (both sides present, spread under 5%), the AMM pool spot
+  (each counted only with at least $500 within 1% of the price) and the last
+  traded price, which needs no depth threshold because a settled trade cannot
+  be withdrawn the way a resting order can; against a daily reference rate from
   [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api),
   falling back to [ExchangeRate-API's open endpoint](https://www.exchangerate-api.com/docs/free)
   (Rates By Exchange Rate API). An attempt without a rate or without a liquid

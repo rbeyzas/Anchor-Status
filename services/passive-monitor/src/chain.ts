@@ -11,6 +11,7 @@ import { Reflector } from './reflector.js';
 import { fetchRecentPayments, sleep } from './horizon.js';
 import { appendSamples, fetchQuotes, sample, USDC, type MarketSample } from './market.js';
 import { appendSupplySamples, sampleIssuerSupply, type SupplySample } from './supply.js';
+import { fetchTradeHistory } from './trades.js';
 
 interface StatusFile {
   anchors: Record<
@@ -111,7 +112,20 @@ export async function runChainSignals(now = Date.now()): Promise<void> {
     const base = { timestamp: new Date().toISOString(), anchor_id: asset.anchor_id, code: asset.code, issuer: asset.issuer, anchor_asset: asset.anchor_asset };
     try {
       const { book, amm } = await fetchQuotes(fetch, config.horizonMainnetUrl, asset, config.requestTimeoutMs);
-      samples.push(sample(base, book, amm, await references.forCurrency(asset.anchor_asset)));
+      await sleep(config.requestDelayMs);
+      // What it actually traded at, over the same week the pillar scores.
+      let trades = null;
+      try {
+        const history = await fetchTradeHistory(fetch, config.horizonMainnetUrl, asset, 7, config.requestTimeoutMs);
+        if (history.last !== undefined) {
+          trades = { last: history.last, trades: history.trades, max_drawdown_pct: history.max_drawdown_pct };
+        }
+      } catch (err) {
+        // A missing trade history costs this sample its third source, not
+        // the sample itself.
+        console.warn(`[passive-monitor] trades ${asset.code}: ${(err as Error).message}`);
+      }
+      samples.push(sample(base, book, amm, await references.forCurrency(asset.anchor_asset), trades));
     } catch (err) {
       // A Horizon failure is ours: no sample at all, rather than a false
       // "no liquidity".

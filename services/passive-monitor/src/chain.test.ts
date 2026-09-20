@@ -271,3 +271,37 @@ describe('issuedAssets', () => {
     expect(fiat).toEqual([{ anchor_id: 'a', code: 'ARST', issuer: 'GA', anchor_asset: 'ARS' }]);
   });
 });
+
+describe('market samples from what actually traded', () => {
+  const base = { timestamp: '2026-09-20T10:00:00.000Z', anchor_id: 'a', code: 'CLPX', issuer: ISSUER, anchor_asset: 'CLP' };
+  const reference = { rate: 0.001, source: 'reflector:CBKG', date: '2026-09-20T08:50:00.000Z' };
+
+  it('prices a thin market from its trades', () => {
+    // No book and no pool deep enough. This is the case that used to be
+    // reported as "no liquid market" for assets trading every day.
+    const s = sample(base, null, null, reference, { last: 0.0011, trades: 291, max_drawdown_pct: 14.26 });
+    expect(s.reason).toBeUndefined();
+    expect(s.price_usd).toBeCloseTo(0.0011, 10);
+    expect(s.drawdown_pct).toBe(14.26);
+  });
+
+  it('records which side of the peg the price is on', () => {
+    // Below the peg is the direction a holder cannot escape, so the sign is
+    // kept alongside the magnitude the aggregates already use.
+    const below = sample(base, null, null, reference, { last: 0.0009, trades: 5, max_drawdown_pct: 0 });
+    expect([below.dev_bps, below.dev_bps_signed]).toEqual([1000, -1000]);
+    const above = sample(base, null, null, reference, { last: 0.0011, trades: 5, max_drawdown_pct: 0 });
+    expect([above.dev_bps, above.dev_bps_signed]).toEqual([1000, 1000]);
+  });
+
+  it('does not take a price from a history with no trades in it', () => {
+    const s = sample(base, null, null, reference, { last: 0.0011, trades: 0, max_drawdown_pct: 0 });
+    expect(s.reason).toBe('no_liquidity');
+  });
+
+  it('keeps the drawdown on record even when nothing qualifies as a price', () => {
+    const s = sample(base, null, null, reference, { last: 0, trades: 0, max_drawdown_pct: 30 });
+    expect(s.reason).toBe('no_liquidity');
+    expect(s.sources?.trades?.max_drawdown_pct).toBe(30);
+  });
+});

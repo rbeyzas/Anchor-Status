@@ -57,6 +57,13 @@ export function quoteAmm(reserveAsset: number, reserveUsdc: number): AmmQuote | 
   return { spot: reserveUsdc / reserveAsset, depth_usd: Math.min(up, down) };
 }
 
+/** The last price the asset actually traded at, and how far it fell. */
+export interface TradeQuote {
+  last: number;
+  trades: number;
+  max_drawdown_pct: number;
+}
+
 export interface MarketSample {
   timestamp: string;
   anchor_id: string;
@@ -64,34 +71,57 @@ export interface MarketSample {
   issuer: string;
   anchor_asset: string;
   price_usd?: number;
+  /** Distance from the reference rate, unsigned, in basis points. */
   dev_bps?: number;
+  /** The same distance, signed: negative means the asset trades below the
+   * peg it declares, which is the direction a holder cannot escape. */
+  dev_bps_signed?: number;
+  /** Worst peak-to-trough fall in the trade window, percent. */
+  drawdown_pct?: number;
   reference?: { source: string; date: string; rate: number };
-  sources?: { order_book?: OrderBookQuote; amm?: AmmQuote };
+  sources?: { order_book?: OrderBookQuote; amm?: AmmQuote; trades?: TradeQuote };
   reason?: 'no_fx_rate' | 'no_liquidity';
 }
 
+/** A traded price counts when anyone actually traded. Depth thresholds
+ * belong to resting orders, which can be withdrawn; a settled trade cannot. */
+export const MIN_TRADES = 1;
+
 /**
- * One sample from whatever quotes qualify. The price is the median of the
- * qualifying sources (both: their mean). No qualifying source, or no
- * reference rate, is recorded as an attempt with its reason.
+ * One sample from whatever quotes qualify: the order book when it is tight
+ * and deep enough, the AMM pool when it holds enough, and the last traded
+ * price whenever the asset traded at all. The price is the mean of those.
+ *
+ * A traded price is what rescues the thin markets. The book-and-pool rule
+ * alone rejected every issued fiat asset we track, including ones trading
+ * twenty to ninety times a day.
  */
 export function sample(
   base: Pick<MarketSample, 'timestamp' | 'anchor_id' | 'code' | 'issuer' | 'anchor_asset'>,
   book: OrderBookQuote | null,
   amm: AmmQuote | null,
   reference: { rate: number; source: string; date: string } | undefined,
+  trades?: TradeQuote | null,
 ): MarketSample {
-  const sources = { ...(book ? { order_book: book } : {}), ...(amm ? { amm } : {}) };
+  const sources = {
+    ...(book ? { order_book: book } : {}),
+    ...(amm ? { amm } : {}),
+    ...(trades ? { trades } : {}),
+  };
   if (!reference) return { ...base, sources, reason: 'no_fx_rate' };
   const prices: number[] = [];
   if (book && book.spread < MAX_SPREAD && book.depth_usd >= MIN_DEPTH_USD) prices.push(book.mid);
   if (amm && amm.depth_usd >= MIN_DEPTH_USD) prices.push(amm.spot);
+  if (trades && trades.trades >= MIN_TRADES && trades.last > 0) prices.push(trades.last);
   if (prices.length === 0) return { ...base, sources, reference, reason: 'no_liquidity' };
   const price = prices.reduce((a, b) => a + b, 0) / prices.length;
+  const signed = (price / reference.rate - 1) * 10000;
   return {
     ...base,
     price_usd: Number(price.toPrecision(10)),
-    dev_bps: Number((Math.abs(price / reference.rate - 1) * 10000).toFixed(2)),
+    dev_bps: Number(Math.abs(signed).toFixed(2)),
+    dev_bps_signed: Number(signed.toFixed(2)),
+    ...(trades ? { drawdown_pct: trades.max_drawdown_pct } : {}),
     reference,
     sources,
   };
