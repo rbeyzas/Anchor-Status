@@ -22,7 +22,7 @@ const mono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'Mona: which anchor will hold?',
   description:
-    'Stellar anchor reliability, measured from live mainnet, live testnet, and simulated sources.',
+    'Stellar anchor reliability, measured from live mainnet anchors, live testnet anchors that move real test money, and controlled reference anchors.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

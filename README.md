@@ -3,6 +3,9 @@
 </p>
 
 <p align="center">
+  <b><a href="https://anchor-status.vercel.app">Live dashboard</a></b> ·
+  <b><a href="https://anchor-status.vercel.app/scores">Live scores</a></b> ·
+  <b><a href="docs/SUBMISSION.md">Judge's guide</a></b> ·
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#running-the-full-system"><b>Run it locally</b></a> ·
@@ -23,6 +26,17 @@ Anyone can *claim* a Stellar SEP-24 anchor is reliable. Mona measures it, on-cha
 Every mainnet anchor gets a **score card** computed from 30 days of those checks: four pillars (availability, speed, integrity, and, for anchors that issue their own fiat asset, how well it holds its peg), a separate **confidence** that says how much was measured, and hard gates that cap the score on an outage or a signing problem. The card is published on a [Soroban](https://developers.stellar.org/docs/build/smart-contracts/overview) contract with the SHA-256 of the inputs it was computed from, and the inputs are published, so anyone can recompute it. The method is in [`docs/SCORING.md`](docs/SCORING.md). The contract publishes the verdict openly; it never slashes or moves anyone's stake. A live dashboard reads it from the chain.
 
 Nothing here trades real assets. Mainnet is read-only. Testnet is where every write happens.
+
+## Who this is for
+
+| Who | The problem today | What Mona gives them |
+| --- | --- | --- |
+| **Wallets and payment apps** routing a user's deposit or withdrawal | The anchor list in a wallet is hand-curated. When an anchor silently stops settling, the wallet finds out from its users | A machine-readable score per anchor, with the evidence behind it — so routing can prefer an anchor that is actually answering today |
+| **Users** sending money home or cashing out | "Which anchor should I trust with my money?" is answered by hearsay | A public card per anchor: how available it was, how fast it settled, whether its peg held, and how much of that was actually measured |
+| **Anchor operators** | Nothing distinguishes a well-run anchor from a dormant one that still publishes a `stellar.toml` | A neutral, reproducible record of uptime and settlement they can point at. No slashing: a measurement error never costs an operator money |
+| **SDF and ecosystem reviewers** | Anchor health is assessed by hand, anchor by anchor | Continuous coverage of every live SEP-6/24 anchor on mainnet (**103 on the day of writing**, plus 2 testnet anchors and 4 controlled reference anchors), archived and recomputable |
+
+**Why this scales.** Mona does not need an anchor's permission or integration to measure it: everything it checks is public (`stellar.toml`, `/info`, SEP-10, deposit start). Discovery already found and tracks every live SEP-6/24 anchor on mainnet, so coverage grows with the ecosystem rather than with our sales effort. The score is a pure function of a published inputs bundle, so a wallet that does not trust us can recompute every card itself.
 
 ## How it works
 
@@ -333,6 +347,43 @@ Discovery finds anchors that publish a SEP-6/24 server; an anchor that doesn't y
 
 Network: Stellar Testnet (`Test SDF Network ; September 2015`). For code changes use `scripts/upgrade-contracts.sh`, which keeps these IDs. Only a fresh `scripts/deploy-contracts.sh` creates new ones (and writes them into `.env`) — update this table if you do.
 
+## Stellar ecosystem fit
+
+Mona is not a Stellar app with a Stellar component bolted on: every measurement it takes is a SEP conversation with a real anchor, and its output lives on Soroban.
+
+| SEP | Where it is exercised | Why it is load-bearing |
+| --- | --- | --- |
+| **SEP-1** (`stellar.toml`) | [`mainnet-probe/src/toml.ts`](services/mainnet-probe/src/toml.ts), [`testnet-probe/src/toml.ts`](services/testnet-probe/src/toml.ts) | Anchor discovery and the Integrity pillar (CORS, TLS, signing key, issuer cross-check) |
+| **SEP-10** (web auth) | [`mainnet-probe/src/probe.ts`](services/mainnet-probe/src/probe.ts), [`testnet-probe/src/sep10.ts`](services/testnet-probe/src/sep10.ts) | A challenge is requested from every tracked anchor each round and verified against its declared signing key; a mismatch is a hard gate (`SEP10_MISMATCH`, caps the score at 40) |
+| **SEP-24** (interactive transfer) | [`testnet-probe/src/sep24.ts`](services/testnet-probe/src/sep24.ts), [`interactive.ts`](services/testnet-probe/src/interactive.ts) | Real testnet deposits and withdrawals, driven through the anchor's own interactive flow with Playwright |
+| **SEP-6** (programmatic transfer) | [`testnet-probe/src/sep6.ts`](services/testnet-probe/src/sep6.ts) | The same money flow for anchors that offer SEP-6 instead |
+| **SEP-40** (price oracle interface) | [`passive-monitor/src/reflector.ts`](services/passive-monitor/src/reflector.ts) | Reference fiat rates are read off the ledger from **[Reflector](https://reflector.network)**, a SEP-40 oracle on Stellar mainnet, so the Market pillar's peg deviation can be recomputed by anyone from chain data rather than from a rate we assert |
+
+| Tool | Use |
+| --- | --- |
+| `soroban-sdk` 27.0.6 | Both contracts — cross-contract auth, instance/persistent storage with TTL extension, events, admin-only `upgrade` |
+| `@stellar/stellar-sdk` 17.0.1 | Every Node service and the dashboard — Horizon reads, Soroban RPC reads, transaction assembly and signing |
+| `stellar-cli` | [`scripts/deploy-contracts.sh`](scripts/deploy-contracts.sh), [`scripts/upgrade-contracts.sh`](scripts/upgrade-contracts.sh) — build, deploy, upgrade-in-place, invoke |
+| Friendbot / Horizon testnet | [`testnet-probe/src/friendbot.ts`](services/testnet-probe/src/friendbot.ts) — a fresh funded wallet per probe run, so no run inherits the last one's state |
+| Horizon mainnet (read-only) | [`passive-monitor`](services/passive-monitor) — issued-asset supply, mint/burn flows, peg samples |
+
+### Stellar Skills used
+
+| Skill file | Where it shaped the project |
+| --- | --- |
+| [`skills/data/SKILL.md`](https://skills.stellar.org/skills/data/SKILL.md) | The Stellar data skill guided how we query chain data with AI assistance: Horizon vs. Soroban RPC choice, the shape of the asset/issuer and payment queries in [`passive-monitor`](services/passive-monitor) (supply, flows, peg samples), and the event-window scanning in [`history-archiver`](services/history-archiver) |
+
+## Traction and continuity
+
+**A third-party anchor is already in the pool.** The hackathon's own testnet anchor, [`tr-mock-anchor.fly.dev`](https://tr-mock-anchor.fly.dev), is measured by Mona like any other anchor — not as a fixture, but through the live pipeline. It appears twice on [the live scores page](https://anchor-status.vercel.app/scores), because it gets both checks:
+
+- `tr_mock_anchor_fly_dev` (**RealMainnet**): the read-only public-surface check every mainnet anchor gets.
+- `tr_mock_anchor_fly_dev_testnet` (**RealTestnet**): the same check, then a real SEP-24 deposit and withdrawal whose payments are verified on the ledger, every 20 minutes, each run publishing an evidence hash on-chain.
+
+Its first card is the methodology working as designed on an anchor we do not control: every pillar passed (availability, speed and integrity all 100) but only 3 checks over a few hours exist, so confidence is 2 out of 100 and the headline is pulled to **51** — near "unknown" — instead of the flattering 100 a new anchor would get from the raw report average. The number will climb toward its pillars as the measured window grows, not because anything about the anchor changed.
+
+**Continuation path.** InstaAward straight after the hackathon, then an SCF Build Award once the scoring methodology runs on mainnet backed by real transfers. Milestones, success measures and the known limitations we are addressing are in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Testing
 
 Every contract and service ships with its own test suite; none require network access.
@@ -363,6 +414,7 @@ Every contract and service ships with its own test suite; none require network a
 
 | Document | What it covers |
 | --- | --- |
+| [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | **Start here if you are judging this**: each criterion mapped to the evidence for it, including what is not met |
 | [`docs/SCORING.md`](docs/SCORING.md) | The scoring method: pillars, confidence, gates, verification |
 | [`docs/DEMO.md`](docs/DEMO.md) | Guided walkthrough, including watching `mock_anchor_3` degrade |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and known limitations |
@@ -372,4 +424,4 @@ Every contract and service ships with its own test suite; none require network a
 
 ## License
 
-No license file is currently published for this repository. Treat the code as all-rights-reserved unless the repository owner adds one.
+[MIT](LICENSE).

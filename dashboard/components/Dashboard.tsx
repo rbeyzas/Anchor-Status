@@ -64,7 +64,8 @@ export function Dashboard({
                 Live scores
               </h1>
               <p className="mt-4 max-w-lg text-base leading-relaxed text-as-ink-muted">
-                Reliability scores from live mainnet, live testnet, and simulated sources.
+                Reliability scores from live mainnet anchors, live testnet anchors that move real
+                test money, and four controlled reference anchors.
               </p>
             </div>
             <StatusChip tone={dataSource === 'live' ? 'signal' : 'danger'} live={dataSource === 'live'} dot>
