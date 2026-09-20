@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { MagnifyingGlass, WarningCircle, X } from '@phosphor-icons/react';
 import type { AnchorViewModel, DataSource, SourceType, UnreadableAnchor } from '@/lib/types';
@@ -34,6 +34,14 @@ export function Dashboard({
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<AnchorViewModel | null>(null);
   const prefersReducedMotion = useReducedMotion();
+
+  // /scores?anchor=<id> (the apply pages link here) opens that anchor's details.
+  // Read on the client so the page stays statically cached.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('anchor');
+    const target = id ? anchors.find((a) => a.anchorId === id) : undefined;
+    if (target) setSelected(target);
+  }, [anchors]);
 
   const filtered = useMemo(() => {
     const scoped = anchors.filter((a) => (filter === 'all' || a.sourceType === filter) && matchesQuery(a, query));

@@ -59,7 +59,7 @@ function ApplicationDetail({ app }: { app: Application }) {
           {app.status === 'accepted'
             ? 'It is registered on-chain and measured every 20 minutes. Its score appears once there is enough data to show it, usually within a few days.'
             : 'This anchor was already being measured before it applied.'}{' '}
-          <Link href="/scores" className="inline-flex items-center gap-1 font-medium text-as-signal hover:underline">
+          <Link href={app.anchor_id ? `/scores?anchor=${encodeURIComponent(app.anchor_id)}` : '/scores'} className="inline-flex items-center gap-1 font-medium text-as-signal hover:underline">
             See the scores <ArrowUpRight size={13} weight="bold" aria-hidden="true" />
           </Link>
         </p>
