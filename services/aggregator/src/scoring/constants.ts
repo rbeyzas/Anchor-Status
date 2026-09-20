@@ -2,7 +2,7 @@
 // 17). Changing any of them changes what a card means, so it must come with
 // a new METHODOLOGY_VERSION.
 
-export const METHODOLOGY_VERSION = 1;
+export const METHODOLOGY_VERSION = 2;
 
 /** Pillar weights in permille. Availability dominates because an anchor
  * that is down cannot be used at all; Market is often n/a and its weight is
@@ -72,6 +72,8 @@ export const FLAGS = {
   SILENT: 5,
   LOW_COVERAGE: 6,
   NO_MARKET: 7,
+  FROZEN_SUPPLY: 8,
+  VOLATILE: 9,
 } as const;
 export type FlagName = keyof typeof FLAGS;
 
@@ -82,6 +84,8 @@ export const GATE_CAPS: Partial<Record<FlagName, number>> = {
   SEP10_MISMATCH: 40,
   DEPEG: 50,
   ONE_WAY_FLOW: 70,
+  FROZEN_SUPPLY: 70,
+  VOLATILE: 60,
 };
 
 /** OUTAGE: this many most recent conclusive probes all failed. */
@@ -115,6 +119,33 @@ export const DEPEG_HOURS = 24;
 
 /** ONE_WAY_FLOW: issued at least this often in 14 days, never redeemed. */
 export const ONE_WAY_MIN_MINTS = 5;
+
+/**
+ * FROZEN_SUPPLY: the total outstanding amount never changed. A mint or a
+ * burn moves it to the seventh decimal, so identical readings mean nothing
+ * settled. It is only asked of an asset with enough readings over enough
+ * days to mean anything: on the first day of sampling every asset looks
+ * frozen, and that says something about us, not about the anchor.
+ */
+export const SUPPLY_MIN_SAMPLES = 200;
+export const SUPPLY_MIN_SPAN_DAYS = 7;
+
+/**
+ * VOLATILE: worst peak-to-trough fall, in percent, over the 7-day trade
+ * window. A token meant to hold a peg should not move like this; a holder
+ * who needed to sell into that fall did not get what they were promised.
+ *
+ * Set from the first week of real data rather than from taste. At 7% it
+ * caught eight of the nine assets with a measurable market, which ranks
+ * nothing; the observed falls ran from 7% to 81%, and 15% separates them.
+ */
+export const VOLATILE_DRAWDOWN_PCT = 15;
+
+/** Trading below the declared peg is worse than trading above it: a holder
+ * above the peg can still sell at par, one below it cannot. Applied when
+ * over this share of samples sat more than 50 bps under. */
+export const MARKET_BELOW_PEG_PENALTY = 20;
+export const MARKET_BELOW_PEG_SHARE = 0.25;
 
 /** Most cards published per aggregator run, so a first run or a backlog
  * cannot hold up the 20-minute round. */

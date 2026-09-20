@@ -1,4 +1,4 @@
-# Scoring methodology (v1)
+# Scoring methodology (v2)
 
 This is the single source of truth for how an anchor's score is computed, published and verified. It replaces the per-report EMA as the headline score for every anchor we measure, on mainnet and on testnet. The implementation plan is in [`docs/prompts/scoring-v2-implementation.md`](prompts/scoring-v2-implementation.md); where the implementation departs from this text, section 19 says how and why.
 
@@ -166,6 +166,8 @@ A gate is a hard cap applied after everything else. Multiple gates: the lowest c
 | `SEP10_MISMATCH` (2) | Any of the last 3 conclusive probes found the challenge not signed by the published `SIGNING_KEY`. | 40 |
 | `DEPEG` (3) | `longest_run_gt300_hours > 24` in the last 7 days. | 50 |
 | `ONE_WAY_FLOW` (4) | Verified issuer asset, not truncated: `mint_count_14d ≥ 5` and `burn_count_14d = 0`. | 70 |
+| `FROZEN_SUPPLY` (8) | Verified issuer asset: its total outstanding amount never changed over 30 days, across at least 200 readings. | 70 |
+| `VOLATILE` (9) | Verified issuer asset: worst peak-to-trough fall over the 7-day trade window above 15%. | 60 |
 | `SILENT` (5) | Verified issuer asset: no mint and no burn in 30 days. | none (info) |
 | `LOW_COVERAGE` (6) | `coverage < 0.6`. | none (info) |
 | `NO_MARKET` (7) | Verified fiat issuer asset but no usable market samples in 7 days. | none (info) |
@@ -309,13 +311,15 @@ All in `services/aggregator/src/scoring/constants.ts`, each with a comment sayin
 | TLS minimum days left | 14 |
 | Confidence | time 14 days, samples 100, depth 0.5 + 0.5 · coverage |
 | Confidence bands | < 40 insufficient, < 70 low, < 90 medium, else high |
-| Gate caps | OUTAGE 50, LOW_UPTIME 60, SEP10_MISMATCH 40, DEPEG 50, ONE_WAY_FLOW 70 |
+| Gate caps | OUTAGE 50, LOW_UPTIME 60, SEP10_MISMATCH 40, DEPEG 50, ONE_WAY_FLOW 70, FROZEN_SUPPLY 70, VOLATILE 60 |
 | LOW_UPTIME | `n7 ≥ 20` and `u7 < 90%` |
 | DEPEG | run over 300 bps for more than 24h |
 | ONE_WAY_FLOW | `mint_count_14d ≥ 5` and `burn_count_14d = 0` |
+| FROZEN_SUPPLY | `distinct_values = 1`, with `samples ≥ 200` and `span_days ≥ 7` |
+| VOLATILE | `max_drawdown_pct > 15` over the 7-day trade window |
 | LOW_COVERAGE | `coverage < 0.6` |
 | Market curve | (0,100) (25,100) (50,90) (100,70) (200,45) (300,25) (500,0) |
-| Market penalties | −20 if `share_outside_50 > 0.25`; −20 if `longest_run_gt100_hours > 6` |
+| Market penalties | −20 if `share_outside_50 > 0.25`; −20 if `longest_run_gt100_hours > 6`; −20 if `share_below_peg > 0.25` |
 | Market sample | min depth 500 USD within 1% slippage; order book spread under 5% |
 | Numeraire USD asset | one constant (verify the issuer against Circle and StellarExpert before use) |
 | `MAX_CARDS_PER_RUN` | 40 |
@@ -344,6 +348,7 @@ Where the implementation had to choose, or departs from the text above.
 - A check a probe never recorded (log lines from before `checks` existed) is n/a, not a pass. For those lines the signing key is read back from their evidence documents, so `signing_key_stable` covers them.
 
 **Pillars and flags.**
+- Market judges only an asset whose `stellar.toml` sets `is_asset_anchored = true`: that is where an anchor claims the token is worth one unit of what it names, and an asset making no such claim has no peg to be off. Without it the pillar is `n/a` with reason `not_pegged`.
 - An anchor that issues several fiat assets: Market is the weakest asset's score; DEPEG and ONE_WAY_FLOW are set if any asset trips them; SILENT only if none of its issued assets moved in 30 days.
 - Market is n/a with reason `not_issuer` when the anchor issues nothing, `no_fiat_reference` when it issues only non-fiat assets or no reference rate exists, and `no_market` when no sample was usable. NO_MARKET is set only for `no_market`.
 - LOW_COVERAGE is set only for a measured coverage. The 0.5 used when coverage is unknown is not a finding about the anchor.
@@ -360,4 +365,6 @@ Where the implementation had to choose, or departs from the text above.
 
 **Observed on the first run (19 September 2026).** Only one day of probes with the new fields existed, so every card's confidence was under 40 and every number was withheld. That resolved within days, as expected: cards are shown from 20 September.
 
-**Standing limitation: the Market pillar does not fire.** None of the 28 issued fiat assets has ever produced a usable market sample. Order-book spreads run 120-200% with near-zero depth; the best seen was ZARZ, 40 bps off its peg with a 0.3% spread but only $225 of depth. Two causes, both still present: the $500 depth threshold, and the single USDC numeraire (several of these assets trade against XLM, not USDC). The sampler also reads only resting orders, so an asset that trades every day can still be reported as having no market: CLPX has 20-90 trades a day and fell 24% between 11 and 20 September 2026, while its card said `no_market`. Reading executed trades rather than the order book alone is the first thing to change.
+**Resolved, 20 September 2026: the Market pillar now fires.** Reading executed trades alongside the order book turned 0 usable samples into 25. The first week of real prices also settled two things that had been guesses. `VOLATILE` was set at 7% and caught eight of the nine assets with a measurable market, which ranks nothing; the observed falls ran from 7% to 81%, so the threshold is 15%. And the peg judgement now requires `is_asset_anchored`: of the nine assets sitting more than 300 bps off the currency they name, eight declare that flag and one does not, and judging the ninth against a peg it never claimed would have been wrong.
+
+**Superseded observation, for the record.** None of the 28 issued fiat assets has ever produced a usable market sample. Order-book spreads run 120-200% with near-zero depth; the best seen was ZARZ, 40 bps off its peg with a 0.3% spread but only $225 of depth. Two causes, both still present: the $500 depth threshold, and the single USDC numeraire (several of these assets trade against XLM, not USDC). The sampler also reads only resting orders, so an asset that trades every day can still be reported as having no market: CLPX has 20-90 trades a day and fell 24% between 11 and 20 September 2026, while its card said `no_market`. Reading executed trades rather than the order book alone is the first thing to change.

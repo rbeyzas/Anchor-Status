@@ -34,7 +34,7 @@ describe('testnet anchors are scored like mainnet ones', () => {
   });
 
   it('builds the same inputs and a card with every pillar', () => {
-    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], flows: [] })!;
+    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], supplySamples: [], flows: [] })!;
     expect(inputs.uptime.n30).toBe(120);
     expect(inputs.integrity.sep10_signed).toBe('pass');
     expect(inputs.integrity.tls_ok).toBe('pass');
@@ -47,13 +47,13 @@ describe('testnet anchors are scored like mainnet ones', () => {
   it('a failed money flow counts against availability', () => {
     const bad = [...Array.from({ length: 10 }, (_, i) => run(i, { success: false }))];
     fs.writeFileSync(log, JSON.stringify(bad));
-    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], flows: [] })!;
+    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], supplySamples: [], flows: [] })!;
     expect(inputs.uptime.ok30).toBe(0);
   });
 
   it('verify-score recomputes the daily digests from the testnet log', () => {
     fs.writeFileSync(log, JSON.stringify(runs));
-    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], flows: [] })!;
+    const inputs = buildInputs('x_testnet', readTestnetProbeLines(log), windowEnd, { assets: [], marketSamples: [], supplySamples: [], flows: [] })!;
     expect(checkDays(inputs, dir, log)).toEqual([]);
     expect(checkDays(inputs, dir)).not.toEqual([]);
   });

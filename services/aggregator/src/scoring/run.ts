@@ -11,6 +11,7 @@ import {
   readFlows,
   readMarketSamples,
   readProbeHistory,
+  readSupplySamples,
   readTestnetProbeLines,
   writeIncidents,
   writeInputsBundle,
@@ -39,13 +40,14 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
   probes.push(...testnetProbes);
   const assets = readAssets(config.mainnetStatusPath);
   const samples = await readMarketSamples(config.marketSamplesDir, windowEnd);
+  const supply = await readSupplySamples(config.supplySamplesDir, windowEnd);
   const flows = readFlows(config.flowsPath);
 
   const aliases = readAliases(config.mainnetStatusPath);
   const anchorIds = [...new Set(probes.map((p) => p.anchor_id))].filter((id) => !aliases.has(id)).sort();
   const cards: ScoringResult['cards'] = [];
   for (const anchorId of anchorIds) {
-    const inputs = buildInputs(anchorId, probes, windowEnd, contextFor(anchorId, assets, samples, flows));
+    const inputs = buildInputs(anchorId, probes, windowEnd, contextFor(anchorId, assets, samples, flows, supply));
     if (inputs) cards.push({ anchorId, card: computeCard(inputs), inputs });
   }
   if (dryRun) return { cards, published: 0, failed: 0 };

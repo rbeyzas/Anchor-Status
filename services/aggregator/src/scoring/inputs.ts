@@ -3,7 +3,7 @@
 // re-run by anyone, on plain data.
 import { createHash } from 'node:crypto';
 import { METHODOLOGY_VERSION, OUTAGE_PROBES, type IntegrityCheck } from './constants.js';
-import type { CheckResult, FlowAggregate, MarketAggregate, MarketNa, ScoreInputs } from './types.js';
+import type { CheckResult, FlowAggregate, MarketAggregate, MarketNa, ScoreInputs, SupplyAggregate } from './types.js';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
@@ -41,6 +41,9 @@ export interface AssetInfo {
   issuer?: string;
   anchor_asset_type?: string;
   anchor_asset?: string;
+  /** SEP-1: the anchor's own claim that this token is backed one for one by
+   * `anchor_asset`. Only a token that claims it can be judged against it. */
+  is_asset_anchored?: boolean;
   issuer_home_domain_matches?: boolean;
   issuer_listed_by_home_domain?: boolean;
 }
@@ -54,9 +57,25 @@ export interface MarketSample {
   anchor_asset: string;
   /** Present when the sample is usable. */
   dev_bps?: number;
+  /** The same distance, signed: negative means the asset trades below the
+   * peg it declares. */
+  dev_bps_signed?: number;
+  /** Worst peak-to-trough fall over the trade window, percent. */
+  drawdown_pct?: number;
   reference?: { source: string; date: string; rate: number };
   /** Why there is no usable sample. */
   reason?: 'no_fx_rate' | 'no_liquidity';
+}
+
+/** One reading of an issued asset's total outstanding amount. */
+export interface SupplySample {
+  timestamp: string;
+  anchor_id: string;
+  code: string;
+  issuer: string;
+  supply: number;
+  holders: number;
+  reason?: 'not_found';
 }
 
 /** passive-monitor's daily mint/burn buckets for one issued asset. */
@@ -71,6 +90,7 @@ export interface FlowHistory {
 export interface AnchorContext {
   assets: AssetInfo[];
   marketSamples: MarketSample[];
+  supplySamples: SupplySample[];
   flows: FlowHistory[];
 }
 
@@ -166,6 +186,43 @@ export function longestRunHours(samples: { timestamp: string; dev_bps: number }[
   return fixed(longest, 2);
 }
 
+/**
+ * How each issued asset's supply moved over the window.
+ *
+ * `distinct_values` is the load-bearing one. A mint or a burn changes the
+ * total to the seventh decimal, so two readings twenty minutes apart are
+ * only identical when nothing settled between them; a single distinct value
+ * across hundreds of readings is therefore not a quiet anchor but a still
+ * one. `samples` and `span_days` are published beside it so a reader can
+ * see whether there were enough readings to say that at all.
+ */
+export function supplyAggregates(issued: AssetInfo[], samples: SupplySample[], windowEnd: number): SupplyAggregate[] {
+  const since = windowEnd - 30 * DAY_MS;
+  const inWindow = samples
+    .filter((s) => s.reason === undefined && Date.parse(s.timestamp) > since && Date.parse(s.timestamp) <= windowEnd)
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  const out: SupplyAggregate[] = [];
+  for (const asset of issued) {
+    const mine = inWindow.filter((s) => s.code === asset.code && s.issuer === asset.issuer);
+    if (mine.length === 0) continue;
+    const first = mine[0];
+    const last = mine[mine.length - 1];
+    out.push({
+      code: asset.code,
+      issuer: asset.issuer!,
+      samples: mine.length,
+      span_days: fixed((Date.parse(last.timestamp) - Date.parse(first.timestamp)) / DAY_MS, 2),
+      first: first.supply,
+      last: last.supply,
+      distinct_values: new Set(mine.map((s) => s.supply)).size,
+      net_change_pct: first.supply > 0 ? fixed(((last.supply - first.supply) / first.supply) * 100, 2) : 0,
+      holders_first: first.holders,
+      holders_last: last.holders,
+    });
+  }
+  return out;
+}
+
 function marketAggregates(issuedFiat: AssetInfo[], samples: MarketSample[], windowEnd: number): { market: MarketAggregate[]; na?: MarketNa } {
   const since = windowEnd - 7 * DAY_MS;
   const inWindow = samples
@@ -179,6 +236,11 @@ function marketAggregates(issuedFiat: AssetInfo[], samples: MarketSample[], wind
     const usable = mine.flatMap((s) => (s.dev_bps !== undefined && s.reference ? [{ ...s, dev_bps: s.dev_bps, reference: s.reference }] : []));
     if (usable.length === 0) continue;
     const devs = usable.map((s) => s.dev_bps);
+    // Older samples carry no sign; treating them as the magnitude would
+    // claim they were above the peg, so they are left out of the signed
+    // statistics rather than guessed at.
+    const signed = usable.flatMap((s) => (s.dev_bps_signed !== undefined ? [s.dev_bps_signed] : []));
+    const drawdowns = usable.flatMap((s) => (s.drawdown_pct !== undefined ? [s.drawdown_pct] : []));
     market.push({
       code: asset.code,
       issuer: asset.issuer!,
@@ -188,6 +250,9 @@ function marketAggregates(issuedFiat: AssetInfo[], samples: MarketSample[], wind
       share_outside_50: fixed(devs.filter((d) => d > 50).length / devs.length),
       longest_run_gt100_hours: longestRunHours(usable, 100),
       longest_run_gt300_hours: longestRunHours(usable, 300),
+      median_bps_signed: signed.length ? fixed(median(signed), 2) : 0,
+      share_below_peg: signed.length ? fixed(signed.filter((d) => d < -50).length / signed.length) : 0,
+      max_drawdown_pct: drawdowns.length ? fixed(Math.max(...drawdowns), 2) : 0,
       reference: usable[usable.length - 1].reference,
     });
   }
@@ -263,13 +328,20 @@ export function buildInputs(anchorId: string, probes: ProbeLine[], windowEnd: nu
   });
 
   const issued = ctx.assets.filter((a) => a.issuer && a.issuer_home_domain_matches === true);
-  const issuedFiat = issued.filter((a) => a.anchor_asset_type === 'fiat' && a.anchor_asset);
+  const fiat = issued.filter((a) => a.anchor_asset_type === 'fiat' && a.anchor_asset);
+  // Only a token that claims to be worth one unit of something can be judged
+  // against that unit. SEP-1's `is_asset_anchored` is where an anchor makes
+  // that claim, and an asset that does not make it is not holding a peg it
+  // never offered.
+  const issuedFiat = fiat.filter((a) => a.is_asset_anchored === true);
   let market: MarketAggregate[] = [];
   let marketNa: MarketNa | undefined;
   if (issued.length === 0) marketNa = 'not_issuer';
+  else if (fiat.length > 0 && issuedFiat.length === 0) marketNa = 'not_pegged';
   else if (issuedFiat.length === 0) marketNa = 'no_fiat_reference';
   else ({ market, na: marketNa } = marketAggregates(issuedFiat, ctx.marketSamples, windowEnd));
 
+  const supply = supplyAggregates(issued, ctx.supplySamples, windowEnd);
   const issuedKeys = new Set(issued.map((a) => `${a.code}:${a.issuer}`));
   const flows = flowAggregates(
     ctx.flows.filter((f) => issuedKeys.has(`${f.code}:${f.issuer}`)),
@@ -305,6 +377,7 @@ export function buildInputs(anchorId: string, probes: ProbeLine[], windowEnd: nu
     ...(marketNa ? { market_na: marketNa } : {}),
     fiat_issued_assets: issuedFiat.length,
     flows,
+    supply,
     days: Array.from(byDay, ([date, ps]) => ({ date, n: ps.length, ok: ps.filter((p) => p.success).length, digest: dayDigest(ps) })),
     ...(excluded.length > 0 ? { excluded } : {}),
   };

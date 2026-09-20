@@ -1,6 +1,6 @@
 // The scoring methodology's numbers, for the "How we measure" page and its
 // calculator. They mirror services/aggregator/src/scoring/constants.ts
-// (methodology version 1); the tests pin them to the worked examples of
+// (methodology version 2); the tests pin them to the worked examples of
 // docs/SCORING.md, so the page cannot drift from what is published.
 
 export const METHODOLOGY_VERSION = 1;
@@ -52,12 +52,14 @@ export const GATES = [
   { flag: 'LOW_UPTIME', when: 'Under 90% uptime this week, over at least 20 checks.', cap: 60 },
   { flag: 'DEPEG', when: 'Its own fiat asset more than 3% off its peg for over 24 hours.', cap: 50 },
   { flag: 'ONE_WAY_FLOW', when: 'Its own asset issued 5 or more times in 14 days and never redeemed.', cap: 70 },
+  { flag: 'FROZEN_SUPPLY', when: 'The total amount of its own asset never changed over 30 days, across at least 200 readings: nothing was issued and nothing redeemed.', cap: 70 },
+  { flag: 'VOLATILE', when: 'Its own asset fell more than 15% peak to trough on the DEX in a week.', cap: 60 },
 ] as const;
 
 export const INFO_FLAGS = [
   { flag: 'LOW_COVERAGE', when: 'We could test less than 60% of its steps, usually because it declines anonymous wallets.' },
   { flag: 'SILENT', when: 'None of its own assets was issued or redeemed in 30 days.' },
-  { flag: 'NO_MARKET', when: 'It issues a fiat asset, but no market was liquid enough to measure the peg this week.' },
+  { flag: 'NO_MARKET', when: 'It issues a fiat asset that claims a peg, but nothing traded and no market was liquid enough to measure it this week.' },
 ] as const;
 
 export const CONFIDENCE_BANDS = [

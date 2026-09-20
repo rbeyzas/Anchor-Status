@@ -5,7 +5,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { SCORE_INPUTS_SCHEMA, writeDocument } from '../evidence.js';
 import { applyIncidents, COLLECTOR_INCIDENTS } from './incidents.js';
-import type { AnchorContext, AssetInfo, FlowHistory, MarketSample, ProbeLine } from './inputs.js';
+import type { AnchorContext, AssetInfo, FlowHistory, MarketSample, ProbeLine, SupplySample } from './inputs.js';
 import type { ScoreInputs } from './types.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -115,6 +115,13 @@ export function readAssets(statusPath: string): Map<string, AssetInfo[]> {
   return new Map(Object.entries(status.anchors).map(([id, a]) => [id, a.assets ?? []]));
 }
 
+/** passive-monitor's supply readings for the 30 days ending at `windowEnd`. */
+export async function readSupplySamples(dir: string, windowEnd: number): Promise<SupplySample[]> {
+  const samples: SupplySample[] = [];
+  for (const day of dates(windowEnd, 31)) await readJsonLines(path.join(dir, `supply-${day}.jsonl`), samples);
+  return samples;
+}
+
 /** passive-monitor's market samples for the 7 days ending at `windowEnd`. */
 export async function readMarketSamples(dir: string, windowEnd: number): Promise<MarketSample[]> {
   const samples: MarketSample[] = [];
@@ -136,10 +143,12 @@ export function contextFor(
   assets: Map<string, AssetInfo[]>,
   samples: MarketSample[],
   flows: AnchorFlowHistory[],
+  supply: SupplySample[] = [],
 ): AnchorContext {
   return {
     assets: assets.get(anchorId) ?? [],
     marketSamples: samples.filter((s) => s.anchor_id === anchorId),
+    supplySamples: supply.filter((s) => s.anchor_id === anchorId),
     flows: flows.filter((f) => f.anchor_id === anchorId),
   };
 }

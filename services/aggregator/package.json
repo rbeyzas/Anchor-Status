@@ -10,7 +10,8 @@
     "verify-score": "tsx src/scoring/verify-score.ts",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "calibrate": "tsx src/scoring/calibrate.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^17.0.1",

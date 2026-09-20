@@ -45,7 +45,7 @@ function probe(hoursBefore: number, overrides: Partial<ProbeLine> = {}): ProbeLi
 const failed = (hoursBefore: number, stage = 'toml'): ProbeLine =>
   probe(hoursBefore, { success: false, failed_stage: stage, stages: { toml: { ok: false, error: 'HTTP 503' } }, checks: { toml_valid: false } });
 
-const empty: AnchorContext = { assets: [], marketSamples: [], flows: [] };
+const empty: AnchorContext = { assets: [], marketSamples: [], supplySamples: [], flows: [] };
 
 describe('buildInputs', () => {
   it('returns nothing for an anchor without a conclusive probe in 30 days', () => {
@@ -90,7 +90,7 @@ describe('buildInputs', () => {
   it('aggregates the market samples of an issued fiat asset', () => {
     const ctx: AnchorContext = {
       ...empty,
-      assets: [{ code: 'ARST', issuer: 'GA', anchor_asset_type: 'fiat', anchor_asset: 'ARS', issuer_home_domain_matches: true }],
+      assets: [{ code: 'ARST', issuer: 'GA', anchor_asset_type: 'fiat', anchor_asset: 'ARS', is_asset_anchored: true, issuer_home_domain_matches: true }],
       marketSamples: [10, 60, 120, 130, 20].map((dev_bps, k) => ({
         timestamp: at(10 - k),
         anchor_id: 'a',
@@ -109,12 +109,26 @@ describe('buildInputs', () => {
   });
 
   it('separates "no reference rate" from "no market"', () => {
-    const asset = { code: 'ARST', issuer: 'GA', anchor_asset_type: 'fiat', anchor_asset: 'ARS', issuer_home_domain_matches: true };
+    const asset = { code: 'ARST', issuer: 'GA', anchor_asset_type: 'fiat', anchor_asset: 'ARS', is_asset_anchored: true, issuer_home_domain_matches: true };
     const attempt = (reason: 'no_fx_rate' | 'no_liquidity') => ({ timestamp: at(1), anchor_id: 'a', code: 'ARST', issuer: 'GA', anchor_asset: 'ARS', reason });
     const noFx = buildInputs('a', [probe(1)], END, { ...empty, assets: [asset], marketSamples: [attempt('no_fx_rate')] })!;
     const thin = buildInputs('a', [probe(1)], END, { ...empty, assets: [asset], marketSamples: [attempt('no_liquidity')] })!;
     expect(noFx.market_na).toBe('no_fiat_reference');
     expect(thin.market_na).toBe('no_market');
+  });
+
+  it('does not judge the peg of an asset that never claimed one', () => {
+    // SEP-1's is_asset_anchored is where an anchor says the token is worth
+    // one unit of the thing it names. Without that claim there is no peg to
+    // be off, however far the price sits from the currency's rate.
+    const unpegged = { code: 'ARST', issuer: 'GA', anchor_asset_type: 'fiat', anchor_asset: 'ARS', issuer_home_domain_matches: true };
+    const s = {
+      timestamp: at(1), anchor_id: 'a', code: 'ARST', issuer: 'GA', anchor_asset: 'ARS',
+      dev_bps: 900, dev_bps_signed: -900, reference: { source: 'test', date: '2026-09-19', rate: 0.001 },
+    };
+    const i = buildInputs('a', [probe(1)], END, { ...empty, assets: [unpegged], marketSamples: [s] })!;
+    expect(i.market).toEqual([]);
+    expect(i.market_na).toBe('not_pegged');
   });
 
   it('counts mint and burn over 14 and 30 days, and marks an incomplete history truncated', () => {

@@ -67,6 +67,10 @@ export const config = {
     repoRoot,
     process.env.PASSIVE_MONITOR_MARKET_DIR ?? 'services/passive-monitor/output/market',
   ),
+  supplySamplesDir: path.resolve(
+    repoRoot,
+    process.env.PASSIVE_MONITOR_SUPPLY_DIR ?? 'services/passive-monitor/output/supply',
+  ),
   flowsPath: path.resolve(repoRoot, process.env.PASSIVE_MONITOR_FLOWS_PATH ?? 'services/passive-monitor/output/flows.json'),
 };
 

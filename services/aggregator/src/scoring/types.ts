@@ -12,8 +12,36 @@ export interface MarketAggregate {
   share_outside_50: number;
   longest_run_gt100_hours: number;
   longest_run_gt300_hours: number;
+  /** Median of the signed deviation: negative means the asset mostly trades
+   * below the peg it declares, which is the side a holder cannot escape. */
+  median_bps_signed: number;
+  /** Share of samples below the peg by more than 50 bps. */
+  share_below_peg: number;
+  /** Worst peak-to-trough fall seen in the window, percent. */
+  max_drawdown_pct: number;
   /** Reference rate: 1 unit of anchor_asset = rate USD. */
   reference: { source: string; date: string; rate: number };
+}
+
+/** How the total outstanding amount of one issued asset moved. */
+export interface SupplyAggregate {
+  code: string;
+  issuer: string;
+  /** Readings in the 30-day window. */
+  samples: number;
+  /** First to last reading, in days: how long we have been watching. */
+  span_days: number;
+  first: number;
+  last: number;
+  /** How many different totals were seen. One means the supply never moved:
+   * a mint or a burn changes it to the seventh decimal, so two readings
+   * twenty minutes apart are only identical when nothing settled. */
+  distinct_values: number;
+  /** Last against first, percent. Negative when supply shrank. */
+  net_change_pct: number;
+  /** Holders at the start and end of the window. Context, never scored. */
+  holders_first: number;
+  holders_last: number;
 }
 
 /** Mint and burn counts of one asset the anchor issues. */
@@ -31,7 +59,7 @@ export interface FlowAggregate {
 }
 
 /** Why the Market pillar is n/a, when it is. */
-export type MarketNa = 'not_issuer' | 'no_fiat_reference' | 'no_market';
+export type MarketNa = 'not_issuer' | 'no_fiat_reference' | 'not_pegged' | 'no_market';
 
 /**
  * Everything a card is computed from. This is the published inputs bundle
@@ -63,6 +91,8 @@ export interface ScoreInputs {
   fiat_issued_assets: number;
   /** One entry per asset the anchor issues. */
   flows: FlowAggregate[];
+  /** One entry per issued asset with supply readings in 30 days. */
+  supply: SupplyAggregate[];
   /** Conclusive probes per UTC day, with a digest of that day's results. */
   days: { date: string; n: number; ok: number; digest: string }[];
   /** Probes dropped because the collector, not the anchor, failed. Absent

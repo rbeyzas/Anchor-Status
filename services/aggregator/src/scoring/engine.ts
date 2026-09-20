@@ -8,6 +8,8 @@ import {
   COVERAGE_UNKNOWN,
   DEPEG_HOURS,
   FLAGS,
+  MARKET_BELOW_PEG_PENALTY,
+  MARKET_BELOW_PEG_SHARE,
   GATE_CAPS,
   INTEGRITY_WEIGHTS,
   LOW_COVERAGE_BELOW,
@@ -18,6 +20,9 @@ import {
   MARKET_PERSISTENT_HOURS,
   MARKET_WIDESPREAD_SHARE,
   ONE_WAY_MIN_MINTS,
+  SUPPLY_MIN_SAMPLES,
+  SUPPLY_MIN_SPAN_DAYS,
+  VOLATILE_DRAWDOWN_PCT,
   OUTAGE_PROBES,
   PRIOR,
   SEP10_MISMATCH_PROBES,
@@ -80,7 +85,10 @@ export function assetMarketScore(m: MarketAggregate): number {
   const base = interp(MARKET_CURVE, m.median_bps);
   const penalties =
     (m.share_outside_50 > MARKET_WIDESPREAD_SHARE ? MARKET_PENALTY : 0) +
-    (m.longest_run_gt100_hours > MARKET_PERSISTENT_HOURS ? MARKET_PENALTY : 0);
+    (m.longest_run_gt100_hours > MARKET_PERSISTENT_HOURS ? MARKET_PENALTY : 0) +
+    // Below the peg is the side a holder cannot escape: above it they can
+    // still sell at par, below it they cannot.
+    (m.share_below_peg > MARKET_BELOW_PEG_SHARE ? MARKET_BELOW_PEG_PENALTY : 0);
   return roundHalfUp(Math.max(0, base - penalties));
 }
 
@@ -119,6 +127,18 @@ export function activeFlags(inputs: ScoreInputs): FlagName[] {
   // finding about the anchor.
   if (inputs.coverage !== null && inputs.coverage < LOW_COVERAGE_BELOW) flags.push('LOW_COVERAGE');
   if (inputs.market_na === 'no_market') flags.push('NO_MARKET');
+  // A supply that never moved means nothing was minted or burned: the total
+  // changes to the seventh decimal on either. Only asked of an asset watched
+  // long enough and often enough for that to be a statement about the
+  // anchor rather than about how recently we started looking.
+  if (
+    inputs.supply.some(
+      (s) => s.samples >= SUPPLY_MIN_SAMPLES && s.span_days >= SUPPLY_MIN_SPAN_DAYS && s.distinct_values === 1,
+    )
+  ) {
+    flags.push('FROZEN_SUPPLY');
+  }
+  if (inputs.market.some((m) => m.max_drawdown_pct > VOLATILE_DRAWDOWN_PCT)) flags.push('VOLATILE');
   return flags;
 }
 

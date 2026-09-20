@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeFlags,
+  assetMarketScore,
   availabilityScore,
   computeCard,
   confidenceScore,
@@ -45,6 +46,7 @@ function inputs(overrides: Partial<ScoreInputs> = {}): ScoreInputs {
     market_na: 'not_issuer',
     fiat_issued_assets: 0,
     flows: [],
+    supply: [],
     days: [],
     ...overrides,
   };
@@ -57,6 +59,9 @@ const market = (m: Partial<MarketAggregate>): MarketAggregate => ({
   samples: 504,
   median_bps: 10,
   share_outside_50: 0,
+  median_bps_signed: 10,
+  share_below_peg: 0,
+  max_drawdown_pct: 0,
   longest_run_gt100_hours: 0,
   longest_run_gt300_hours: 0,
   reference: { source: 'test', date: '2026-09-19', rate: 0.001 },
@@ -263,5 +268,61 @@ describe('market and flow gates', () => {
     expect(activeFlags(inputs({ market_na: 'no_market', fiat_issued_assets: 1 }))).toContain('NO_MARKET');
     expect(activeFlags(inputs({ market_na: 'no_fiat_reference', fiat_issued_assets: 1 }))).not.toContain('NO_MARKET');
     expect(activeFlags(inputs({ market_na: 'not_issuer' }))).not.toContain('NO_MARKET');
+  });
+});
+
+describe('supply and volatility gates', () => {
+  const supply = (s: Partial<import('./types.js').SupplyAggregate> = {}) => ({
+    code: 'CLPX',
+    issuer: 'G',
+    samples: 2000,
+    span_days: 30,
+    first: 100,
+    last: 100,
+    distinct_values: 1,
+    net_change_pct: 0,
+    holders_first: 10,
+    holders_last: 10,
+    ...s,
+  });
+
+  it('flags a supply that never moved, and caps the score at 70', () => {
+    const card = computeCard(inputs({ supply: [supply()] }));
+    expect(flagNames(card.flags)).toContain('FROZEN_SUPPLY');
+    expect(card.score).toBeLessThanOrEqual(70);
+  });
+
+  it('does not flag a supply that moved even once', () => {
+    // Two different totals means a mint or a burn settled between readings.
+    expect(flagNames(computeCard(inputs({ supply: [supply({ distinct_values: 2 })] })).flags)).not.toContain('FROZEN_SUPPLY');
+  });
+
+  it('says nothing about an asset watched for too few days', () => {
+    // On day one every supply looks frozen. That is a fact about us.
+    const young = supply({ span_days: 3, samples: 300 });
+    expect(flagNames(computeCard(inputs({ supply: [young] })).flags)).not.toContain('FROZEN_SUPPLY');
+  });
+
+  it('says nothing about an asset with too few readings', () => {
+    const sparse = supply({ samples: 12, span_days: 30 });
+    expect(flagNames(computeCard(inputs({ supply: [sparse] })).flags)).not.toContain('FROZEN_SUPPLY');
+  });
+
+  it('flags a week with a fall past the threshold, and caps the score at 60', () => {
+    const card = computeCard(inputs({ market: [market({ max_drawdown_pct: 23.68 })], market_na: undefined }));
+    expect(flagNames(card.flags)).toContain('VOLATILE');
+    expect(card.score).toBeLessThanOrEqual(60);
+  });
+
+  it('leaves a steady week alone', () => {
+    const card = computeCard(inputs({ market: [market({ max_drawdown_pct: 12 })], market_na: undefined }));
+    expect(flagNames(card.flags)).not.toContain('VOLATILE');
+  });
+
+  it('costs an asset that mostly trades below its peg', () => {
+    // Above the peg a holder can still sell at par; below it they cannot.
+    const above = assetMarketScore(market({ share_below_peg: 0 }));
+    const below = assetMarketScore(market({ share_below_peg: 0.8 }));
+    expect(below).toBe(Math.max(0, above - 20));
   });
 });
