@@ -3,14 +3,16 @@ import type { ProbeExample, StepState } from '@/lib/home';
 
 const STATE: Record<StepState, { cls: string; tone: string; label: string }> = {
   ok: { cls: 'as-probe__step--ok', tone: 'text-as-score-high', label: 'answered' },
-  declined: { cls: 'as-probe__step--warn', tone: 'text-as-score-medium', label: 'declined by policy' },
+  declined: {
+    cls: 'as-probe__step--warn',
+    tone: 'text-as-score-medium',
+    label: 'declined by policy',
+  },
   failed: { cls: 'as-probe__step--fail', tone: 'text-as-score-low', label: 'failed' },
   not_run: { cls: '', tone: 'text-as-ink-faint', label: 'not reached' },
   not_advertised: { cls: '', tone: 'text-as-ink-faint', label: 'not offered' },
 };
 
-/** One real check, step by step: what a wallet does, and how long the
- * anchor took at each step. */
 export function ProbeTimeline({ example }: { example: ProbeExample }) {
   return (
     <div>
