@@ -20,7 +20,7 @@
 Anyone can *claim* a Stellar SEP-24 anchor is reliable. Mona measures it, on-chain, from evidence a wallet or user can't fake:
 
 - **Real mainnet reachability** — does the anchor's live API actually answer a wallet today? Every live SEP-6/24 anchor on mainnet is discovered automatically and checked without moving funds.
-- **Real testnet behavior** — does money actually move? A fresh wallet deposits with the anchor and withdraws back, and every payment is checked on the ledger. Testnet anchors get the same read-only checks as mainnet ones first.
+- **Real testnet behavior** — does money actually move? A fresh wallet deposits with the anchor (SEP-24 or SEP-6) and, where the anchor offers SEP-6 withdrawals, withdraws back; every payment is checked on the ledger. Testnet anchors get the same read-only checks as mainnet ones first.
 - **Controlled reference anchors** — a known-good and known-bad anchor, so the scoring math itself can be validated against ground truth.
 
 Every mainnet anchor gets a **score card** computed from 30 days of those checks: four pillars (availability, speed, integrity, and, for anchors that issue their own fiat asset, how well it holds its peg), a separate **confidence** that says how much was measured, and hard gates that cap the score on an outage or a signing problem. The card is published on a [Soroban](https://developers.stellar.org/docs/build/smart-contracts/overview) contract with the SHA-256 of the inputs it was computed from, and the inputs are published, so anyone can recompute it. The method is in [`docs/SCORING.md`](docs/SCORING.md). The contract publishes the verdict openly; it never slashes or moves anyone's stake. A live dashboard reads it from the chain.
@@ -53,7 +53,7 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 | Source type | Produced by | What "success" means |
 | --- | --- | --- |
 | `RealMainnet` | `services/mainnet-probe` | The anchor's live stellar.toml, transfer server `/info` and SEP-10 challenge all answer, and a SEP-24 deposit can be started (then abandoned — no funds move). An anchor declining an anonymous wallet by policy still counts as reachable |
-| `RealTestnet` | `services/testnet-probe` | The same read-only checks a mainnet anchor gets, then a real deposit and withdrawal (SEP-6 or SEP-24) whose payments are verified on the ledger |
+| `RealTestnet` | `services/testnet-probe` | The same read-only checks a mainnet anchor gets, then a real deposit (SEP-6 or SEP-24) and, where the anchor offers it over SEP-6, a real withdrawal, each payment verified on the ledger |
 | `SimulatedMock` | `services/mock-anchors` | A scripted, seeded behavior profile (success rate, latency, optional time-based degradation) |
 
 ### System diagram
@@ -133,7 +133,7 @@ Trust boundary: only the reporter keys write scores, the oracle is the only call
 | [`contracts/performance-oracle`](contracts/performance-oracle) | Rust / Soroban | Score cards, per-report EMA, trend and risk floor, cross-contract calls into `anchor-registry` |
 | [`services/mainnet-probe`](services/mainnet-probe) | Node / TypeScript | Discovers every live SEP-6/24 anchor on mainnet, probes its public API without moving funds, and runs the onboarding intake for anchors that apply |
 | [`services/passive-monitor`](services/passive-monitor) | Node / TypeScript | Read-only mainnet context and chain signals: mint/burn flows and peg samples of the assets anchors issue. Volume is never scored |
-| [`services/testnet-probe`](services/testnet-probe) | Node / TypeScript / Playwright | Every listed testnet anchor: the same read-only checks mainnet gets, then a real deposit and withdrawal verified on the ledger. Runs the testnet onboarding queue too |
+| [`services/testnet-probe`](services/testnet-probe) | Node / TypeScript / Playwright | Every listed testnet anchor: the same read-only checks mainnet gets, then a real deposit and, over SEP-6, a real withdrawal, verified on the ledger. Runs the testnet onboarding queue too |
 | [`services/mock-anchors`](services/mock-anchors) | Python / Django / django-polaris | Four fully-controlled SEP-24 anchors with scripted behavior |
 | [`services/aggregator`](services/aggregator) | Node / TypeScript | Submits reports from all four collectors, and computes, publishes and verifies score cards |
 | [`services/history-archiver`](services/history-archiver) | Node / TypeScript | Durable score and risk history beyond the public RPC's 7-day event window, with `verify` and `backfill` against a long-retention RPC |
@@ -355,7 +355,7 @@ Mona is not a Stellar app with a Stellar component bolted on: every measurement 
 | --- | --- | --- |
 | **SEP-1** (`stellar.toml`) | [`mainnet-probe/src/toml.ts`](services/mainnet-probe/src/toml.ts), [`testnet-probe/src/toml.ts`](services/testnet-probe/src/toml.ts) | Anchor discovery and the Integrity pillar (CORS, TLS, signing key, issuer cross-check) |
 | **SEP-10** (web auth) | [`mainnet-probe/src/probe.ts`](services/mainnet-probe/src/probe.ts), [`testnet-probe/src/sep10.ts`](services/testnet-probe/src/sep10.ts) | A challenge is requested from every tracked anchor each round and verified against its declared signing key; a mismatch is a hard gate (`SEP10_MISMATCH`, caps the score at 40) |
-| **SEP-24** (interactive transfer) | [`testnet-probe/src/sep24.ts`](services/testnet-probe/src/sep24.ts), [`interactive.ts`](services/testnet-probe/src/interactive.ts) | Real testnet deposits and withdrawals, driven through the anchor's own interactive flow with Playwright |
+| **SEP-24** (interactive transfer) | [`testnet-probe/src/sep24.ts`](services/testnet-probe/src/sep24.ts), [`interactive.ts`](services/testnet-probe/src/interactive.ts) | Real testnet deposits, driven through the anchor's own interactive flow with Playwright. SEP-24 withdrawal is interactive and not yet tested; withdrawals run over SEP-6 |
 | **SEP-6** (programmatic transfer) | [`testnet-probe/src/sep6.ts`](services/testnet-probe/src/sep6.ts) | The same money flow for anchors that offer SEP-6 instead |
 | **SEP-40** (price oracle interface) | [`passive-monitor/src/reflector.ts`](services/passive-monitor/src/reflector.ts) | Reference fiat rates are read off the ledger from **[Reflector](https://reflector.network)**, a SEP-40 oracle on Stellar mainnet, so the Market pillar's peg deviation can be recomputed by anyone from chain data rather than from a rate we assert |
 
@@ -378,7 +378,7 @@ Mona is not a Stellar app with a Stellar component bolted on: every measurement 
 **A third-party anchor is already in the pool.** The hackathon's own testnet anchor, [`tr-mock-anchor.fly.dev`](https://tr-mock-anchor.fly.dev), is measured by Mona like any other anchor — not as a fixture, but through the live pipeline. It appears twice on [the live scores page](https://anchor-status.vercel.app/scores), because it gets both checks:
 
 - `tr_mock_anchor_fly_dev` (**RealMainnet**): the read-only public-surface check every mainnet anchor gets.
-- `tr_mock_anchor_fly_dev_testnet` (**RealTestnet**): the same check, then a real SEP-24 deposit and withdrawal whose payments are verified on the ledger, every 20 minutes, each run publishing an evidence hash on-chain.
+- `tr_mock_anchor_fly_dev_testnet` (**RealTestnet**): the same check, then a real SEP-24 deposit whose payment is verified on the ledger (withdrawals are tested only over SEP-6, which this anchor does not offer), every 20 minutes, each run publishing an evidence hash on-chain.
 
 Its first card is the methodology working as designed on an anchor we do not control: every pillar passed (availability, speed and integrity all 100) but only 3 checks over a few hours exist, so confidence is 2 out of 100 and the headline is pulled to **51** — near "unknown" — instead of the flattering 100 a new anchor would get from the raw report average. The number will climb toward its pillars as the measured window grows, not because anything about the anchor changed.
 

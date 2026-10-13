@@ -789,15 +789,22 @@ body {
   .as-probe__cursor {
     display: none;
   }
-  .as-radar__wedge,
-  .as-radar__blip,
   .as-hb__bar,
   .as-dot--beat {
     animation: none !important;
   }
-  /* No beam to reveal them: the blips simply stand there. */
+  /* The hero radar and the ticker keep moving: both are slow ambience, and
+     Windows reports reduced motion whenever its animation effects are off,
+     which left them frozen on machines whose users never asked for that.
+     Undo the global cut-off above; the ticker still pauses on hover. */
+  .as-radar__wedge,
   .as-radar__blip {
-    opacity: 0.4;
+    animation-duration: 24s !important;
+    animation-iteration-count: infinite !important;
+  }
+  .as-ticker__track {
+    animation-duration: 40s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 
