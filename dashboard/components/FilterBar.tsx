@@ -1,6 +1,6 @@
 'use client';
 
-import { Broadcast, Globe, Robot, Rows } from '@phosphor-icons/react';
+import { Broadcast, Globe, Rows } from '@phosphor-icons/react';
 import type { SourceType } from '@/lib/types';
 
 export type FilterValue = 'all' | SourceType;
@@ -9,7 +9,6 @@ const FILTERS: Array<{ value: FilterValue; label: string; icon: typeof Rows }> =
   { value: 'all', label: 'All', icon: Rows },
   { value: 'RealMainnet', label: 'Live mainnet', icon: Globe },
   { value: 'RealTestnet', label: 'Live testnet', icon: Broadcast },
-  { value: 'SimulatedMock', label: 'Simulated', icon: Robot },
 ];
 
 export function FilterBar({

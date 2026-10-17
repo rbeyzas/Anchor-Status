@@ -4,7 +4,7 @@ Next.js (App Router) + TypeScript + Tailwind CSS + recharts. Reads
 `AnchorRegistry` and `PerformanceOracle` state over testnet Soroban RPC
 and visualizes it (read-only — never signs a transaction).
 
-- 4 filters at the top: All / Live mainnet / Live testnet / Simulated.
+- 3 filters at the top: All / Live mainnet / Live testnet.
 - Each anchor is a card: name, source badge, the score with a sparkline
   and a confidence chip (Low / Medium / High), the oracle's trend and risk
   reason, and the score card's flags ("Outage: last 3 checks failed",
@@ -37,8 +37,7 @@ and visualizes it (read-only — never signs a transaction).
 ## Score cards
 
 Mainnet and testnet anchors are both scored by a windowed score card
-([`docs/SCORING.md`](../docs/SCORING.md)), by the same engine; only the
-reference mock anchors keep the per-report score.
+([`docs/SCORING.md`](../docs/SCORING.md)), by the same engine.
 
 - The number is shown only when the card's **confidence** is at least 40.
   Below that the card says "Not enough data yet", and the flags are still

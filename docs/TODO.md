@@ -42,7 +42,7 @@ Durum: 18 Eylül 2026. Geliştirme planının 1–6. adımları tamamlandı; 5. 
 
 ## 6. Küçük tutarsızlıklar
 
-- [ ] **Dashboard alt başlığı.** Hâlâ "simulated sources" diyor, oysa artık mock veri gönderilmiyor ([Dashboard.tsx:59](../dashboard/components/Dashboard.tsx#L59)).
+- [x] **Dashboard alt başlığı.** Hâlâ "simulated sources" diyor, oysa artık mock veri gönderilmiyor ([Dashboard.tsx:59](../dashboard/components/Dashboard.tsx#L59)).
 - [ ] **Dashboard canlılık rozeti.** Mainnet de izlendiği halde "Testnet live" yazıyor ([Dashboard.tsx:75](../dashboard/components/Dashboard.tsx#L75)).
 - [ ] **Hackathon PDF'i.** Repo kökündeki `2026_08_10 Rise In__ Stellar Pro Hackathon Tracks.docx.pdf` git tarafından takip edilmiyor. Commit'lenmeli mi, `.gitignore`'a mı eklenmeli, karar verilmeli.
 

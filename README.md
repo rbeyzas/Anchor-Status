@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/readme/hero.svg" width="100%" alt="Mona — a Soroban SEP-24 reliability oracle scoring Stellar anchors from real mainnet activity, real testnet money flows, and controlled mock anchors">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Mona — a Soroban SEP-24 reliability oracle scoring Stellar anchors from real mainnet activity, and real testnet money flows">
 </p>
 
 <p align="center">
@@ -41,12 +41,12 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 ## How it works
 
 <p align="center">
-  <img src="./assets/readme/architecture.svg" width="100%" alt="Pipeline: mainnet-probe, testnet-probe, passive-monitor and mock-anchors feed the aggregator, which reports to PerformanceOracle; it cross-calls AnchorRegistry to update scores; the dashboard reads both contracts read-only">
+  <img src="./assets/readme/architecture.svg" width="100%" alt="Pipeline: mainnet-probe, testnet-probe, and passive-monitor feed the aggregator, which reports to PerformanceOracle; it cross-calls AnchorRegistry to update scores; the dashboard reads both contracts read-only">
 </p>
 
-1. **Four collectors** independently observe anchor behavior and each emit a normalized `{ success, settlement_seconds, source_type }` report.
+1. **Three collectors** independently observe anchor behavior and each emit a normalized `{ success, settlement_seconds, source_type }` report.
 2. **`aggregator`** dedupes those reports and calls `PerformanceOracle.submit_report()` on testnet, signed by a reporter key authorized for that source type.
-3. **`PerformanceOracle`** keeps, per report, a weighted exponential moving average and an on-chain health record: a fast and a slow EMA whose gap gives the trend, a consecutive-failure counter, and a 20-report outcome window. After the reports, the aggregator computes each measured anchor's **score card** off-chain, on mainnet and on testnet alike, and publishes it with `publish_score_card`, together with the hash of its published inputs bundle; from then on the card is that anchor's headline and reports no longer overwrite it (only the reference mock anchors keep the EMA). The oracle flags an anchor at risk when 3 reports in a row fail, when fewer than half of the recent window succeeded, or when the headline reaches 55 (not judged while a card's confidence is under 40), and emits `risk_status_changed` on each transition.
+3. **`PerformanceOracle`** keeps, per report, a weighted exponential moving average and an on-chain health record: a fast and a slow EMA whose gap gives the trend, a consecutive-failure counter, and a 20-report outcome window. After the reports, the aggregator computes each measured anchor's **score card** off-chain, on mainnet and on testnet alike, and publishes it with `publish_score_card`, together with the hash of its published inputs bundle; from then on the card is that anchor's headline and reports no longer overwrite it. The oracle flags an anchor at risk when 3 reports in a row fail, when fewer than half of the recent window succeeded, or when the headline reaches 55 (not judged while a card's confidence is under 40), and emits `risk_status_changed` on each transition.
 4. **`AnchorRegistry`** is the source of truth for anchor identity, operator, staked collateral, and current score.
 5. **`dashboard`** reads both contracts straight from Soroban RPC. Score history older than the public RPC's 7-day event window comes from `history-archiver`'s durable archive, fetched server-side and merged in; without it the dashboard still renders, with a shorter chart.
 
@@ -54,7 +54,6 @@ Nothing here trades real assets. Mainnet is read-only. Testnet is where every wr
 | --- | --- | --- |
 | `RealMainnet` | `services/mainnet-probe` | The anchor's live stellar.toml, transfer server `/info` and SEP-10 challenge all answer, and a SEP-24 deposit can be started (then abandoned — no funds move). An anchor declining an anonymous wallet by policy still counts as reachable |
 | `RealTestnet` | `services/testnet-probe` | The same read-only checks a mainnet anchor gets, then a real deposit (SEP-6 or SEP-24) and, where the anchor offers it over SEP-6, a real withdrawal, each payment verified on the ledger |
-| `SimulatedMock` | `services/mock-anchors` | A scripted, seeded behavior profile (success rate, latency, optional time-based degradation) |
 
 ### System diagram
 
@@ -68,7 +67,6 @@ flowchart LR
         MP["mainnet-probe"]
         PM["passive-monitor"]
         TP["testnet-probe"]
-        MA["mock-anchors"]
     end
 
     AGG["aggregator<br/>reports · score cards"]
@@ -84,7 +82,7 @@ flowchart LR
     INTAKE["onboarding intake<br/>/apply"]
 
     ANCH --> MP & PM & TP
-    MP & PM & TP & MA -->|"reports + evidence"| AGG
+    MP & PM & TP -->|"reports + evidence"| AGG
     AGG -->|"submit_report<br/>publish_score_card"| ORA
     ORA -->|"update_score"| REG
     ORA -.->|"events"| ARC
@@ -101,7 +99,7 @@ flowchart LR
     classDef chain fill:#2C1F08,stroke:#FFB03A,color:#E9EDF4,stroke-width:1.5px
     classDef view fill:#181D27,stroke:#B79CFF,color:#E9EDF4,stroke-width:1.5px
     class ANCH ext
-    class MP,PM,TP,MA collect
+    class MP,PM,TP collect
     class AGG agg
     class ORA,REG chain
     class ARC,DASH,INTAKE view
@@ -115,7 +113,7 @@ Solid arrows carry data on every round; dashed ones are event reads and the appl
 
 | Layer | Components | Reads | Writes | Network |
 | --- | --- | --- | --- | --- |
-| **Collect** | `mainnet-probe`, `passive-monitor`, `testnet-probe`, `mock-anchors` | Anchor public APIs, Horizon (mainnet, read-only), testnet anchors | Normalized reports and evidence documents on the collector host | Mainnet read-only, testnet |
+| **Collect** | `mainnet-probe`, `passive-monitor`, `testnet-probe` | Anchor public APIs, Horizon (mainnet, read-only), testnet anchors | Normalized reports and evidence documents on the collector host | Mainnet read-only, testnet |
 | **Aggregate** | `aggregator` | Collector output | `PerformanceOracle.submit_report()`, `publish_score_card()` | Testnet |
 | **On-chain** | `PerformanceOracle` → `AnchorRegistry` | Signed reports from authorized reporters | Score cards, EMA, trend, risk flag; registry score of record | Testnet (Soroban) |
 | **Archive** | `history-archiver` | Soroban RPC events (7-day window) | `history.json`, served read-only | Testnet |
@@ -134,8 +132,7 @@ Trust boundary: only the reporter keys write scores, the oracle is the only call
 | [`services/mainnet-probe`](services/mainnet-probe) | Node / TypeScript | Discovers every live SEP-6/24 anchor on mainnet, probes its public API without moving funds, and runs the onboarding intake for anchors that apply |
 | [`services/passive-monitor`](services/passive-monitor) | Node / TypeScript | Read-only mainnet context and chain signals: mint/burn flows and peg samples of the assets anchors issue. Volume is never scored |
 | [`services/testnet-probe`](services/testnet-probe) | Node / TypeScript / Playwright | Every listed testnet anchor: the same read-only checks mainnet gets, then a real deposit and, over SEP-6, a real withdrawal, verified on the ledger. Runs the testnet onboarding queue too |
-| [`services/mock-anchors`](services/mock-anchors) | Python / Django / django-polaris | Four fully-controlled SEP-24 anchors with scripted behavior |
-| [`services/aggregator`](services/aggregator) | Node / TypeScript | Submits reports from all four collectors, and computes, publishes and verifies score cards |
+| [`services/aggregator`](services/aggregator) | Node / TypeScript | Submits reports from the collectors, and computes, publishes and verifies score cards |
 | [`services/history-archiver`](services/history-archiver) | Node / TypeScript | Durable score and risk history beyond the public RPC's 7-day event window, with `verify` and `backfill` against a long-retention RPC |
 | [`dashboard`](dashboard) | Next.js / TypeScript / Tailwind | Live read-only view of on-chain state, plus the anchor application pages |
 | [`scripts`](scripts) | Bash | One-shot setup, deploy, and demo scripts |
@@ -164,7 +161,6 @@ bash scripts/demo.sh                  # bring every service up end-to-end
 | [Rust](https://rustup.rs) + `wasm32v1-none` target | 1.82+ | Contracts |
 | [`stellar-cli`](https://developers.stellar.org/docs/tools/developer-tools/cli/) | latest | Deploying + invoking contracts |
 | [Node.js](https://nodejs.org) | 20+ | `mainnet-probe`, `passive-monitor`, `testnet-probe`, `aggregator`, `history-archiver`, `dashboard` |
-| [Python](https://www.python.org) + `venv` | 3.11+ | `mock-anchors` |
 | `npm` | bundled with Node | Every Node service (no workspaces — each service is independent) |
 
 ```bash
@@ -186,7 +182,7 @@ The root `.env` is shared by every service (each one also merges its own local `
 | `HORIZON_MAINNET_URL` | Mainnet, read-only, `mainnet-probe` and `passive-monitor` |
 | `SOROBAN_PUBNET_RPC_URL` | Read-only pubnet RPC, for Reflector's price feeds. Defaults to a public endpoint; nothing is ever signed or submitted against it |
 | `DEPLOYER_SECRET_KEY` / `DEPLOYER_PUBLIC_KEY` | The account that deploys contracts and registers/stakes anchors |
-| `REPORTER_MAINNET_SECRET_KEY` / `REPORTER_TESTNET_SECRET_KEY` / `REPORTER_MOCK_SECRET_KEY` | One authorized reporter key per source type |
+| `REPORTER_MAINNET_SECRET_KEY` / `REPORTER_TESTNET_SECRET_KEY` | One authorized reporter key per source type |
 | `ANCHOR_REGISTRY_CONTRACT_ID` / `PERFORMANCE_ORACLE_CONTRACT_ID` | Filled in automatically by the deploy script |
 | `NEXT_PUBLIC_*` | Same values, re-exposed for the browser-side dashboard |
 | `SOROBAN_RPC_FALLBACK_URL` | Optional. A second RPC (we use Alchemy, whose URL carries the API key) used when the public one fails, and by the archive's backfill/verify. Server-side only: never give it a `NEXT_PUBLIC_` prefix, never commit it |
@@ -212,21 +208,9 @@ Each service is independent — install and run only the ones you need.
 | `mainnet-probe` | `cd services/mainnet-probe && npm install` | `npm run probe` | The main collector: every live mainnet anchor, read-only. `npm run discover` refreshes the anchor list, `npm run onboard` processes applications |
 | `passive-monitor` | `cd services/passive-monitor && npm install` | `npm run start` | Copy `anchors.example.json` → `anchors.json` first and list real mainnet distribution accounts to watch |
 | `testnet-probe` | `cd services/testnet-probe && npm install && npx playwright install chromium` | `npm run probe` | Every listed testnet anchor, one-shot; `npm run onboard` admits applicants and `npm run schedule` runs the probe on a cron |
-| `mock-anchors` | `cd services/mock-anchors && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt` | `bash scripts/bootstrap-issuers.sh` then `bash scripts/run-all.sh` | Starts 4 anchors on ports 8001–8004; `scripts/stop-all.sh` tears them down |
 | `aggregator` | `cd services/aggregator && npm install` | `npm run aggregate` | Reads every collector's output, dedupes, calls `submit_report()` on testnet, then publishes due score cards. `npm run score -- --dry-run` prints every card without sending anything; `npm run verify-score -- <hash> --anchor <id>` recomputes a published one |
 
 Run collectors first, `aggregator` last (it only submits what the others have already produced).
-
-#### `mock-anchors` behavior profiles
-
-| Instance | Port | Success rate | Behavior |
-| --- | --- | --- | --- |
-| `mock_anchor_1` | 8001 | 98% | Consistently reliable, fast settlement |
-| `mock_anchor_2` | 8002 | 90% | Decent but slower, occasional failures |
-| `mock_anchor_3` | 8003 | 92% → 40% | Reliable at first, degrades sharply after simulated day 20 — the risk-detection scenario |
-| `mock_anchor_4` | 8004 | 35% | Unreliable from the start |
-
-`TIME_ACCELERATION` (default `1440`) compresses simulated days into real minutes, so `mock_anchor_3`'s degradation — and the resulting risk flag — shows up roughly 20 real minutes after its first transaction instead of 20 real days.
 
 ### 5. Run the dashboard
 
@@ -253,7 +237,7 @@ The dashboard's pages:
 bash scripts/demo.sh
 ```
 
-Runs setup, deploy (if needed), every collector once, one aggregation pass, and installs the dashboard — then prints the command to start it. See [`docs/DEMO.md`](docs/DEMO.md) for the full walkthrough, including how to watch `mock_anchor_3` degrade and trip the risk floor live.
+Runs setup, deploy (if needed), every collector once, one aggregation pass, and installs the dashboard — then prints the command to start it. See [`docs/DEMO.md`](docs/DEMO.md) for the full walkthrough.
 
 ### 7. Continuous collection (the deployed setup)
 
@@ -286,8 +270,7 @@ every push to `main` on its own. Its server-side env vars
 
 One round is [`scripts/collect.sh`](scripts/collect.sh): `mainnet-probe`
 (anchor discovery once a day, registration of any new anchor, then a probe
-of every tracked anchor), `passive-monitor`, `testnet-probe`, `aggregator`
-(with `AGGREGATOR_SKIP_MOCK=true`, so only real sources are submitted), then
+of every tracked anchor), `passive-monitor`, `testnet-probe`, `aggregator`, then
 `history-archiver`. `flock` skips a tick rather than stacking rounds when a
 probe runs long.
 
@@ -396,14 +379,13 @@ Every contract and service ships with its own test suite; none require network a
 (cd services/aggregator && npm test)
 (cd services/mainnet-probe && npm test)
 (cd services/history-archiver && npm test)
-(cd services/mock-anchors && .venv/bin/pytest)
 (cd dashboard && npm test)
 ```
 
 ## Design notes
 
 - **Mainnet stays read-only.** `passive-monitor` never signs or submits a mainnet transaction — it only scans Horizon payment history for anchors you list.
-- **Score math** ([`docs/SCORING.md`](docs/SCORING.md)): measured anchors are scored by a card over 30 days: availability (uptime, shaped by "nines"), speed (p95 of the mean stage time), integrity (a weighted checklist: valid toml with CORS, anchor-signed SEP-10, valid `/info`, TLS, a stable signing key, and assets their issuers vouch for), and market (peg deviation, only for a fiat asset the anchor issues and only on a liquid market). The weighted pillars are shrunk toward 50 by a separate confidence (days monitored, checks, and how deep we could test), then capped by gates (OUTAGE 50, LOW_UPTIME 60, SEP10_MISMATCH 40, DEPEG 50, ONE_WAY_FLOW 70). Below a confidence of 40 the number is withheld; the flags are still shown. Testnet anchors are scored by the same engine; only the reference mock anchors keep the per-report EMA.
+- **Score math** ([`docs/SCORING.md`](docs/SCORING.md)): measured anchors are scored by a card over 30 days: availability (uptime, shaped by "nines"), speed (p95 of the mean stage time), integrity (a weighted checklist: valid toml with CORS, anchor-signed SEP-10, valid `/info`, TLS, a stable signing key, and assets their issuers vouch for), and market (peg deviation, only for a fiat asset the anchor issues and only on a liquid market). The weighted pillars are shrunk toward 50 by a separate confidence (days monitored, checks, and how deep we could test), then capped by gates (OUTAGE 50, LOW_UPTIME 60, SEP10_MISMATCH 40, DEPEG 50, ONE_WAY_FLOW 70). Below a confidence of 40 the number is withheld; the flags are still shown. Testnet anchors are scored by the same engine.
 - **No slashing.** The oracle is a neutral measurement layer: it publishes a score, a trend and a risk flag, and `AnchorRegistry` has no slashing entry point at all. An earlier version slashed 10% of stake automatically; on testnet it was triggered by bugs in our own probe, which is exactly why a measurement error must not be able to cost an operator money.
 - **Trend and risk floor live in contract state**, not in event history, so detecting them never depends on how long an RPC node keeps events. Transaction volume never adds points: the number of checks feeds confidence only, and an anchor's age is shown as context only.
 - **Cross-contract authorization**: `PerformanceOracle` is the only caller `AnchorRegistry` accepts for `update_score`, enforced by Soroban's own invoker-authentication — no shared secret or allowlist needed.
@@ -416,7 +398,7 @@ Every contract and service ships with its own test suite; none require network a
 | --- | --- |
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | **Start here if you are judging this**: each criterion mapped to the evidence for it, including what is not met |
 | [`docs/SCORING.md`](docs/SCORING.md) | The scoring method: pillars, confidence, gates, verification |
-| [`docs/DEMO.md`](docs/DEMO.md) | Guided walkthrough, including watching `mock_anchor_3` degrade |
+| [`docs/DEMO.md`](docs/DEMO.md) | Guided walkthrough of the demo |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and known limitations |
 | [`docs/TODO.md`](docs/TODO.md) | Open work in priority order (in Turkish) |
 | [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) | Auto-generated map of the codebase: central nodes, communities, cross-module links |

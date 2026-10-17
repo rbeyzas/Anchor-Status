@@ -15,11 +15,8 @@ venv/
 .env
 .env.*
 !.env.example
-services/mock-anchors/secrets.env
 
 # runtime state & collected data (lives on the server, not in git)
-services/mock-anchors/state/
-services/mock-anchors/logs/
 services/testnet-probe/results/
 services/passive-monitor/output/
 services/mainnet-probe/output/

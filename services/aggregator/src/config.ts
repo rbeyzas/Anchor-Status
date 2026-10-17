@@ -25,7 +25,6 @@ export const config = {
   reporterSecretKeys: {
     RealMainnet: () => required('REPORTER_MAINNET_SECRET_KEY'),
     RealTestnet: () => required('REPORTER_TESTNET_SECRET_KEY'),
-    SimulatedMock: () => required('REPORTER_MOCK_SECRET_KEY'),
   } as const,
 
   passiveMonitorProfilesPath: path.resolve(
@@ -45,9 +44,6 @@ export const config = {
   // PerformanceOracle rejects reports older than 2 days; skipping them here
   // avoids a failed transaction per stale report on every run.
   maxReportAgeMs: 47 * 60 * 60 * 1000,
-  mockAnchorsLogsDir: path.resolve(repoRoot, 'services/mock-anchors/logs'),
-  // Set to "true" to submit only real mainnet/testnet reports.
-  skipMock: process.env.AGGREGATOR_SKIP_MOCK === 'true',
 
   statePath: path.resolve(
     repoRoot,

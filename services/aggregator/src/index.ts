@@ -1,7 +1,7 @@
 import { config } from './config.js';
 import { submitReport } from './contract.js';
 import { dedupKey } from './normalize.js';
-import { readMainnetProbeReports, readMockAnchorReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
+import { readMainnetProbeReports, readPassiveMonitorReports, readTestnetProbeReports } from './sources.js';
 import { readAliases } from './scoring/load.js';
 import { runScoring } from './scoring/run.js';
 import { loadState, saveState } from './state.js';
@@ -12,7 +12,6 @@ async function main() {
     ...readMainnetProbeReports(config.mainnetProbeResultsDir),
     ...(config.submitPassiveMonitor ? readPassiveMonitorReports(config.passiveMonitorProfilesPath) : []),
     ...readTestnetProbeReports(config.testnetProbeLogPath),
-    ...(config.skipMock ? [] : readMockAnchorReports(config.mockAnchorsLogsDir)),
   ];
   const cutoff = Date.now() - config.maxReportAgeMs;
   // Another domain of an operator measured under a different id: its

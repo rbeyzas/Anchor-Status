@@ -1,6 +1,5 @@
 import type {
   MainnetProbeResult,
-  MockAnchorLogEntry,
   NormalizedReport,
   PassiveMonitorProfile,
   TestnetProbeResult,
@@ -60,19 +59,6 @@ export function normalizeTestnetProbeResult(result: TestnetProbeResult): Normali
     source_type: 'RealTestnet',
     dedup_id: `RealTestnet:${result.anchor_id}:${result.timestamp}`,
     ...(result.evidence_hash ? { evidence_hash: result.evidence_hash } : {}),
-  };
-}
-
-export function normalizeMockAnchorLogEntry(entry: MockAnchorLogEntry): NormalizedReport {
-  return {
-    anchor_id: entry.anchor_id,
-    success: entry.success,
-    settlement_seconds: entry.settlement_seconds,
-    timestamp: entry.timestamp,
-    source_type: 'SimulatedMock',
-    dedup_id: entry.transaction_id
-      ? `SimulatedMock:${entry.transaction_id}`
-      : `SimulatedMock:${entry.anchor_id}:${entry.timestamp}`,
   };
 }
 

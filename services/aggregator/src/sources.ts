@@ -2,13 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   normalizeMainnetProbeResult,
-  normalizeMockAnchorLogEntry,
   normalizePassiveMonitorProfile,
   normalizeTestnetProbeResult,
 } from './normalize.js';
 import type {
   MainnetProbeResult,
-  MockAnchorLogEntry,
   NormalizedReport,
   PassiveMonitorProfile,
   TestnetProbeResult,
@@ -68,21 +66,4 @@ export function readTestnetProbeReports(probeLogPath: string): NormalizedReport[
     console.log(`[aggregator] skipping ${results.length - conclusive.length} inconclusive testnet probe run(s)`);
   }
   return conclusive.map(normalizeTestnetProbeResult);
-}
-
-/** mock-anchors writes one logs/anchor{N}-behavior.json per instance; glob
- * over the directory rather than hardcoding N=1..4 so it keeps working if
- * more mock anchors are added later. */
-export function readMockAnchorReports(logsDir: string): NormalizedReport[] {
-  if (!fs.existsSync(logsDir)) {
-    console.warn(`[aggregator] mock-anchors logs dir not found, skipping: ${logsDir}`);
-    return [];
-  }
-  const files = fs.readdirSync(logsDir).filter((f) => f.endsWith('-behavior.json'));
-  const reports: NormalizedReport[] = [];
-  for (const file of files) {
-    const entries = readJsonArray<MockAnchorLogEntry>(path.join(logsDir, file));
-    reports.push(...entries.map(normalizeMockAnchorLogEntry));
-  }
-  return reports;
 }

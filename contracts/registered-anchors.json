@@ -36,30 +36,6 @@
       "name": "Stellar Test Anchor",
       "domain": "testanchor.stellar.org",
       "source_type": "RealTestnet"
-    },
-    {
-      "anchor_id": "mock_anchor_1",
-      "name": "Mock Anchor 1",
-      "domain": "mock-anchor-1.local",
-      "source_type": "SimulatedMock"
-    },
-    {
-      "anchor_id": "mock_anchor_2",
-      "name": "Mock Anchor 2",
-      "domain": "mock-anchor-2.local",
-      "source_type": "SimulatedMock"
-    },
-    {
-      "anchor_id": "mock_anchor_3",
-      "name": "Mock Anchor 3",
-      "domain": "mock-anchor-3.local",
-      "source_type": "SimulatedMock"
-    },
-    {
-      "anchor_id": "mock_anchor_4",
-      "name": "Mock Anchor 4",
-      "domain": "mock-anchor-4.local",
-      "source_type": "SimulatedMock"
     }
   ]
 }

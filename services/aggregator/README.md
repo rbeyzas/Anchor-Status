@@ -6,8 +6,7 @@ Node/TypeScript service. Two jobs, in this order, every collection round:
    `PerformanceOracle.submit_report_with_evidence()` on testnet, signed by the
    reporter key authorized for each source type. Sources:
    `mainnet-probe`'s daily JSON-lines log (RealMainnet), `testnet-probe`'s
-   log (RealTestnet), and the mock anchors' logs (SimulatedMock, skipped on
-   the collector host). Dedup keys live in `AGGREGATOR_STATE_PATH`.
+   log (RealTestnet). Dedup keys live in `AGGREGATOR_STATE_PATH`.
 2. **Score cards** ([`docs/SCORING.md`](../../docs/SCORING.md)). For every
    measured anchor with a conclusive probe in 30 days, mainnet or testnet:
    build its inputs from the probe logs (`mainnet-probe`'s daily JSONL and

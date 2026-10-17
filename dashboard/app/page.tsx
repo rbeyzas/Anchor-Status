@@ -127,11 +127,6 @@ const EVIDENCE = [
     body: 'The same read-only check mainnet gets, then a real deposit and withdrawal against every listed testnet anchor, each payment verified on the ledger.',
   },
   {
-    type: 'SimulatedMock' as const,
-    title: 'Is the math honest?',
-    body: 'A known-good and a known-bad reference anchor, so the scoring can be checked against ground truth.',
-  },
-  {
     // Chain signals are read straight from the ledger, so they carry no
     // source type: nothing is reported, only observed.
     type: null,
@@ -314,10 +309,10 @@ export default async function LandingPage() {
           <div className="grid gap-10 md:grid-cols-[1fr_2fr]">
             <div>
               <h2 className="font-heading text-4xl font-bold tracking-[-0.025em] text-as-ink">
-                Four kinds of evidence.
+                Three kinds of evidence.
               </h2>
               <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-as-ink-muted">
-                Every score says where it came from. Simulated data is always labelled as simulated.
+                Every score says where it came from.
               </p>
             </div>
             <ul className="as-panel divide-y divide-as-hairline overflow-hidden">

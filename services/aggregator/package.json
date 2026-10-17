@@ -2,7 +2,7 @@
   "name": "@anchor-oracle/aggregator",
   "version": "0.1.0",
   "private": true,
-  "description": "Submits RealMainnet/RealTestnet/SimulatedMock reports to PerformanceOracle on testnet, and computes and publishes each mainnet anchor's score card with its inputs bundle.",
+  "description": "Submits RealMainnet/RealTestnet reports to PerformanceOracle on testnet, and computes and publishes each mainnet anchor's score card with its inputs bundle.",
   "type": "module",
   "scripts": {
     "aggregate": "tsx src/index.ts",

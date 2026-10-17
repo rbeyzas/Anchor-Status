@@ -19,7 +19,6 @@ cd "$(dirname "$0")/.."
 ROLE="${COLLECTOR_ROLE:-$(grep -s '^COLLECTOR_ROLE=' .env | cut -d= -f2)}"
 ROLE="${ROLE:-primary}"
 SECONDARY_PUBLISH="${SECONDARY_PUBLISH:-$(grep -s '^SECONDARY_PUBLISH=' .env | cut -d= -f2)}"
-export AGGREGATOR_SKIP_MOCK="${AGGREGATOR_SKIP_MOCK:-true}"
 
 log() { echo "[collect $(date -u '+%Y-%m-%dT%H:%M:%SZ')] [$ROLE] $*"; }
 

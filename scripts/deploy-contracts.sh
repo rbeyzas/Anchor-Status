@@ -72,8 +72,7 @@ stellar contract invoke --id "$ORACLE_ID" "${NETWORK_ARGS[@]}" -- init \
 
 echo "== 7) Authorize one reporter per source type =="
 for pair in "RealMainnet:${REPORTER_MAINNET_SECRET_KEY:-}" \
-            "RealTestnet:${REPORTER_TESTNET_SECRET_KEY:-}" \
-            "SimulatedMock:${REPORTER_MOCK_SECRET_KEY:-}"; do
+            "RealTestnet:${REPORTER_TESTNET_SECRET_KEY:-}"; do
   source_type="${pair%%:*}"
   secret="${pair#*:}"
   if [ -z "$secret" ]; then

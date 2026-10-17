@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   dedupKey,
-  normalizeMockAnchorLogEntry,
   normalizePassiveMonitorProfile,
   normalizeTestnetProbeResult,
 } from './normalize.js';
-import type { MockAnchorLogEntry, PassiveMonitorProfile, TestnetProbeResult } from './types.js';
+import type { PassiveMonitorProfile, TestnetProbeResult } from './types.js';
 
 describe('normalizePassiveMonitorProfile', () => {
   it('marks an anchor with no observed payments as a failure, using the full lookback window as settlement_seconds', () => {
@@ -70,33 +69,6 @@ describe('normalizeTestnetProbeResult', () => {
       settlement_seconds: 12.5,
       source_type: 'RealTestnet',
     });
-  });
-});
-
-describe('normalizeMockAnchorLogEntry', () => {
-  it('uses transaction_id for the dedup key when present', () => {
-    const entry: MockAnchorLogEntry = {
-      anchor_id: 'mock_anchor_1',
-      success: true,
-      settlement_seconds: 8,
-      timestamp: '2026-03-01T00:00:00.000Z',
-      source_type: 'SimulatedMock',
-      transaction_id: 'abc-123',
-    };
-    const report = normalizeMockAnchorLogEntry(entry);
-    expect(dedupKey(report)).toBe('SimulatedMock:abc-123');
-  });
-
-  it('falls back to anchor_id+timestamp when transaction_id is absent', () => {
-    const entry: MockAnchorLogEntry = {
-      anchor_id: 'mock_anchor_1',
-      success: false,
-      settlement_seconds: 8,
-      timestamp: '2026-03-01T00:00:00.000Z',
-      source_type: 'SimulatedMock',
-    };
-    const report = normalizeMockAnchorLogEntry(entry);
-    expect(dedupKey(report)).toBe('SimulatedMock:mock_anchor_1:2026-03-01T00:00:00.000Z');
   });
 });
 

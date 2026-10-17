@@ -63,8 +63,8 @@ function toSlashEvents(entries: Array<{ timestamp: string; amountStroops: string
 
 const scoreKey = (p: ScorePoint) => `${p.timestamp}|${p.score}`;
 
-// The archive holds every report ever made — the simulated anchors alone
-// reported every minute for a week — and all of it would otherwise be
+// The archive holds every report ever made — the retired simulated anchors
+// alone reported every minute for a week — and all of it would otherwise be
 // shipped to the browser for a chart a few hundred pixels wide.
 export const MAX_CHART_POINTS = 500;
 

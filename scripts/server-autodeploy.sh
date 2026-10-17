@@ -56,8 +56,7 @@ git reset --hard --quiet "origin/$BRANCH"
 
 # Read the service list from the tree just checked out, not from this
 # script's startup: a service added in the incoming commit must be installed
-# by the same deploy that brings it in. (mock-anchors is Python and has no
-# package.json, so it is skipped — the collector doesn't run it.)
+# by the same deploy that brings it in.
 for pkg in "$REPO_DIR"/services/*/package.json; do
   svc=$(dirname "$pkg")
   d=$(basename "$svc")

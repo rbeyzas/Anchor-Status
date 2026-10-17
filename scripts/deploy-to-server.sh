@@ -26,14 +26,13 @@ rsync -az \
   --exclude 'node_modules/' --exclude '.next/' --exclude '.venv/' \
   --exclude 'target/' --exclude '.git/' --exclude 'graphify-out/' \
   --exclude '.vercel/' --exclude '*.pdf' \
-  --exclude '.env' --exclude '.env.*' --exclude 'services/mock-anchors/secrets.env' \
-  --exclude 'services/mock-anchors/state/' --exclude 'services/mock-anchors/logs/' \
+  --exclude '.env' --exclude '.env.*' \
   --exclude 'services/testnet-probe/results/' \
   --exclude 'services/passive-monitor/output/' \
   -e "ssh ${SSH_OPTS[*]}" \
   ./ "$HOST:$REMOTE_DIR/"
 
-# Only the services the collector actually runs; mock-anchors stays local.
+# Only the services the collector actually runs.
 ssh "${SSH_OPTS[@]}" "$HOST" "set -euo pipefail
   for d in mainnet-probe passive-monitor testnet-probe aggregator history-archiver; do
     svc=$REMOTE_DIR/services/\$d

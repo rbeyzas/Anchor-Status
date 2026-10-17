@@ -1,4 +1,4 @@
-export type SourceType = 'RealMainnet' | 'RealTestnet' | 'SimulatedMock';
+export type SourceType = 'RealMainnet' | 'RealTestnet';
 
 /** The shape every source gets normalized into before being submitted to
  * PerformanceOracle.submit_report(). Matches the contract's parameters
@@ -54,13 +54,4 @@ export interface MainnetProbeResult {
   /** Our own failure (e.g. our network was down). Never submitted on-chain. */
   inconclusive?: boolean;
   evidence_hash?: string;
-}
-
-export interface MockAnchorLogEntry {
-  anchor_id: string;
-  success: boolean;
-  settlement_seconds: number;
-  timestamp: string;
-  source_type: 'SimulatedMock';
-  transaction_id?: string;
 }

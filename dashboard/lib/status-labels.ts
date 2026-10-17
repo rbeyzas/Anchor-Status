@@ -1,24 +1,15 @@
 import { isWithheld } from './scorecard';
 import type { AnchorViewModel } from './types';
 
-/** Scores based on fewer checks than this are shown as "not enough data":
- * a per-report score starts from a default, so a new dead anchor would
- * otherwise look perfect until it has failed a few times. */
-export const MIN_OBSERVATIONS_FOR_SCORE = 3;
-
 /**
  * Whether the number is worth showing. A measured anchor, mainnet or
  * testnet, is scored by its card: without one, or with a confidence under
- * 40, there is no number to show yet. Only the reference mock anchors keep
- * the per-report score, because they exist to check the maths against
- * ground truth rather than to be judged.
+ * 40, there is no number to show yet.
  */
 export function hasEnoughData(anchor: AnchorViewModel): boolean {
   // Measured, and shown, under the other domain of the same operator.
   if (anchor.status?.aliasOf) return false;
-  if (anchor.card) return !isWithheld(anchor.card);
-  if (anchor.sourceType !== 'SimulatedMock') return false;
-  return !anchor.health || anchor.health.observations >= MIN_OBSERVATIONS_FOR_SCORE;
+  return !!anchor.card && !isWithheld(anchor.card);
 }
 
 /** The headline to show: the card's when there is one. */
