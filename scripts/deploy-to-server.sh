@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploys the collector host incrementally. Run from a checkout:
-#   COLLECTOR_HOST=root@37.221.76.23 bash scripts/deploy-to-server.sh
+#   COLLECTOR_HOST=root@<collector-host> bash scripts/deploy-to-server.sh
 #
 # Incremental on purpose — it never rebuilds the host from scratch:
 #   * rsync without --delete: only changed files are copied.
@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-HOST="${COLLECTOR_HOST:?set COLLECTOR_HOST, e.g. root@37.221.76.23}"
+HOST="${COLLECTOR_HOST:?set COLLECTOR_HOST, e.g. root@<collector-host>}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/anchor-status}"
 DATA_DIR="${DATA_DIR:-/var/lib/anchor-status}"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15)
@@ -26,7 +26,7 @@ rsync -az \
   --exclude 'node_modules/' --exclude '.next/' --exclude '.venv/' \
   --exclude 'target/' --exclude '.git/' --exclude 'graphify-out/' \
   --exclude '.vercel/' --exclude '*.pdf' \
-  --exclude '.env' \
+  --exclude '.env' --exclude '.env.*' --exclude 'services/mock-anchors/secrets.env' \
   --exclude 'services/mock-anchors/state/' --exclude 'services/mock-anchors/logs/' \
   --exclude 'services/testnet-probe/results/' \
   --exclude 'services/passive-monitor/output/' \
@@ -35,7 +35,7 @@ rsync -az \
 
 # Only the services the collector actually runs; mock-anchors stays local.
 ssh "${SSH_OPTS[@]}" "$HOST" "set -euo pipefail
-  for d in passive-monitor testnet-probe aggregator history-archiver; do
+  for d in mainnet-probe passive-monitor testnet-probe aggregator history-archiver; do
     svc=$REMOTE_DIR/services/\$d
     sum=\$(cat \$svc/package.json \$svc/package-lock.json 2>/dev/null | md5sum | cut -d' ' -f1)
     if [ ! -d \$svc/node_modules ] || [ \"\$(cat \$svc/.deps.sum 2>/dev/null)\" != \"\$sum\" ]; then

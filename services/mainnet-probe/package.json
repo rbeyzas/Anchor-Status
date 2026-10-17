@@ -13,7 +13,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "verify": "tsx src/verify.ts"
+    "verify": "tsx src/verify.ts",
+    "sync-from-chain": "tsx src/sync-from-chain.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^17.0.1",
