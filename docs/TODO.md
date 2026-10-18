@@ -10,7 +10,7 @@ Durum: 18 Eylül 2026. Geliştirme planının 1–6. adımları tamamlandı; 5. 
 
 ## 2. Mainnet öncesi yapılması gerekenler
 
-- [x] **Sızan testnet anahtarlarının yenilenmesi.** Repo geçmişindeki `secrets.env` içinde yalnızca mock anchor issuer anahtarları ve Django anahtarı vardı. Hesaplar testnet sıfırlamasıyla silindi, mock servis kaldırıldı (18 Ekim 2026): imzalanabilecek bir şey kalmadı. Reporter anahtarları hiç sızmadı; onların yenilenmesi `revoke_reporter` gelince (D1) yapılacak.
+- [x] **Sızan testnet anahtarlarının yenilenmesi.** Repo geçmişindeki `services/mock-anchors/secrets.env` içinde yalnızca 4 mock anchor issuer anahtarı ve Django anahtarı vardı. 17 Ekim 2026'da 4 hesap `account_merge` ile yeni hesaplara birleştirildi; artık ne testnet'te ne mainnet'te varlar (tx'ler `docs/instaward/EVIDENCE.md`'de). Mock servis 18 Ekim'de kaldırıldı, dolayısıyla eski anahtarlarla imzalanabilecek bir şey kalmadı. Reporter anahtarları hiç sızmadı; onların yenilenmesi `revoke_reporter` gelince (D1) yapılacak.
 - [ ] **Toplayıcı için sağlık uç noktası.** Son başarılı turun zamanını göstersin; 40 dakikayı geçerse uyarı versin. Şu an cron sessizce durursa kimse fark etmez.
 - [ ] **Kontrat eksikleri:**
   - [ ] Anchor silme fonksiyonu yok.
