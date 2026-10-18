@@ -53,14 +53,16 @@ async function main() {
     added +=
       merged.scoreHistory.length - (before?.scoreHistory.length ?? 0) +
       (merged.slashEvents.length - (before?.slashEvents.length ?? 0)) +
-      ((merged.riskEvents?.length ?? 0) - (before?.riskEvents?.length ?? 0));
+      ((merged.riskEvents?.length ?? 0) - (before?.riskEvents?.length ?? 0)) +
+      ((merged.scoreCards?.length ?? 0) - (before?.scoreCards?.length ?? 0));
     archive.anchors[anchorId] = merged;
   }
   archive.updatedAt = new Date().toISOString();
   saveArchive(config.archivePath, archive);
 
   const totals = Object.values(archive.anchors).reduce((sum, a) => sum + a.scoreHistory.length, 0);
-  console.log(`[history-archiver] ${added} new entr(ies), ${totals} score points archived -> ${config.archivePath}`);
+  const cards = Object.values(archive.anchors).reduce((sum, a) => sum + (a.scoreCards?.length ?? 0), 0);
+  console.log(`[history-archiver] ${added} new entr(ies), ${totals} score points and ${cards} score cards archived -> ${config.archivePath}`);
 }
 
 main().catch((err) => {

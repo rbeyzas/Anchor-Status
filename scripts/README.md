@@ -8,6 +8,10 @@ Root-level setup / deploy / demo scripts.
   `performance-oracle` contracts to testnet, writes the resulting
   contract IDs into `.env`.
 - `demo.sh` — brings the whole system up end-to-end for a live demo.
+- `backup-archive.sh` — nightly private copy of A's `/var/lib/anchor-status`
+  on B: A pushes (03:05 UTC) into a write-only, no-delete `incoming/`, B
+  turns it into a dated, hardlinked snapshot (03:50 UTC), 30 kept.
+  Installed by `setup-secondary.sh`.
 
 These scripts **require network access** to Stellar testnet.
 

@@ -21,12 +21,27 @@ export interface RiskEvent {
   trend: string;
 }
 
+/** A score card PerformanceOracle accepted. The contract keeps only the
+ * latest per anchor, so this is the only record of the earlier ones, and of
+ * the inputs hash each was computed from. */
+export interface ScoreCardRecord {
+  timestamp: string;
+  score: number;
+  confidence: number;
+  flags: number;
+  methodologyVersion: number;
+  /** SHA-256 (hex) of the inputs bundle the card was computed from. */
+  inputsHash: string;
+}
+
 export interface AnchorArchive {
   scoreHistory: ScorePoint[];
   /** Only from the oracle version that slashed; nothing new is ever added. */
   slashEvents: SlashEvent[];
   /** Absent in archives written before risk tracking existed. */
   riskEvents?: RiskEvent[];
+  /** Absent in archives written before score cards were archived. */
+  scoreCards?: ScoreCardRecord[];
 }
 
 /** The persisted file. `anchors` grows forever; nothing is ever dropped. */

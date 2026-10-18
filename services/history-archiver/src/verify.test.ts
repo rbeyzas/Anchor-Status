@@ -3,7 +3,7 @@ import type { AnchorEvents } from './events.js';
 import type { Archive } from './types.js';
 import { verifyArchive } from './verify.js';
 
-const chain = (points: AnchorEvents['scoreHistory']): AnchorEvents => ({ scoreHistory: points, slashEvents: [], riskEvents: [] });
+const chain = (points: AnchorEvents['scoreHistory']): AnchorEvents => ({ scoreHistory: points, slashEvents: [], riskEvents: [], scoreCards: [] });
 const archiveOf = (points: Archive['anchors'][string]['scoreHistory']): Archive => ({
   version: 1,
   updatedAt: '2026-09-19T00:00:00Z',

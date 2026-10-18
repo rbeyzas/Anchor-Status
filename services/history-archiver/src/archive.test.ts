@@ -62,6 +62,25 @@ describe('mergeAnchor risk events', () => {
   });
 });
 
+describe('mergeAnchor score cards', () => {
+  const card = { timestamp: '2026-10-18T10:00:00Z', score: 81, confidence: 64, flags: 0, methodologyVersion: 1, inputsHash: 'ab'.repeat(32) };
+
+  it('adds cards to an archive written before cards were archived', () => {
+    const old = { scoreHistory: [{ timestamp: '2026-09-17T10:00:00Z', score: 80 }], slashEvents: [] };
+    const merged = mergeAnchor(old, { scoreHistory: [], slashEvents: [], scoreCards: [card] });
+    expect(merged.scoreHistory).toHaveLength(1);
+    expect(merged.scoreCards).toEqual([card]);
+  });
+
+  it('keeps every card once, even when runs overlap, and never drops one', () => {
+    const later = { ...card, timestamp: '2026-10-18T16:00:00Z', score: 79, inputsHash: 'cd'.repeat(32) };
+    const once = mergeAnchor(undefined, { scoreHistory: [], slashEvents: [], scoreCards: [card] });
+    const twice = mergeAnchor(once, { scoreHistory: [], slashEvents: [], scoreCards: [card, later] });
+    const quiet = mergeAnchor(twice, { scoreHistory: [], slashEvents: [], scoreCards: [] });
+    expect(quiet.scoreCards?.map((c) => c.score)).toEqual([81, 79]);
+  });
+});
+
 describe('loadArchive / saveArchive', () => {
   it('round-trips and keeps a .bak of the previous contents', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'archive-'));

@@ -1,6 +1,6 @@
 import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import type { RpcPool } from './rpc.js';
-import type { RiskEvent, ScorePoint, SlashEvent } from './types.js';
+import type { RiskEvent, ScoreCardRecord, ScorePoint, SlashEvent } from './types.js';
 
 /** One deployment of the two contracts. Events are read from every pair
  * given, so history from an earlier deployment can still be recovered. */
@@ -13,6 +13,7 @@ export interface AnchorEvents {
   scoreHistory: ScorePoint[];
   slashEvents: SlashEvent[];
   riskEvents: RiskEvent[];
+  scoreCards: ScoreCardRecord[];
 }
 
 // getEvents scans roughly 10,000 ledgers per call. A range with no matching
@@ -49,6 +50,7 @@ export function eventFilters(pairs: ContractPair[]): rpc.Api.EventFilter[] {
         [symbol('report_submitted'), '*'],
         [symbol('risk_status_changed'), '*'],
         [symbol('slash'), '*'],
+        [symbol('score_card_published'), '*'],
       ],
     });
   }
@@ -115,7 +117,7 @@ export function groupByAnchor(events: rpc.Api.EventResponse[]): Map<string, Anch
   const byAnchor = new Map<string, AnchorEvents>();
   const bucket = (anchorId: string) => {
     let b = byAnchor.get(anchorId);
-    if (!b) byAnchor.set(anchorId, (b = { scoreHistory: [], slashEvents: [], riskEvents: [] }));
+    if (!b) byAnchor.set(anchorId, (b = { scoreHistory: [], slashEvents: [], riskEvents: [], scoreCards: [] }));
     return b;
   };
   for (const event of events) {
@@ -153,6 +155,27 @@ export function groupByAnchor(events: rpc.Api.EventResponse[]): Map<string, Anch
         riskReason,
         score: Number(data.score),
         trend: enumTag(data.trend) ?? 'Stable',
+      });
+    } else if (kind === 'score_card_published') {
+      const data = value as {
+        score?: unknown;
+        confidence?: unknown;
+        flags?: unknown;
+        methodology_version?: unknown;
+        inputs_hash?: Uint8Array | null;
+      };
+      // The hash is what makes a past card checkable; one without it is junk.
+      if (!(data?.inputs_hash instanceof Uint8Array)) {
+        console.warn(`[history-archiver] unreadable score card event at ${event.ledgerClosedAt}, skipped`);
+        continue;
+      }
+      bucket(anchorId).scoreCards.push({
+        timestamp: event.ledgerClosedAt,
+        score: Number(data.score),
+        confidence: Number(data.confidence),
+        flags: Number(data.flags),
+        methodologyVersion: Number(data.methodology_version),
+        inputsHash: Buffer.from(data.inputs_hash).toString('hex'),
       });
     }
   }
