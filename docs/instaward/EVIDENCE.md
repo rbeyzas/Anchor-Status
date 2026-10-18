@@ -77,6 +77,27 @@ Contracts (testnet):
   and a built `propose_upgrade` (admin source, 1 auth entry, footprint and
   resources set, no signature); a call that would fail leaves no file.
 
+### 1.12 Reference anchor at ref1.monarank.xyz (D3) — 18 Oct
+- A small anchor of our own (SEP-1, SEP-10, SEP-6, test asset `MONAREF`)
+  instead of the mock anchors the plan named: those had no public
+  stellar.toml or score cards, and their framework (django-polaris 2.5,
+  Python stellar-sdk 10) is out of date. `services/reference-anchor`,
+  commit `5f1f6be`; its tests drive it with testnet-probe's own parsers.
+- New keys and accounts (setup tx
+  [`5938b8fd…`](https://stellar.expert/explorer/testnet/tx/5938b8fd953e2eb9b40e456e12c20056b4258bcefe44b8813f1f4119cc6e21ad)):
+  issuer `GBQ75MJZ…TYS3` with `home_domain` `ref1.monarank.xyz`,
+  distribution `GAUCNOG6…73OY` (in the toml's `ACCOUNTS`), `SIGNING_KEY`
+  `GBA7U6K6JNTVEATZNJOT66O6P2W6NLUYQI25JOA6MRM2GHTI26THJXAB`. The issuer's
+  secret is kept off the server.
+- Served from fly.io (`monarank-ref1`, always on), `ref1` CNAME to
+  `monarank-ref1.fly.dev`, certificate issued; stellar.toml answers 200
+  with `access-control-allow-origin: *`.
+- Admitted through the ordinary testnet application: the onboarding check
+  ran the full money flow (SEP-10, deposit paid out and verified on the
+  ledger, withdrawal paid and completed) and registered it as
+  `ref1_monarank_xyz_testnet` (`RealTestnet`, active). Its first probe
+  rounds succeeded (26.0 s and 36.1 s), and their reports are on-chain.
+
 ## Week 0 (16–18 Oct)
 
 | # | Item | Evidence |
