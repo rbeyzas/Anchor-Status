@@ -25,7 +25,9 @@ async function main() {
   );
 
   const submitted = loadState(config.statePath);
-  const pending = reports.filter((r) => !submitted.has(dedupKey(r)));
+  // A cards-only host (a secondary reporter) sends no single reports.
+  const pending = config.cardsOnly ? [] : reports.filter((r) => !submitted.has(dedupKey(r)));
+  if (config.cardsOnly) console.log('[aggregator] cards only: single reports are not sent from this host');
   console.log(`[aggregator] ${pending.length} new report(s) to submit (${reports.length - pending.length} already submitted)`);
 
   let succeeded = 0;

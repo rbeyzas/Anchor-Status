@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { config, scoreCardsStatePath } from '../config.js';
-import { publishScoreCard, ScoreCardsUnsupported } from '../contract.js';
+import { publishScoreCard, readQuorumConfig, ScoreCardsUnsupported, type QuorumSettings } from '../contract.js';
 import { computeCard, flagNames } from './engine.js';
-import { buildInputs, floorToHour } from './inputs.js';
+import { buildInputs } from './inputs.js';
 import {
   contextFor,
   fillLegacySigningKeys,
@@ -16,7 +16,15 @@ import {
   writeIncidents,
   writeInputsBundle,
 } from './load.js';
-import { loadPublished, savePublished, selectToPublish, writeSummary, type Candidate } from './publisher.js';
+import {
+  benignCardError,
+  loadPublished,
+  savePublished,
+  selectToPublish,
+  windowEndFor,
+  writeSummary,
+  type Candidate,
+} from './publisher.js';
 import type { ScoreInputs } from './types.js';
 
 export interface ScoringResult {
@@ -30,8 +38,17 @@ export interface ScoringResult {
  * `dryRun`, computes and returns them without writing a bundle or sending a
  * transaction.
  */
-export async function runScoring({ dryRun = false, now = Date.now() } = {}): Promise<ScoringResult> {
-  const windowEnd = floorToHour(now);
+export async function runScoring({
+  dryRun = false,
+  now = Date.now(),
+  quorum,
+}: { dryRun?: boolean; now?: number; quorum?: QuorumSettings | null } = {}): Promise<ScoringResult> {
+  // The oracle says which window every reporter scores (its rounds) and
+  // whether a card needs other reporters too. An oracle from before the
+  // quorum: hourly windows, one reporter.
+  const q = quorum !== undefined ? quorum : dryRun ? null : await readQuorumConfig().catch(() => null);
+  const windowEnd = windowEndFor(now, q?.round_seconds ?? 0);
+  const everyRound = (q?.threshold ?? 1) > 1;
   const probes = await readProbeHistory(config.mainnetProbeResultsDir, windowEnd);
   fillLegacySigningKeys(probes, config.evidenceDir);
   // Testnet anchors are scored the same way, from their own log.
@@ -54,16 +71,18 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
 
   const statePath = scoreCardsStatePath();
   const state = loadPublished(statePath);
-  const due = selectToPublish(cards, state, now);
-  console.log(`[aggregator] score cards: ${cards.length} computed, ${due.length} due for publishing`);
+  const due = selectToPublish(cards, state, now, everyRound);
+  console.log(
+    `[aggregator] score cards: ${cards.length} computed, ${due.length} due for publishing` +
+      (q ? ` (quorum ${q.threshold}, ${q.round_seconds ? `${q.round_seconds / 3600} h rounds` : 'no rounds'})` : ''),
+  );
 
   let published = 0;
   let failed = 0;
   for (const { anchorId, card } of due) {
     const inputs = cards.find((c) => c.anchorId === anchorId)!.inputs;
     const inputsHash = writeInputsBundle(config.evidenceDir, inputs);
-    try {
-      await publishScoreCard(anchorId, card, inputsHash, testnetIds.has(anchorId) ? 'RealTestnet' : 'RealMainnet');
+    const record = () => {
       state[anchorId] = {
         published_at: new Date(now).toISOString(),
         inputs_hash: inputsHash,
@@ -77,6 +96,10 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
         },
       };
       savePublished(statePath, state);
+    };
+    try {
+      await publishScoreCard(anchorId, card, inputsHash, testnetIds.has(anchorId) ? 'RealTestnet' : 'RealMainnet');
+      record();
       published++;
       const flags = flagNames(card.flags);
       console.log(
@@ -87,6 +110,15 @@ export async function runScoring({ dryRun = false, now = Date.now() } = {}): Pro
       if (err instanceof ScoreCardsUnsupported) {
         console.warn('[aggregator] PerformanceOracle has no publish_score_card yet (not upgraded); skipping score cards');
         break;
+      }
+      const benign = benignCardError((err as Error).message);
+      if (benign) {
+        // Not a failure. A round others already finished, or one already
+        // sent, is done for this reporter too; an anchor off the registry
+        // is simply not scored.
+        if (benign === 'round already final' || benign === 'already submitted') record();
+        console.log(`[aggregator] card ${anchorId} not sent: ${benign}`);
+        continue;
       }
       failed++;
       console.error(`[aggregator] failed to publish the card for ${anchorId}: ${(err as Error).message.split('\n')[0]}`);

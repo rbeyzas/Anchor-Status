@@ -1,4 +1,5 @@
 #![cfg(test)]
+extern crate std;
 
 use super::*;
 use anchor_registry::{AnchorRegistry, AnchorRegistryClient};
@@ -10,6 +11,7 @@ use types::{RiskReason, Trend};
 
 struct Harness<'a> {
     env: Env,
+    admin: Address,
     oracle: PerformanceOracleClient<'a>,
     registry: AnchorRegistryClient<'a>,
     token_address: Address,
@@ -33,6 +35,7 @@ fn setup<'a>(env: &'a Env) -> Harness<'a> {
 
     Harness {
         env: env.clone(),
+        admin,
         oracle,
         registry,
         token_address,
@@ -337,12 +340,121 @@ fn direct_update_score_call_without_being_the_oracle_contract_fails() {
 }
 
 #[test]
-fn upgrade_requires_the_admin() {
+fn governance_calls_require_the_admin() {
     let env = Env::default();
     let h = setup(&env);
     env.set_auths(&[]);
-    let result = h.oracle.try_upgrade(&BytesN::from_array(&env, &[0u8; 32]));
-    assert!(result.is_err());
+    let hash = BytesN::from_array(&env, &[7u8; 32]);
+    assert!(h.oracle.try_propose_upgrade(&hash).is_err());
+    assert!(h.oracle.try_execute_upgrade().is_err());
+    assert!(h.oracle.try_cancel_upgrade().is_err());
+    assert!(h.oracle.try_set_upgrade_delay(&60).is_err());
+    assert!(h.oracle.try_propose_admin(&Address::generate(&env)).is_err());
+    assert!(h.oracle.try_authorize_reporter(&Address::generate(&env), &SourceType::RealMainnet).is_err());
+}
+
+#[test]
+fn hands_the_admin_role_over_only_when_accepted() {
+    let env = Env::default();
+    let h = setup(&env);
+    assert_eq!(h.oracle.try_accept_admin(), Err(Ok(Error::NoPendingAdmin)));
+
+    let next = Address::generate(&env);
+    h.oracle.propose_admin(&next);
+    assert_eq!(h.oracle.get_admin(), h.admin, "a proposal alone changes nothing");
+
+    h.oracle.accept_admin();
+    // The acceptance was signed by the proposed admin, not the old one.
+    assert_eq!(env.auths()[0].0, next);
+    assert_eq!(h.oracle.get_admin(), next);
+    assert_eq!(h.oracle.try_accept_admin(), Err(Ok(Error::NoPendingAdmin)));
+}
+
+#[test]
+fn an_upgrade_waits_out_the_delay_and_can_be_cancelled() {
+    let env = Env::default();
+    let h = setup(&env);
+    let hash = BytesN::from_array(&env, &[7u8; 32]);
+    assert_eq!(h.oracle.try_execute_upgrade(), Err(Ok(Error::NoPendingUpgrade)));
+    assert_eq!(h.oracle.try_cancel_upgrade(), Err(Ok(Error::NoPendingUpgrade)));
+
+    env.ledger().with_mut(|l| l.timestamp = 1_000);
+    h.oracle.set_upgrade_delay(&3_600);
+    let pending = h.oracle.propose_upgrade(&hash);
+    assert_eq!(pending.executable_at, 4_600);
+    assert_eq!(h.oracle.get_pending_upgrade(), Some(pending));
+    assert_eq!(h.oracle.try_propose_upgrade(&hash), Err(Ok(Error::UpgradePending)));
+
+    env.ledger().with_mut(|l| l.timestamp = 4_599);
+    assert_eq!(h.oracle.try_execute_upgrade(), Err(Ok(Error::TimelockActive)));
+
+    h.oracle.cancel_upgrade();
+    assert_eq!(h.oracle.get_pending_upgrade(), None);
+    assert_eq!(h.oracle.try_execute_upgrade(), Err(Ok(Error::NoPendingUpgrade)));
+}
+
+#[test]
+fn the_delay_grows_at_once_but_shrinks_only_after_waiting_it_out() {
+    let env = Env::default();
+    let h = setup(&env);
+    assert_eq!(h.oracle.get_upgrade_delay(), 0);
+    env.ledger().with_mut(|l| l.timestamp = 1_000);
+
+    h.oracle.set_upgrade_delay(&3_600);
+    assert_eq!(h.oracle.get_upgrade_delay(), 3_600);
+
+    // Dropping the lock to push an upgrade through at once does not work:
+    // the shorter delay waits out the longer one.
+    h.oracle.set_upgrade_delay(&0);
+    assert_eq!(h.oracle.get_upgrade_delay(), 3_600);
+    assert_eq!(h.oracle.propose_upgrade(&BytesN::from_array(&env, &[7u8; 32])).executable_at, 4_600);
+    h.oracle.cancel_upgrade();
+
+    env.ledger().with_mut(|l| l.timestamp = 4_600);
+    assert_eq!(h.oracle.get_upgrade_delay(), 0);
+
+    assert_eq!(h.oracle.try_set_upgrade_delay(&(MAX_UPGRADE_DELAY_SECONDS + 1)), Err(Ok(Error::DelayTooLong)));
+}
+
+#[test]
+fn the_time_lock_error_has_the_registrys_code() {
+    // Evidence quotes "Error(Contract, #21)" for both contracts.
+    assert_eq!(Error::TimelockActive as u32, anchor_registry::Error::TimelockActive as u32);
+    assert_eq!(Error::TimelockActive as u32, 21);
+}
+
+/// Topic names of every event the oracle published in the last call.
+fn event_topics(env: &Env) -> std::vec::Vec<std::string::String> {
+    env.events()
+        .all()
+        .events()
+        .iter()
+        .filter_map(|event| {
+            let xdr::ContractEventBody::V0(body) = &event.body;
+            match body.topics.first() {
+                Some(xdr::ScVal::Symbol(s)) => Some(s.to_utf8_string_lossy()),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+#[test]
+fn configuration_and_governance_changes_publish_events() {
+    let env = Env::default();
+    let h = setup(&env);
+    h.oracle.authorize_reporter(&Address::generate(&env), &SourceType::RealMainnet);
+    assert_eq!(event_topics(&env), ["reporter_authorized"]);
+    h.oracle.set_upgrade_delay(&60);
+    assert_eq!(event_topics(&env), ["upgrade_delay_set"]);
+    h.oracle.propose_upgrade(&BytesN::from_array(&env, &[7u8; 32]));
+    assert_eq!(event_topics(&env), ["upgrade_proposed"]);
+    h.oracle.cancel_upgrade();
+    assert_eq!(event_topics(&env), ["upgrade_cancelled"]);
+    h.oracle.propose_admin(&Address::generate(&env));
+    assert_eq!(event_topics(&env), ["admin_proposed"]);
+    h.oracle.accept_admin();
+    assert_eq!(event_topics(&env), ["admin_changed"]);
 }
 
 /// The `evidence` field of the last `report_submitted` event, as raw XDR.
@@ -748,4 +860,307 @@ fn works_with_the_live_registry_that_has_no_status_yet() {
     oracle.submit_report(&reporter, &anchor_id, &true, &5, &10_000, &SourceType::RealMainnet);
     oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
     assert_eq!(registry.get_anchor_info(&anchor_id).score, 81);
+}
+
+// ---- Reporter quorum (SOW deliverable 1) ----
+
+const ROUND: u64 = 3_600;
+const NOW: u64 = 20_000;
+
+/// `n` reporters authorized for mainnet, a registered mainnet anchor, a
+/// quorum of `threshold` with the given max spread and hourly rounds.
+fn quorum_setup(h: &Harness, n: u32, threshold: u32, max_spread: u32) -> (std::vec::Vec<Address>, Symbol) {
+    at(&h.env, NOW);
+    let reporters: std::vec::Vec<Address> = (0..n)
+        .map(|_| {
+            let r = Address::generate(&h.env);
+            h.oracle.authorize_reporter(&r, &SourceType::RealMainnet);
+            r
+        })
+        .collect();
+    let anchor_id = Symbol::new(&h.env, "anchor_1");
+    register_and_stake(h, &anchor_id, 0);
+    h.oracle.set_quorum_config(&QuorumConfig { threshold, max_spread, round_seconds: ROUND });
+    (reporters, anchor_id)
+}
+
+fn scored(env: &Env, score: u32, window_end: u64, hash: u8) -> ScoreCardInput {
+    ScoreCardInput { inputs_hash: BytesN::from_array(env, &[hash; 32]), ..card(env, score, 80, window_end) }
+}
+
+#[test]
+fn without_a_quorum_config_one_card_is_final_at_once() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    at(&env, NOW);
+    assert_eq!(h.oracle.get_quorum_config().threshold, 1);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 70, 80, 7_000));
+    assert_eq!(h.oracle.get_score_card(&anchor_id).unwrap().score, 70);
+    assert_eq!(h.oracle.get_pending_round(&anchor_id), None);
+    assert_eq!(h.oracle.get_quorum_info(&anchor_id).unwrap().reporters.len(), 1);
+}
+
+#[test]
+fn one_card_of_two_changes_nothing() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    let score_before = h.registry.get_anchor_info(&id).score;
+    assert_eq!(h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1)), 0);
+    assert_eq!(h.oracle.get_score_card(&id), None);
+    assert_eq!(h.registry.get_anchor_info(&id).score, score_before);
+    let round = h.oracle.get_pending_round(&id).unwrap();
+    assert_eq!(round.window_end, 7_200);
+    assert_eq!(round.submissions.len(), 1);
+}
+
+#[test]
+fn the_second_reporter_makes_the_lower_median_final() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 74, 7_200, 1));
+    assert_eq!(h.oracle.publish_score_card(&r[1], &id, &scored(&env, 70, 7_200, 2)), 70);
+    let c = h.oracle.get_score_card(&id).unwrap();
+    assert_eq!(c.score, 70);
+    assert_eq!(c.inputs_hash, BytesN::from_array(&env, &[2u8; 32]), "the bundle of the card whose score is the median");
+    assert_eq!(h.registry.get_anchor_info(&id).score, 70);
+    assert_eq!(h.oracle.get_pending_round(&id), None);
+    let q = h.oracle.get_quorum_info(&id).unwrap();
+    assert_eq!(q.reporters.len(), 2);
+    assert_eq!(q.spread, 4);
+    assert_eq!(q.outliers.len(), 0);
+    assert_eq!(c.flags & FLAG_REPORTER_DISAGREEMENT, 0);
+}
+
+#[test]
+fn three_reporters_take_the_middle_card_field_by_field() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 3, 100);
+    let mk = |score, availability, speed, hash| ScoreCardInput { availability, speed, ..scored(&env, score, 7_200, hash) };
+    h.oracle.publish_score_card(&r[0], &id, &mk(90, 60, 100, 1));
+    h.oracle.publish_score_card(&r[1], &id, &mk(50, 100, 40, 2));
+    h.oracle.publish_score_card(&r[2], &id, &mk(70, 80, 70, 3));
+    let c = h.oracle.get_score_card(&id).unwrap();
+    assert_eq!((c.score, c.availability, c.speed), (70, 80, 70));
+}
+
+#[test]
+fn a_reporter_counts_once_per_round() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    assert_eq!(h.oracle.try_publish_score_card(&r[0], &id, &scored(&env, 71, 7_200, 1)), Err(Ok(Error::DuplicateSubmission)));
+    assert_eq!(h.oracle.get_score_card(&id), None);
+}
+
+#[test]
+fn a_round_takes_one_methodology_version() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    let other = ScoreCardInput { methodology_version: 2, ..scored(&env, 70, 7_200, 2) };
+    assert_eq!(h.oracle.try_publish_score_card(&r[1], &id, &other), Err(Ok(Error::MethodologyMismatch)));
+}
+
+#[test]
+fn windows_must_end_on_a_round_boundary() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    assert_eq!(h.oracle.try_publish_score_card(&r[0], &id, &scored(&env, 70, 7_201, 1)), Err(Ok(Error::MisalignedWindow)));
+}
+
+#[test]
+fn a_newer_window_replaces_an_unfinished_round_and_an_older_one_is_stale() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    h.oracle.publish_score_card(&r[1], &id, &scored(&env, 72, 10_800, 2));
+    let round = h.oracle.get_pending_round(&id).unwrap();
+    assert_eq!((round.window_end, round.submissions.len()), (10_800, 1));
+    assert_eq!(h.oracle.try_publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1)), Err(Ok(Error::StaleScoreCard)));
+}
+
+#[test]
+fn a_late_card_for_a_finished_round_is_stale() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    h.oracle.publish_score_card(&r[1], &id, &scored(&env, 70, 7_200, 2));
+    assert_eq!(h.oracle.try_publish_score_card(&r[2], &id, &scored(&env, 90, 7_200, 3)), Err(Ok(Error::StaleScoreCard)));
+    assert_eq!(h.oracle.get_score_card(&id).unwrap().score, 70);
+}
+
+#[test]
+fn reporters_too_far_apart_flag_the_card_and_name_the_outlier() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 3, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    h.oracle.publish_score_card(&r[1], &id, &scored(&env, 72, 7_200, 2));
+    h.oracle.publish_score_card(&r[2], &id, &scored(&env, 95, 7_200, 3));
+    assert_eq!(events_named(&env, "reporter_outlier"), 1);
+    let c = h.oracle.get_score_card(&id).unwrap();
+    assert_eq!(c.score, 72);
+    assert_ne!(c.flags & FLAG_REPORTER_DISAGREEMENT, 0);
+    let q = h.oracle.get_quorum_info(&id).unwrap();
+    assert_eq!(q.spread, 25);
+    assert_eq!(q.outliers.len(), 1);
+    assert_eq!(q.outliers.get(0).unwrap(), r[2]);
+}
+
+#[test]
+fn the_market_pillar_counts_only_when_most_reporters_measured_it() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 3, 100);
+    let with = |m, hash| ScoreCardInput { market: m, ..scored(&env, 70, 7_200, hash) };
+    h.oracle.publish_score_card(&r[0], &id, &with(Some(90), 1));
+    h.oracle.publish_score_card(&r[1], &id, &with(None, 2));
+    h.oracle.publish_score_card(&r[2], &id, &with(None, 3));
+    assert_eq!(h.oracle.get_score_card(&id).unwrap().market, None);
+
+    let id2 = Symbol::new(&env, "anchor_2");
+    register_and_stake(&h, &id2, 0);
+    let with2 = |m, hash| ScoreCardInput { market: m, ..scored(&env, 70, 7_200, hash) };
+    h.oracle.publish_score_card(&r[0], &id2, &with2(Some(90), 1));
+    h.oracle.publish_score_card(&r[1], &id2, &with2(Some(60), 2));
+    h.oracle.publish_score_card(&r[2], &id2, &with2(None, 3));
+    assert_eq!(h.oracle.get_score_card(&id2).unwrap().market, Some(60));
+}
+
+#[test]
+fn a_flag_holds_when_most_reporters_raise_it() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 3, 100);
+    let flagged = |flags, hash| ScoreCardInput { flags, ..scored(&env, 70, 7_200, hash) };
+    h.oracle.publish_score_card(&r[0], &id, &flagged(0b011, 1));
+    h.oracle.publish_score_card(&r[1], &id, &flagged(0b001, 2));
+    h.oracle.publish_score_card(&r[2], &id, &flagged(0b100, 3));
+    assert_eq!(h.oracle.get_score_card(&id).unwrap().flags, 0b001);
+}
+
+#[test]
+fn with_a_quorum_one_reporters_reports_move_neither_score_nor_risk() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    let score_before = h.registry.get_anchor_info(&id).score;
+    for _ in 0..5 {
+        h.oracle.submit_report(&r[0], &id, &false, &0, &NOW, &SourceType::RealMainnet);
+    }
+    assert_eq!(h.registry.get_anchor_info(&id).score, score_before);
+    let health = h.oracle.get_health(&id);
+    assert_eq!(health.risk_reason, RiskReason::None);
+    assert_eq!(health.consecutive_failures, 5, "the observations still count");
+}
+
+#[test]
+fn a_higher_threshold_applies_at_once_a_lower_one_waits_out_the_delay() {
+    let env = Env::default();
+    let h = setup(&env);
+    at(&env, NOW);
+    h.oracle.set_upgrade_delay(&3_600);
+    h.oracle.set_quorum_config(&QuorumConfig { threshold: 2, max_spread: 10, round_seconds: ROUND });
+    assert_eq!(h.oracle.get_quorum_config().threshold, 2);
+    h.oracle.set_quorum_config(&QuorumConfig { threshold: 1, max_spread: 10, round_seconds: ROUND });
+    assert_eq!(h.oracle.get_quorum_config().threshold, 2, "lowering waits");
+    at(&env, NOW + 3_600);
+    assert_eq!(h.oracle.get_quorum_config().threshold, 1);
+}
+
+#[test]
+fn a_quorum_config_must_be_possible() {
+    let env = Env::default();
+    let h = setup(&env);
+    let bad = |threshold, max_spread| QuorumConfig { threshold, max_spread, round_seconds: ROUND };
+    assert_eq!(h.oracle.try_set_quorum_config(&bad(0, 10)), Err(Ok(Error::InvalidQuorumConfig)));
+    assert_eq!(h.oracle.try_set_quorum_config(&bad(MAX_REPORTERS + 1, 10)), Err(Ok(Error::InvalidQuorumConfig)));
+    assert_eq!(h.oracle.try_set_quorum_config(&bad(2, 101)), Err(Ok(Error::InvalidQuorumConfig)));
+    env.set_auths(&[]);
+    assert!(h.oracle.try_set_quorum_config(&bad(2, 10)).is_err(), "admin only");
+}
+
+#[test]
+fn the_reporter_list_follows_authorizations() {
+    let env = Env::default();
+    let h = setup(&env);
+    let a = Address::generate(&env);
+    h.oracle.authorize_reporter(&a, &SourceType::RealMainnet);
+    h.oracle.authorize_reporter(&a, &SourceType::RealMainnet);
+    assert_eq!(h.oracle.get_reporters(&SourceType::RealMainnet).len(), 1, "no duplicates");
+    h.oracle.authorize_reporter(&a, &SourceType::RealTestnet);
+    assert_eq!(h.oracle.get_reporters(&SourceType::RealMainnet).len(), 0, "moved, not copied");
+    assert_eq!(h.oracle.get_reporters(&SourceType::RealTestnet).len(), 1);
+}
+
+#[test]
+fn a_source_type_has_at_most_seven_reporters() {
+    let env = Env::default();
+    let h = setup(&env);
+    for _ in 0..MAX_REPORTERS {
+        h.oracle.authorize_reporter(&Address::generate(&env), &SourceType::RealMainnet);
+    }
+    assert_eq!(
+        h.oracle.try_authorize_reporter(&Address::generate(&env), &SourceType::RealMainnet),
+        Err(Ok(Error::TooManyReporters))
+    );
+}
+
+#[test]
+fn a_revoked_reporter_can_submit_nothing() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 1, 10);
+    h.oracle.revoke_reporter(&r[0]);
+    assert_eq!(h.oracle.get_reporters(&SourceType::RealMainnet).len(), 1);
+    assert_eq!(h.oracle.get_reporter_source_type(&r[0]), None);
+    assert_eq!(h.oracle.try_publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1)), Err(Ok(Error::NotAuthorizedReporter)));
+    assert_eq!(h.oracle.try_submit_report(&r[0], &id, &true, &1, &NOW, &SourceType::RealMainnet), Err(Ok(Error::NotAuthorizedReporter)));
+    assert_eq!(h.oracle.try_revoke_reporter(&r[0]), Err(Ok(Error::ReporterNotFound)));
+}
+
+#[test]
+fn a_quorum_publishes_its_steps() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 2, 2, 10);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    assert_eq!(event_topics(&env), ["score_card_submitted"]);
+    h.oracle.publish_score_card(&r[1], &id, &scored(&env, 72, 7_200, 2));
+    let topics = event_topics(&env);
+    assert!(topics.contains(&"score_card_submitted".into()));
+    assert!(topics.contains(&"quorum_reached".into()));
+    assert!(topics.contains(&"score_card_published".into()));
+}
+
+#[test]
+fn a_reporter_of_the_wrong_type_cannot_join_a_round() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 1, 2, 10);
+    let testnet = Address::generate(&env);
+    h.oracle.authorize_reporter(&testnet, &SourceType::RealTestnet);
+    h.oracle.publish_score_card(&r[0], &id, &scored(&env, 70, 7_200, 1));
+    assert_eq!(h.oracle.try_publish_score_card(&testnet, &id, &scored(&env, 70, 7_200, 2)), Err(Ok(Error::ReporterWrongSourceType)));
+    assert_eq!(h.oracle.get_score_card(&id), None);
+}
+
+#[test]
+fn lower_median_and_majority_are_what_they_say() {
+    use crate::quorum::{lower_median, majority_flags};
+    assert_eq!(lower_median(&[5]), 5);
+    assert_eq!(lower_median(&[9, 1]), 1);
+    assert_eq!(lower_median(&[3, 9, 1]), 3);
+    assert_eq!(lower_median(&[4, 3, 2, 1]), 2);
+    assert_eq!(majority_flags(&[0b1, 0b1, 0b0]), 0b1);
+    assert_eq!(majority_flags(&[0b1, 0b0]), 0, "a tie is not a majority");
 }

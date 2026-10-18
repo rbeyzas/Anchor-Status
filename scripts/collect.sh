@@ -57,6 +57,12 @@ fi
 log "testnet-probe (money flow: SEP-10, deposit and withdrawal, every payment checked on the ledger)"
 (cd services/testnet-probe && npm run --silent probe) || log "testnet-probe reported a failure"
 
+# Shadow mode (before the reporter quorum is on): both hosts compute the
+# cards they would publish and keep them here; nothing is sent. Comparing
+# the two files sets the oracle's max_spread (npm run shadow -- compare).
+log "shadow cards (computed and kept on this host, not sent)"
+(cd services/aggregator && npm run --silent shadow -- record) || log "shadow record failed"
+
 if [ "$ROLE" = "primary" ] || [ "$SECONDARY_PUBLISH" = "true" ]; then
   log "aggregator (submit new reports to PerformanceOracle)"
   (cd services/aggregator && npm run --silent aggregate) || log "aggregator failed"

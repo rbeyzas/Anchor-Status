@@ -1,18 +1,22 @@
 #![no_std]
 
 mod errors;
+mod events;
+mod quorum;
 mod scoring;
 mod types;
 
 #[cfg(test)]
 mod test;
 
-use anchor_registry::{AnchorRegistryClient, AnchorState, SourceType};
+use anchor_registry::{AnchorRegistryClient, AnchorState, PendingDelay, PendingUpgrade, SourceType};
 use errors::Error;
-use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol, Vec};
+pub use quorum::{FLAG_REPORTER_DISAGREEMENT, MAX_REPORTERS};
 use types::{
-    AnchorHealth, DataKey, ReportSubmittedEvent, RiskStatusChangedEvent, ScoreCard, ScoreCardInput,
-    ScoreCardPublishedEvent, Verdict,
+    AnchorHealth, DataKey, PendingQuorumConfig, PendingRound, QuorumConfig, QuorumInfo, QuorumReachedEvent,
+    ReportSubmittedEvent, ReporterOutlierEvent, RiskStatusChangedEvent, ScoreCard, ScoreCardInput,
+    ScoreCardPublishedEvent, ScoreCardSubmittedEvent, Submission, Verdict,
 };
 
 /// Reports timestamped further than this many seconds in the future
@@ -20,6 +24,11 @@ use types::{
 const MAX_FUTURE_SKEW_SECONDS: u64 = 5 * 60;
 /// Reports older than this are rejected as stale.
 const MAX_REPORT_AGE_SECONDS: u64 = 2 * 24 * 60 * 60;
+
+/// The longest upgrade delay that can be set, as in AnchorRegistry: long
+/// enough for a mainnet review, short enough that a mistake cannot lock the
+/// contract for good.
+pub const MAX_UPGRADE_DELAY_SECONDS: u64 = 60 * 60 * 24 * 30;
 
 // Storage TTLs, in ledgers (~5s each). Soroban archives any entry whose TTL
 // runs out; an archived score or health record makes reads fail until it is
@@ -43,6 +52,58 @@ fn bump_persistent(env: &Env, key: &DataKey) {
         .extend_ttl(key, PERSISTENT_LIFETIME_THRESHOLD, PERSISTENT_BUMP_AMOUNT);
 }
 
+fn require_admin(env: &Env) -> Result<Address, Error> {
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(Error::NotInitialized)?;
+    admin.require_auth();
+    Ok(admin)
+}
+
+/// How long an unfinished round is kept: two days, far longer than any
+/// round, so a slow reporter is not cut off, short enough to clean up.
+const ROUND_TTL_LEDGERS: u32 = 2 * DAY_IN_LEDGERS;
+
+/// The quorum in force: a pending lower threshold counts once its time has
+/// come; with nothing configured, one reporter decides (as before quorums).
+fn quorum_config(env: &Env) -> QuorumConfig {
+    let pending: Option<PendingQuorumConfig> = env.storage().instance().get(&DataKey::PendingQuorumCfg);
+    if let Some(p) = pending {
+        if env.ledger().timestamp() >= p.effective_at {
+            return p.config;
+        }
+    }
+    env.storage()
+        .instance()
+        .get(&DataKey::QuorumCfg)
+        .unwrap_or(QuorumConfig { threshold: 1, max_spread: 100, round_seconds: 0 })
+}
+
+fn reporters_of(env: &Env, source_type: &SourceType) -> Vec<Address> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Reporters(source_type.clone()))
+        .unwrap_or(Vec::new(env))
+}
+
+fn set_reporters(env: &Env, source_type: &SourceType, list: &Vec<Address>) {
+    let key = DataKey::Reporters(source_type.clone());
+    env.storage().persistent().set(&key, list);
+    bump_persistent(env, &key);
+}
+
+/// The upgrade delay in effect: a pending shortening counts once its time
+/// has come.
+fn upgrade_delay(env: &Env) -> u64 {
+    let pending: Option<PendingDelay> = env.storage().instance().get(&DataKey::PendingDelay);
+    match pending {
+        Some(p) if env.ledger().timestamp() >= p.effective_at => p.seconds,
+        _ => env.storage().instance().get(&DataKey::UpgradeDelay).unwrap_or(0),
+    }
+}
+
 #[contract]
 pub struct PerformanceOracle;
 
@@ -58,6 +119,7 @@ impl PerformanceOracle {
             .instance()
             .set(&DataKey::RegistryAddress, &registry_address);
         bump_instance(&env);
+        events::Initialized { admin, registry: registry_address }.publish(&env);
         Ok(())
     }
 
@@ -70,18 +132,98 @@ impl PerformanceOracle {
         reporter: Address,
         source_type: SourceType,
     ) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
-
-        let key = DataKey::Reporter(reporter);
+        require_admin(&env)?;
+        let key = DataKey::Reporter(reporter.clone());
+        // A reporter belongs to one source type: moving it takes it off the
+        // previous type's list.
+        if let Some(previous) = env.storage().persistent().get::<_, SourceType>(&key) {
+            if previous != source_type {
+                let mut old = reporters_of(&env, &previous);
+                if let Some(i) = old.first_index_of(&reporter) {
+                    old.remove(i);
+                    set_reporters(&env, &previous, &old);
+                }
+            }
+        }
+        let mut list = reporters_of(&env, &source_type);
+        if !list.contains(&reporter) {
+            if list.len() >= MAX_REPORTERS {
+                return Err(Error::TooManyReporters);
+            }
+            list.push_back(reporter.clone());
+            set_reporters(&env, &source_type, &list);
+        }
         env.storage().persistent().set(&key, &source_type);
         bump_persistent(&env, &key);
         bump_instance(&env);
+        events::ReporterAuthorized { reporter, source_type }.publish(&env);
         Ok(())
+    }
+
+    /// Admin-only: takes a reporter's authorization away. Its submitted
+    /// cards stay where they are; it can submit nothing new.
+    pub fn revoke_reporter(env: Env, reporter: Address) -> Result<(), Error> {
+        require_admin(&env)?;
+        let key = DataKey::Reporter(reporter.clone());
+        let source_type: SourceType = env.storage().persistent().get(&key).ok_or(Error::ReporterNotFound)?;
+        env.storage().persistent().remove(&key);
+        let mut list = reporters_of(&env, &source_type);
+        if let Some(i) = list.first_index_of(&reporter) {
+            list.remove(i);
+            set_reporters(&env, &source_type, &list);
+        }
+        bump_instance(&env);
+        events::ReporterRevoked { reporter, source_type }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: how many reporters must agree, how far apart they may
+    /// be, and the round length. A higher threshold applies at once; a
+    /// lower one only after the upgrade delay, like an upgrade, so one key
+    /// cannot quietly go back to deciding alone.
+    pub fn set_quorum_config(env: Env, config: QuorumConfig) -> Result<(), Error> {
+        require_admin(&env)?;
+        if config.threshold == 0 || config.threshold > MAX_REPORTERS || config.max_spread > 100 {
+            return Err(Error::InvalidQuorumConfig);
+        }
+        let now = env.ledger().timestamp();
+        let effective_at = if config.threshold >= quorum_config(&env).threshold {
+            env.storage().instance().set(&DataKey::QuorumCfg, &config);
+            env.storage().instance().remove(&DataKey::PendingQuorumCfg);
+            now
+        } else {
+            let pending = PendingQuorumConfig { config: config.clone(), effective_at: now + upgrade_delay(&env) };
+            env.storage().instance().set(&DataKey::PendingQuorumCfg, &pending);
+            pending.effective_at
+        };
+        bump_instance(&env);
+        events::QuorumConfigSet {
+            threshold: config.threshold,
+            max_spread: config.max_spread,
+            round_seconds: config.round_seconds,
+            effective_at,
+        }
+        .publish(&env);
+        Ok(())
+    }
+
+    pub fn get_quorum_config(env: Env) -> QuorumConfig {
+        quorum_config(&env)
+    }
+
+    pub fn get_reporters(env: Env, source_type: SourceType) -> Vec<Address> {
+        reporters_of(&env, &source_type)
+    }
+
+    /// The cards collected for the anchor's next card, until enough
+    /// reporters have submitted.
+    pub fn get_pending_round(env: Env, anchor_id: Symbol) -> Option<PendingRound> {
+        env.storage().temporary().get(&DataKey::Round(anchor_id))
+    }
+
+    /// Who agreed on the anchor's current card, with what.
+    pub fn get_quorum_info(env: Env, anchor_id: Symbol) -> Option<QuorumInfo> {
+        env.storage().persistent().get(&DataKey::Quorum(anchor_id))
     }
 
     /// Submits a single performance observation for `anchor_id`. Must be
@@ -124,30 +266,138 @@ impl PerformanceOracle {
         record_report(env, reporter, anchor_id, success, settlement_seconds, timestamp, source_type, Some(evidence))
     }
 
-    /// Admin-only: replaces this contract's code in place. The contract ID
-    /// and all stored state are kept, so a fix no longer means redeploying
-    /// under a new ID and re-pointing every service and the dashboard.
-    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+    /// Admin-only, step one of handing over the admin role: names the next
+    /// admin. Nothing changes until that address accepts, so a typo cannot
+    /// hand the contract to an address nobody controls. A new proposal
+    /// replaces the previous one.
+    pub fn propose_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        let admin = require_admin(&env)?;
+        env.storage().instance().set(&DataKey::PendingAdmin, &new_admin);
+        bump_instance(&env);
+        events::AdminProposed { admin, proposed: new_admin }.publish(&env);
         Ok(())
     }
 
-    /// Publishes a score card computed off-chain (docs/SCORING.md) from the
-    /// inputs bundle whose SHA-256 is `card.inputs_hash`. The reporter must
-    /// be authorized for the anchor's own source type, read from the
-    /// registry. The card becomes the anchor's headline: it is pushed to the
-    /// registry, and from then on per-report updates no longer overwrite it.
-    /// Returns the headline score.
+    /// Step two, signed by the proposed admin: it becomes the admin.
+    pub fn accept_admin(env: Env) -> Result<(), Error> {
+        let pending: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingAdmin)
+            .ok_or(Error::NoPendingAdmin)?;
+        pending.require_auth();
+        let previous: Address = env.storage().instance().get(&DataKey::Admin).ok_or(Error::NotInitialized)?;
+        env.storage().instance().set(&DataKey::Admin, &pending);
+        env.storage().instance().remove(&DataKey::PendingAdmin);
+        bump_instance(&env);
+        events::AdminChanged { previous, admin: pending }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: sets the wait between propose_upgrade and
+    /// execute_upgrade. A longer delay applies at once; a shorter one only
+    /// after the current delay has passed, so the lock cannot be dropped
+    /// and an upgrade pushed through in the same breath.
+    pub fn set_upgrade_delay(env: Env, seconds: u64) -> Result<(), Error> {
+        require_admin(&env)?;
+        if seconds > MAX_UPGRADE_DELAY_SECONDS {
+            return Err(Error::DelayTooLong);
+        }
+        let current = upgrade_delay(&env);
+        let now = env.ledger().timestamp();
+        let effective_at = if seconds >= current {
+            env.storage().instance().set(&DataKey::UpgradeDelay, &seconds);
+            env.storage().instance().remove(&DataKey::PendingDelay);
+            now
+        } else {
+            let pending = PendingDelay { seconds, effective_at: now + current };
+            env.storage().instance().set(&DataKey::PendingDelay, &pending);
+            pending.effective_at
+        };
+        bump_instance(&env);
+        events::UpgradeDelaySet { seconds, effective_at }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: proposes new code. It can run once the delay has passed.
+    /// The wasm must already be uploaded; publish its hash so anyone can
+    /// check what is coming.
+    pub fn propose_upgrade(env: Env, wasm_hash: BytesN<32>) -> Result<PendingUpgrade, Error> {
+        require_admin(&env)?;
+        if env.storage().instance().has(&DataKey::PendingUpgrade) {
+            return Err(Error::UpgradePending);
+        }
+        let pending = PendingUpgrade { wasm_hash, executable_at: env.ledger().timestamp() + upgrade_delay(&env) };
+        env.storage().instance().set(&DataKey::PendingUpgrade, &pending);
+        bump_instance(&env);
+        events::UpgradeProposed { wasm_hash: pending.wasm_hash.clone(), executable_at: pending.executable_at }.publish(&env);
+        Ok(pending)
+    }
+
+    /// Admin-only: replaces this contract's code with the proposed wasm,
+    /// once its delay has passed. The contract ID and all stored state are
+    /// kept.
+    pub fn execute_upgrade(env: Env) -> Result<(), Error> {
+        require_admin(&env)?;
+        let pending: PendingUpgrade = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingUpgrade)
+            .ok_or(Error::NoPendingUpgrade)?;
+        if env.ledger().timestamp() < pending.executable_at {
+            return Err(Error::TimelockActive);
+        }
+        env.storage().instance().remove(&DataKey::PendingUpgrade);
+        events::UpgradeExecuted { wasm_hash: pending.wasm_hash.clone() }.publish(&env);
+        env.deployer().update_current_contract_wasm(pending.wasm_hash);
+        Ok(())
+    }
+
+    /// Admin-only: withdraws the proposed upgrade.
+    pub fn cancel_upgrade(env: Env) -> Result<(), Error> {
+        require_admin(&env)?;
+        let pending: PendingUpgrade = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingUpgrade)
+            .ok_or(Error::NoPendingUpgrade)?;
+        env.storage().instance().remove(&DataKey::PendingUpgrade);
+        bump_instance(&env);
+        events::UpgradeCancelled { wasm_hash: pending.wasm_hash }.publish(&env);
+        Ok(())
+    }
+
+    pub fn get_pending_upgrade(env: Env) -> Option<PendingUpgrade> {
+        env.storage().instance().get(&DataKey::PendingUpgrade)
+    }
+
+    /// The delay in effect now, in seconds.
+    pub fn get_upgrade_delay(env: Env) -> u64 {
+        upgrade_delay(&env)
+    }
+
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        env.storage().instance().get(&DataKey::Admin).ok_or(Error::NotInitialized)
+    }
+
+    /// Submits a reporter's score card for one window, computed off-chain
+    /// (docs/SCORING.md) from the inputs bundle whose SHA-256 is
+    /// `card.inputs_hash`. The reporter must be authorized for the anchor's
+    /// own source type, read from the registry.
+    ///
+    /// Cards are collected per window. Once `threshold` distinct reporters
+    /// have submitted the same window (`get_quorum_config`), their
+    /// field-wise median becomes the anchor's card: it is pushed to the
+    /// registry, and from then on per-report updates no longer overwrite
+    /// it. Until then nothing about the anchor changes. With the default
+    /// threshold of 1 every card is final at once.
+    ///
+    /// Returns the anchor's card score after the call: the new card's once
+    /// final, the current card's (or 0) while the round waits.
     pub fn publish_score_card(env: Env, reporter: Address, anchor_id: Symbol, card: ScoreCardInput) -> Result<u32, Error> {
         reporter.require_auth();
 
-        let reporter_key = DataKey::Reporter(reporter);
+        let reporter_key = DataKey::Reporter(reporter.clone());
         let authorized_source: SourceType = env
             .storage()
             .persistent()
@@ -181,28 +431,100 @@ impl PerformanceOracle {
         if card.window_end > now + MAX_FUTURE_SKEW_SECONDS {
             return Err(Error::ReportTimestampInFuture);
         }
+        let config = quorum_config(&env);
+        if config.round_seconds > 0 && card.window_end % config.round_seconds != 0 {
+            return Err(Error::MisalignedWindow);
+        }
         let card_key = DataKey::Card(anchor_id.clone());
-        if let Some(previous) = env.storage().persistent().get::<_, ScoreCard>(&card_key) {
+        let previous: Option<ScoreCard> = env.storage().persistent().get(&card_key);
+        if let Some(previous) = &previous {
             if card.window_end <= previous.window_end {
                 return Err(Error::StaleScoreCard);
             }
         }
 
-        let stored = ScoreCard {
-            score: card.score,
-            availability: card.availability,
-            speed: card.speed,
-            integrity: card.integrity,
-            market: card.market,
-            confidence: card.confidence,
-            flags: card.flags,
+        // The round for this window: a newer window starts a new round (an
+        // unfinished older one is dropped); an older one is stale.
+        let round_key = DataKey::Round(anchor_id.clone());
+        let mut round = match env.storage().temporary().get::<_, PendingRound>(&round_key) {
+            Some(r) if r.window_end == card.window_end => {
+                if r.methodology_version != card.methodology_version {
+                    return Err(Error::MethodologyMismatch);
+                }
+                if r.submissions.iter().any(|s| s.reporter == reporter) {
+                    return Err(Error::DuplicateSubmission);
+                }
+                r
+            }
+            Some(r) if r.window_end > card.window_end => return Err(Error::StaleScoreCard),
+            _ => PendingRound {
+                window_end: card.window_end,
+                methodology_version: card.methodology_version,
+                submissions: Vec::new(&env),
+            },
+        };
+        round.submissions.push_back(Submission { reporter: reporter.clone(), card: card.clone(), submitted_at: now });
+        ScoreCardSubmittedEvent {
+            anchor_id: anchor_id.clone(),
+            reporter,
             window_end: card.window_end,
-            methodology_version: card.methodology_version,
+            score: card.score,
             inputs_hash: card.inputs_hash.clone(),
+            submitted: round.submissions.len(),
+            threshold: config.threshold,
+        }
+        .publish(&env);
+
+        if round.submissions.len() < config.threshold {
+            env.storage().temporary().set(&round_key, &round);
+            env.storage()
+                .temporary()
+                .extend_ttl(&round_key, ROUND_TTL_LEDGERS, ROUND_TTL_LEDGERS);
+            bump_instance(&env);
+            return Ok(previous.as_ref().map_or(0, |c| c.score));
+        }
+
+        // Quorum: the median card becomes the anchor's card.
+        env.storage().temporary().remove(&round_key);
+        let combined = quorum::combine(&round.submissions, config.max_spread);
+        let final_card = combined.card;
+        let stored = ScoreCard {
+            score: final_card.score,
+            availability: final_card.availability,
+            speed: final_card.speed,
+            integrity: final_card.integrity,
+            market: final_card.market,
+            confidence: final_card.confidence,
+            flags: final_card.flags,
+            window_end: final_card.window_end,
+            methodology_version: final_card.methodology_version,
+            inputs_hash: final_card.inputs_hash.clone(),
             published_at: now,
         };
         env.storage().persistent().set(&card_key, &stored);
         bump_persistent(&env, &card_key);
+
+        let mut reporters = Vec::new(&env);
+        let mut scores = Vec::new(&env);
+        let mut hashes = Vec::new(&env);
+        for s in round.submissions.iter() {
+            reporters.push_back(s.reporter.clone());
+            scores.push_back(s.card.score);
+            hashes.push_back(s.card.inputs_hash.clone());
+        }
+        let quorum_key = DataKey::Quorum(anchor_id.clone());
+        env.storage().persistent().set(
+            &quorum_key,
+            &QuorumInfo {
+                window_end: stored.window_end,
+                reporters,
+                scores,
+                inputs_hashes: hashes,
+                spread: combined.spread,
+                outliers: combined.outliers.clone(),
+            },
+        );
+        bump_persistent(&env, &quorum_key);
 
         // The registry holds the score of record: 0 while the card is too
         // uncertain to use, so that nobody reading the registry alone takes
@@ -224,23 +546,39 @@ impl PerformanceOracle {
             RiskStatusChangedEvent {
                 anchor_id: anchor_id.clone(),
                 risk_reason: reason,
-                score: card.score,
+                score: stored.score,
                 trend: health.trend,
             }
             .publish(&env);
         }
         bump_instance(&env);
 
-        ScoreCardPublishedEvent {
-            anchor_id,
-            score: card.score,
-            confidence: card.confidence,
-            flags: card.flags,
-            methodology_version: card.methodology_version,
-            inputs_hash: card.inputs_hash,
+        QuorumReachedEvent {
+            anchor_id: anchor_id.clone(),
+            window_end: stored.window_end,
+            reporters: round.submissions.len(),
+            spread: combined.spread,
         }
         .publish(&env);
-        Ok(card.score)
+        for outlier in combined.outliers.iter() {
+            let score = round
+                .submissions
+                .iter()
+                .find(|s| s.reporter == outlier)
+                .map_or(0, |s| s.card.score);
+            ReporterOutlierEvent { anchor_id: anchor_id.clone(), reporter: outlier, score, median: combined.median_score }
+                .publish(&env);
+        }
+        ScoreCardPublishedEvent {
+            anchor_id,
+            score: stored.score,
+            confidence: stored.confidence,
+            flags: stored.flags,
+            methodology_version: stored.methodology_version,
+            inputs_hash: stored.inputs_hash.clone(),
+        }
+        .publish(&env);
+        Ok(stored.score)
     }
 
     pub fn get_score_card(env: Env, anchor_id: Symbol) -> Option<ScoreCard> {
@@ -392,11 +730,17 @@ fn record_report(
         .get(&health_key)
         .unwrap_or_else(scoring::new_health);
     let previous_reason = previous.risk_reason;
-    let health = scoring::update_health(previous, success, observation, judged, timestamp);
+    let mut health = scoring::update_health(previous, success, observation, judged, timestamp);
+    // With a quorum, one reporter's reports still count as observations,
+    // but cannot raise or clear a risk flag, nor move the registry's score.
+    let one_key_decides = quorum_config(&env).threshold <= 1;
+    if !one_key_decides {
+        health.risk_reason = previous_reason;
+    }
     env.storage().persistent().set(&health_key, &health);
     bump_persistent(&env, &health_key);
 
-    if card.is_none() {
+    if card.is_none() && one_key_decides {
         registry.update_score(&anchor_id, &ema);
     }
     bump_instance(&env);

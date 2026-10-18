@@ -60,6 +60,29 @@ export async function submitReport(report: NormalizedReport): Promise<void> {
   await assembled.signAndSend();
 }
 
+export interface QuorumSettings {
+  threshold: number;
+  max_spread: number;
+  round_seconds: number;
+}
+
+/**
+ * The oracle's quorum settings, read-only (no key needed): how many
+ * reporters must agree and the round every card window must end on. Null
+ * for an oracle from before the quorum.
+ */
+export async function readQuorumConfig(): Promise<QuorumSettings | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const c: any = await contract.Client.from({
+    contractId: config.performanceOracleContractId(),
+    networkPassphrase: config.networkPassphrase,
+    rpcUrl: config.rpcUrl,
+  });
+  if (typeof c.get_quorum_config !== 'function') return null;
+  const r = (await c.get_quorum_config()).result;
+  return { threshold: Number(r.threshold), max_spread: Number(r.max_spread), round_seconds: Number(r.round_seconds) };
+}
+
 /** Thrown when the deployed oracle predates score cards. */
 export class ScoreCardsUnsupported extends Error {}
 

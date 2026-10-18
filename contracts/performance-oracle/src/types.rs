@@ -1,5 +1,5 @@
 use anchor_registry::SourceType;
-use soroban_sdk::{contractevent, contracttype, Address, BytesN, Symbol};
+use soroban_sdk::{contractevent, contracttype, Address, BytesN, Symbol, Vec};
 
 #[derive(Clone)]
 #[contracttype]
@@ -16,6 +16,83 @@ pub enum DataKey {
     /// anchor_id -> ScoreCard: the latest windowed score card
     /// (docs/SCORING.md). Appended last so existing keys keep their encoding.
     Card(Symbol),
+    // Governance, the same keys AnchorRegistry uses (instance storage).
+    /// The admin named by propose_admin, until it accepts.
+    PendingAdmin,
+    /// Seconds between propose_upgrade and execute_upgrade; absent = 0.
+    UpgradeDelay,
+    /// A shortening of UpgradeDelay not yet in effect.
+    PendingDelay,
+    /// The proposed wasm and when it may run.
+    PendingUpgrade,
+    // Reporter quorum (docs/SCORING.md; SOW deliverable 1).
+    /// QuorumConfig (instance); absent = threshold 1, today's behaviour.
+    QuorumCfg,
+    /// A lower threshold waiting out the upgrade delay (instance).
+    PendingQuorumCfg,
+    /// source_type -> every reporter authorized for it (persistent).
+    Reporters(SourceType),
+    /// anchor_id -> the PendingRound collecting cards (temporary: a round
+    /// that never reaches the threshold simply expires).
+    Round(Symbol),
+    /// anchor_id -> QuorumInfo behind the current card (persistent).
+    Quorum(Symbol),
+}
+
+/// How many authorized reporters must agree before a score card counts.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct QuorumConfig {
+    /// Distinct reporters whose cards for the same window make it final.
+    pub threshold: u32,
+    /// The largest distance from the median score a reporter may be before
+    /// the card is flagged and the reporter named as an outlier.
+    pub max_spread: u32,
+    /// Card windows must end on a multiple of this many seconds, so every
+    /// reporter scores the same window. 0 = any window.
+    pub round_seconds: u64,
+}
+
+/// A lower threshold, in force from `effective_at`.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct PendingQuorumConfig {
+    pub config: QuorumConfig,
+    pub effective_at: u64,
+}
+
+/// One reporter's card for a round.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct Submission {
+    pub reporter: Address,
+    pub card: ScoreCardInput,
+    pub submitted_at: u64,
+}
+
+/// The cards collected so far for one window of one anchor.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct PendingRound {
+    pub window_end: u64,
+    pub methodology_version: u32,
+    pub submissions: Vec<Submission>,
+}
+
+/// The audit trail behind a final card: who agreed, with what.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct QuorumInfo {
+    pub window_end: u64,
+    pub reporters: Vec<Address>,
+    /// Each reporter's own score, in the order of `reporters`.
+    pub scores: Vec<u32>,
+    /// Each reporter's own inputs bundle, in the order of `reporters`.
+    pub inputs_hashes: Vec<BytesN<32>>,
+    /// Highest minus lowest score.
+    pub spread: u32,
+    /// Reporters further than max_spread from the median score.
+    pub outliers: Vec<Address>,
 }
 
 /// What a reporter submits: the card computed off-chain from a published
@@ -167,4 +244,42 @@ pub struct ScoreCardPublishedEvent {
     pub flags: u32,
     pub methodology_version: u32,
     pub inputs_hash: BytesN<32>,
+}
+
+/// One reporter's card for a round was accepted.
+#[contractevent(topics = ["score_card_submitted"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScoreCardSubmittedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub reporter: Address,
+    pub window_end: u64,
+    pub score: u32,
+    pub inputs_hash: BytesN<32>,
+    /// Cards in the round so far, and how many make it final.
+    pub submitted: u32,
+    pub threshold: u32,
+}
+
+/// Enough reporters agreed: the round's median is now the anchor's card.
+#[contractevent(topics = ["quorum_reached"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct QuorumReachedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub window_end: u64,
+    pub reporters: u32,
+    pub spread: u32,
+}
+
+/// A reporter's score was further than max_spread from the median.
+#[contractevent(topics = ["reporter_outlier"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReporterOutlierEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    #[topic]
+    pub reporter: Address,
+    pub score: u32,
+    pub median: u32,
 }

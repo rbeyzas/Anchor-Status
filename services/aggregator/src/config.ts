@@ -41,6 +41,9 @@ export const config = {
   // scores now come from mainnet-probe; set "true" only to restore the old
   // volume-based signal.
   submitPassiveMonitor: process.env.AGGREGATOR_SUBMIT_PASSIVE_MONITOR === 'true',
+  // A secondary reporter host publishes score cards only: its single
+  // reports would count every observation twice in the oracle's EMA.
+  cardsOnly: process.env.AGGREGATOR_CARDS_ONLY === 'true',
   // PerformanceOracle rejects reports older than 2 days; skipping them here
   // avoids a failed transaction per stale report on every run.
   maxReportAgeMs: 47 * 60 * 60 * 1000,

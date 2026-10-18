@@ -17,7 +17,8 @@
 #      execute at once (must fail with TimelockActive, #21), wait, execute
 #      again (must succeed), delay back to 0;
 #   7. reads back the anchor count, every page, a sample of records and the
-#      score, and compares them with what was there before.
+#      score, compares them with what was there before, and sends one more
+#      report through the upgraded pair.
 #
 # Every transaction hash goes to rehearsal-<target>-<UTC time>.log in the
 # directory it is run from.
@@ -121,6 +122,10 @@ if diff -q "$WORK/before" "$WORK/after" >/dev/null; then
 else
   log "after: STATE CHANGED"; diff "$WORK/before" "$WORK/after" | tee -a "$LOG"; exit 1
 fi
+
+call "report after the upgrade" --id "$ORA" -- submit_report --reporter "$ADMIN" --anchor_id "$first" \
+  --success true --settlement_seconds 1 --timestamp "$(date -u +%s)" --source_type "$first_type" >/dev/null
+log "a report after the upgrade is accepted (score of $first: $(read_call --id "$ORA" -- get_score --anchor_id "$first"))"
 
 if has_timelock "$ID"; then
   log "time lock:"

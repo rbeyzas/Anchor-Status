@@ -46,6 +46,99 @@ Contracts (testnet):
 | `execute_upgrade` after the delay (16:58:27 UTC) | succeeds | [`6e77053f`](https://stellar.expert/explorer/testnet/tx/6e77053fc1211167acc2f62c64a552c3bf9a4278f598451d29694588d260b20d) |
 | `set_upgrade_delay(0)` | | [`eff77c6b`](https://stellar.expert/explorer/testnet/tx/eff77c6bb4954a6442dd93d745a26629e5ecba13b78ce8bb050b0bbe2f14e0ae) |
 
+### Live registry upgrade and 24-hour time lock (D2) — 18 Oct
+- The same steps on the live registry, from a local checkout with the
+  pinned toolchain: the uploaded wasm hashed `a56c131b…` as in the
+  rehearsal, and the anchor count (106), every page and three sampled
+  records were identical before and after.
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| `propose_upgrade(a56c131b…)` | delay was 0 | [`3366b0fb`](https://stellar.expert/explorer/testnet/tx/3366b0fbb8f68bb4c3c954af31b433d282534ba52496f552360fd578f94b02d3) |
+| `execute_upgrade` | live wasm now `a56c131b…` | [`0803c74e`](https://stellar.expert/explorer/testnet/tx/0803c74e2b2e3bc9313165326e97db4006a1a857d179c9bdc4c973f249a1cf14) |
+| `set_upgrade_delay(86400)` | every later registry upgrade waits 24 hours | [`cc5e92d9`](https://stellar.expert/explorer/testnet/tx/cc5e92d922ab9e624ef50bae20dfcc00665df166e851d63f30f85a7bd175c1f9) |
+
+### 2.3 Oracle governance and events (D2) — 18 Oct
+- `contracts/performance-oracle`: the registry's governance, same code and
+  rules (`propose_admin`/`accept_admin`, `propose_upgrade`/
+  `execute_upgrade`/`cancel_upgrade`, `set_upgrade_delay` with the same
+  grow-at-once, shrink-after-waiting rule, `get_pending_upgrade`,
+  `get_upgrade_delay`, `get_admin`). The instant `upgrade()` is removed.
+  Error codes 18–22 equal the registry's, so `#21` is `TimelockActive` in
+  both. New events: `initialized`, `reporter_authorized`, and the
+  governance ones (`admin_proposed`, `admin_changed`, `upgrade_delay_set`,
+  `upgrade_proposed`, `upgrade_executed`, `upgrade_cancelled`).
+  Tests: 56 (`cargo test`), 6 of them new. Wasm `01c20f90…e61be`.
+- Rehearsal on fresh IDs (registry
+  [`CCA3GUAF…FK4K`](https://stellar.expert/explorer/testnet/contract/CCA3GUAF6JZ2BHOEFCQYCBETRGFACSZMFGR5DZHRQ2MDLUZLMU4CFK4K),
+  oracle
+  [`CAD7LUK7…LGZ3`](https://stellar.expert/explorer/testnet/contract/CAD7LUK7KUSUMXPXZFB7TKJSEBCTIUC4DXP4DFRWQMV6DISLXHITLGZ3),
+  10 anchors): instant upgrade
+  [`cb74ff95`](https://stellar.expert/explorer/testnet/tx/cb74ff958486ccc8e63420400bf2b88f1570a8bfc6a73ce44c226c470453869c),
+  state equal before and after, a report after it accepted
+  [`39f91d92`](https://stellar.expert/explorer/testnet/tx/39f91d9293423f40e32dfe65b54e08bef72bc47c32319785837c0a309681942b);
+  then the new time lock: delay 60 s
+  [`db3b2823`](https://stellar.expert/explorer/testnet/tx/db3b2823ca8e5ac7e2c27e3d389a09df5c5fd8945e975938c5ac0e33507295fc),
+  propose
+  [`b14b5770`](https://stellar.expert/explorer/testnet/tx/b14b5770a2cdaaaa4f776edbef2267813788d1fe63bb191876cc974ea190e2d1),
+  execute at once refused with `Error(Contract, #21)`, execute after 60 s
+  [`2d279b20`](https://stellar.expert/explorer/testnet/tx/2d279b208d6bff93db737a22a806cf1a15901e5a40c5890c8018f07a01a6fced).
+- Live: the oracle's last instant `upgrade(01c20f90…)`
+  [`faacbcfd`](https://stellar.expert/explorer/testnet/tx/faacbcfd6fe2f23173170e212fbef6415891f54f359f1ee7274c7d1203fefbd3).
+  Four sampled cards and the mainnet reporter's authorization identical
+  before and after. The delay stays 0 until the quorum upgrade (2.1–2.2)
+  is live, then goes to 24 hours like the registry's.
+
+### 2.1–2.2 Reporter quorum in PerformanceOracle (D1) — 18 Oct
+- Code: `contracts/performance-oracle/src/quorum.rs` (field-wise lower
+  median, majority flags, spread, outliers) and `publish_score_card` in
+  `src/lib.rs`. A card joins the anchor's `Round(id)` (temporary storage)
+  for its window; when `threshold` distinct authorized reporters have
+  submitted, the median card becomes `Card(id)`, `Quorum(id)` records who
+  agreed with what, and the registry is updated. Until then nothing about
+  the anchor changes. Rules: windows aligned to `round_seconds`
+  (`MisalignedWindow`, #11), one card per reporter per round
+  (`DuplicateSubmission`, #12), one methodology version per round
+  (`MethodologyMismatch`, #13), a newer window replaces an unfinished
+  round, an older or already-final window is `StaleScoreCard`; a spread
+  over `max_spread` sets `FLAG_REPORTER_DISAGREEMENT` (bit 16, 65536) and
+  names the reporters further than that from the median. With a threshold
+  over 1, `submit_report` still counts observations but moves neither the
+  registry's score nor the risk flag. Up to 7 reporters per source type;
+  `revoke_reporter`; a lower threshold waits out the upgrade delay.
+  Functions: `set_quorum_config`, `get_quorum_config`, `revoke_reporter`,
+  `get_reporters`, `get_pending_round`, `get_quorum_info`. Events:
+  `score_card_submitted`, `quorum_reached`, `reporter_outlier`,
+  `reporter_revoked`, `quorum_config_set`. Without a `QuorumCfg` the
+  threshold is 1 and every card is final at once, as before.
+- Tests: 77 in `cargo test` (21 new for the quorum). Wasm `fbbfc2b2…3d3a`.
+- Rehearsal on fresh IDs (registry
+  [`CCKFTSZH…YPBE`](https://stellar.expert/explorer/testnet/contract/CCKFTSZHSGABPEPT4G5G5LFDV4CBRLMPEX3DKXYPQJK63TEYK66CYPBE),
+  oracle
+  [`CDG5MCPB…BBIJ`](https://stellar.expert/explorer/testnet/contract/CDG5MCPBIHWGDQSBSJZWK46YD3D57RZFOJLZY376WBP3TGCIAQQ4BBIJ)):
+  upgrade from the live oracle code through the new time lock (propose
+  [`0809a134`](https://stellar.expert/explorer/testnet/tx/0809a134e0063ce5f47797d884223bfc21f9a85d52c31fd5c62688102ae8b020),
+  execute
+  [`9cc9aa4f`](https://stellar.expert/explorer/testnet/tx/9cc9aa4fa4e4fe19d0e8f5a4d1761fa9dfe8d79aaf52f7c1017e5d0bb6c3c587)),
+  state equal before and after; then a quorum round on testnet with two
+  reporter keys:
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| `set_quorum_config(2, 10, 3600)` | | [`c98cf128`](https://stellar.expert/explorer/testnet/tx/c98cf12819e919477d40946bbcd949b77321753fb895625330f15cbeab2f50eb) |
+| Reporter A's card, score 74 | pending: `get_pending_round` shows 1 card; no card, registry unchanged | [`38fda242`](https://stellar.expert/explorer/testnet/tx/38fda2424bf02b63d2d8f5133ddd9ea8290c8a7e6a04c11a96f540ebbbe5bbdf) |
+| Reporter B's card, score 95 | final card 74 (lower median), spread 21 > 10: flags 65536 (`FLAG_REPORTER_DISAGREEMENT`), B named in `reporter_outlier`; events `score_card_submitted`, `quorum_reached`, `reporter_outlier`, `score_card_published`; fee 0.98 XLM, most of it first-time storage rent | [`1eb53946`](https://stellar.expert/explorer/testnet/tx/1eb53946715ec896c6f7111da8c21d8f771d1a9f19530a50ed56422afad073a6) |
+
+- Live, through the oracle's new time lock (delay 0 until quorum is on):
+  propose
+  [`2d79d9ae`](https://stellar.expert/explorer/testnet/tx/2d79d9aece4b01d37d174389698d2eb6b57a852e22373eb7776889e23bff5714),
+  execute
+  [`75310e9a`](https://stellar.expert/explorer/testnet/tx/75310e9af4a486202abbc9d0bb3322ec6c90c3203a85224a0c7bfe6ec8510751).
+  Four sampled cards identical before and after; `get_quorum_config` is the
+  default (threshold 1), so the collector's cards stay final at once until
+  the aggregator publishes on round boundaries (2.4) and B's keys are in
+  (2.7).
+
 ## Week 1 (19–25 Oct)
 
 ### 1.1 Live wasm kept as fixtures (D2) — 18 Oct
