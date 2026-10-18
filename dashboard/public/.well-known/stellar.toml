@@ -1,14 +1,20 @@
-# SEP-1 file for anchor-status.vercel.app.
+# SEP-1 file for monarank.xyz.
 #
-# SIGNING_KEY identifies the Anchor Reliability probe as a wallet for SEP-10
-# client attribution (client_domain). Anchors that only serve known wallets
-# can see exactly who is signing in: an automated reliability check that
-# starts deposits and never completes them.
+# SIGNING_KEY identifies the MonaRank probe as a wallet for SEP-10 client
+# attribution (client_domain). Anchors that only serve known wallets can see
+# exactly who is signing in: an automated reliability check.
 
 VERSION = "2.0.0"
 SIGNING_KEY = "GB4LRKMBNZCVFHA3N35X5YXMURAG42YRWYG5CGD2KZQLFDFXZNCCLVO2"
 
+# Not SEP-1 fields: the contracts MonaRank publishes its scores through, so
+# anyone can read and check them. SEP-1 clients ignore keys they do not
+# know. Both are on the Stellar testnet (MONA_NETWORK_PASSPHRASE).
+MONA_NETWORK_PASSPHRASE = "Test SDF Network ; September 2015"
+MONA_ANCHOR_REGISTRY = "CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB"
+MONA_PERFORMANCE_ORACLE = "CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU"
+
 [DOCUMENTATION]
-ORG_NAME = "Anchor Reliability Oracle Network"
-ORG_URL = "https://anchor-status.vercel.app"
-ORG_DESCRIPTION = "A neutral, on-chain reliability score for Stellar anchors. Its probes sign in through SEP-10 and start SEP-24 deposits to check that an anchor works; they never complete a transfer or move funds."
+ORG_NAME = "MonaRank"
+ORG_URL = "https://monarank.xyz"
+ORG_DESCRIPTION = "A neutral, on-chain reliability score for Stellar anchors. On mainnet its probes sign in through SEP-10 and start deposits to check that an anchor works, and never complete a transfer or move funds. On testnet they run full deposits and withdrawals and check every payment on the ledger."

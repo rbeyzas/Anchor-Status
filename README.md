@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <b><a href="https://anchor-status.vercel.app">Live dashboard</a></b> ·
-  <b><a href="https://anchor-status.vercel.app/scores">Live scores</a></b> ·
+  <b><a href="https://monarank.xyz">Live dashboard</a></b> ·
+  <b><a href="https://monarank.xyz/scores">Live scores</a></b> ·
   <b><a href="docs/instaward/EVIDENCE.md">Evidence log</a></b> ·
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
@@ -358,7 +358,7 @@ Mona is not a Stellar app with a Stellar component bolted on: every measurement 
 
 ## Traction and continuity
 
-**A third-party anchor is already in the pool.** The hackathon's own testnet anchor, [`tr-mock-anchor.fly.dev`](https://tr-mock-anchor.fly.dev), is measured by Mona like any other anchor — not as a fixture, but through the live pipeline. It appears twice on [the live scores page](https://anchor-status.vercel.app/scores), because it gets both checks:
+**A third-party anchor is already in the pool.** The hackathon's own testnet anchor, [`tr-mock-anchor.fly.dev`](https://tr-mock-anchor.fly.dev), is measured by Mona like any other anchor — not as a fixture, but through the live pipeline. It appears twice on [the live scores page](https://monarank.xyz/scores), because it gets both checks:
 
 - `tr_mock_anchor_fly_dev` (**RealMainnet**): the read-only public-surface check every mainnet anchor gets.
 - `tr_mock_anchor_fly_dev_testnet` (**RealTestnet**): the same check, then a real SEP-24 deposit whose payment is verified on the ledger (withdrawals are tested only over SEP-6, which this anchor does not offer), every 20 minutes, each run publishing an evidence hash on-chain.

@@ -23,7 +23,7 @@ cd "$(dirname "$0")/.."
 source .env 2>/dev/null || true
 
 echo "================================================================"
-echo " Anchor Reliability Oracle Network — End-to-End Demo"
+echo " MonaRank — End-to-End Demo"
 echo "================================================================"
 
 echo ""
