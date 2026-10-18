@@ -353,7 +353,7 @@ fn an_upgrade_waits_out_the_delay_and_can_be_cancelled() {
     assert_eq!(client.try_propose_upgrade(&hash), Err(Ok(Error::UpgradePending)));
 
     env.ledger().with_mut(|l| l.timestamp = 4_599);
-    assert_eq!(client.try_execute_upgrade(), Err(Ok(Error::UpgradeNotReady)));
+    assert_eq!(client.try_execute_upgrade(), Err(Ok(Error::TimelockActive)));
 
     client.cancel_upgrade();
     assert_eq!(client.get_pending_upgrade(), None);

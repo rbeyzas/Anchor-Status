@@ -7,6 +7,45 @@ Contracts (testnet):
 - AnchorRegistry `CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB`
 - PerformanceOracle `CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU`
 
+## Week 2 (26 Oct–1 Nov)
+
+### Reproducible contract builds (D2) — 18 Oct
+- `rust-toolchain.toml` pins Rust 1.98.0 (it said `stable`); with
+  stellar-cli 28.0.0, the versions the deployed wasm records in its own
+  metadata (`rsver`, `cliver`), a clean checkout of `main` at `a308bd3`,
+  built on a second machine in another directory, gives exactly the live
+  bytes: registry `4a79942d…f8a6`, oracle `38f0a314…dcfc`. Anyone can check
+  that the contracts on-chain are the code in this repository.
+
+### Time-lock error named as in the SOW (D2) — 18 Oct
+- The registry's not-yet-due `execute_upgrade` error is now `TimelockActive`
+  (code #21 unchanged; it was `UpgradeNotReady`). New registry wasm
+  `a56c131ba7c899eea47b97c7da1b9d0a80cdd4fb1dafc04fdaf8532634e445b7`. The
+  CLI shows the code: `Error(Contract, #21)` is `TimelockActive` in
+  `contracts/anchor-registry/src/errors.rs`.
+
+### Rehearsal on fresh testnet IDs (shared) — 18 Oct
+- `scripts/rehearse-upgrade.sh registry <wasm>`: a throwaway admin funded by
+  Friendbot (`GDNDH5BW…4PCD`); the wasm both live contracts run, fetched
+  from the chain, deployed as registry
+  [`CDCTZDZP…3ZHT`](https://stellar.expert/explorer/testnet/contract/CDCTZDZPRO6WNXMYU3BGSCMQUJYYRZMJZNMUEOAGGF45LB6ZHTAZ3ZHT)
+  and oracle
+  [`CBJLXNIK…7CWJ`](https://stellar.expert/explorer/testnet/contract/CBJLXNIKNLNDBX4FYVLVALRHKDKPU2WPQCUZFQYKSZCINSYHSWNQ7CWJ);
+  all 106 live anchors copied in; one report so a score exists; then the
+  upgrade to `a56c131b…` the live registry will get.
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| Registry and oracle initialised, linked like the live pair | | [`1e322a6a`](https://stellar.expert/explorer/testnet/tx/1e322a6a91a75c1b3beae40631caec6b9f042ae174e8dd3eead238fedbb8113d), [`7d1b41c8`](https://stellar.expert/explorer/testnet/tx/7d1b41c8a4d8bf199516e10d896f828a21ff8b2293a50d8d420a9652979b9b05) |
+| Report for moneygram (oracle → registry) | score 100 | [`42aadaab`](https://stellar.expert/explorer/testnet/tx/42aadaabd0de763334210fdb5227fd94a42a6096294920716e89f153787360f0) |
+| `propose_upgrade(a56c131b…)` | delay 0 | [`9e6b20c5`](https://stellar.expert/explorer/testnet/tx/9e6b20c5283c095f80650c1b86054232cd8c5d8af2a35da250b909b31ddc561d) |
+| `execute_upgrade` | 106 anchors, every page, sampled records and the score equal before and after | [`a4479a73`](https://stellar.expert/explorer/testnet/tx/a4479a735244dda62d419b190fabe930f25e779c67ad6c28b8b05033b7184b94) |
+| `set_upgrade_delay(60)` | | [`4f7f959f`](https://stellar.expert/explorer/testnet/tx/4f7f959f1e4a751de23e9b57fb479b086471ec5a44f2ff3d3bbf4688b05023d5) |
+| `propose_upgrade` (16:57:02 UTC) | | [`0ecda5f3`](https://stellar.expert/explorer/testnet/tx/0ecda5f30abe28ba30f1af44ee3e0e709faa4a7c4b448a5ae5801c2c666a82b5) |
+| `execute_upgrade` at once | refused in simulation: `Error(Contract, #21)` = `TimelockActive`; nothing sent | |
+| `execute_upgrade` after the delay (16:58:27 UTC) | succeeds | [`6e77053f`](https://stellar.expert/explorer/testnet/tx/6e77053fc1211167acc2f62c64a552c3bf9a4278f598451d29694588d260b20d) |
+| `set_upgrade_delay(0)` | | [`eff77c6b`](https://stellar.expert/explorer/testnet/tx/eff77c6bb4954a6442dd93d745a26629e5ecba13b78ce8bb050b0bbe2f14e0ae) |
+
 ## Week 1 (19–25 Oct)
 
 ### 1.1 Live wasm kept as fixtures (D2) — 18 Oct

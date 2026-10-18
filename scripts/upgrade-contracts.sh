@@ -17,6 +17,8 @@
 #   execute  switch to the proposed wasm, after the delay.
 #   cancel   withdraw the proposal.
 #   status   admin, delay and pending upgrade. Read-only, nothing is signed.
+#   delay    <seconds>  set the time lock. A longer delay applies at once;
+#            a shorter one only once the current delay has passed.
 #   instant  <hash>  oracle only, while it still has the old instant
 #            upgrade(); goes away once it gets the same time lock.
 #   send     <file>  submit a transaction the admin's signers have signed.
@@ -41,7 +43,7 @@ cmd="${1:-}"
 target="${2:-}"
 arg="${3:-}"
 
-usage() { sed -n '10,34p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '10,36p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 if [ "$cmd" = send ]; then
   cd "$HERE"
@@ -100,6 +102,10 @@ case "$cmd" in
     admin_call propose_upgrade --wasm_hash "$arg"
     ;;
   execute) admin_call execute_upgrade ;;
+  delay)
+    [ -n "$arg" ] || usage
+    admin_call set_upgrade_delay --seconds "$arg"
+    ;;
   cancel) admin_call cancel_upgrade ;;
   instant)
     [ "$target" = oracle ] && [ -n "$arg" ] || usage

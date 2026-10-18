@@ -507,7 +507,7 @@ impl AnchorRegistry {
             .get(&DataKey::PendingUpgrade)
             .ok_or(Error::NoPendingUpgrade)?;
         if env.ledger().timestamp() < pending.executable_at {
-            return Err(Error::UpgradeNotReady);
+            return Err(Error::TimelockActive);
         }
         env.storage().instance().remove(&DataKey::PendingUpgrade);
         events::UpgradeExecuted { wasm_hash: pending.wasm_hash.clone() }.publish(&env);

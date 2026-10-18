@@ -1,5 +1,11 @@
 [toolchain]
-channel = "stable"
+# Pinned, not "stable": the wasm hash of a contract depends on the compiler
+# (and on stellar-cli, which writes its own version into the wasm), so only
+# the same versions rebuild the bytes that run on-chain. 1.98.0 with
+# stellar-cli 28.0.0 built the contracts deployed on 18 Oct 2026; check a
+# build against the chain with `stellar contract info meta --wasm <file>`
+# (rsver, cliver).
+channel = "1.98.0"
 # soroban-sdk 27.x requires wasm32v1-none (wasm32-unknown-unknown on
 # rustc 1.82+ enables reference-types/multi-value, which Soroban's
 # environment does not yet support).

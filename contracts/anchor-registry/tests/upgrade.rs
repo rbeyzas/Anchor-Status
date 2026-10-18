@@ -124,7 +124,7 @@ fn upgrades_the_live_registry_and_migrates_its_index() {
     registry.set_upgrade_delay(&600);
     let now = env.ledger().timestamp();
     registry.propose_upgrade(&hash);
-    assert_eq!(registry.try_execute_upgrade(), Err(Ok(Error::UpgradeNotReady)));
+    assert_eq!(registry.try_execute_upgrade(), Err(Ok(Error::TimelockActive)));
     env.ledger().with_mut(|l| l.timestamp = now + 600);
     registry.execute_upgrade();
     let published: std::vec::Vec<_> = env.events().all().events().iter().map(|e| {

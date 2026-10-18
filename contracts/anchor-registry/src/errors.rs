@@ -37,7 +37,7 @@ pub enum Error {
     /// execute_upgrade or cancel_upgrade with nothing proposed.
     NoPendingUpgrade = 20,
     /// execute_upgrade before the delay has passed.
-    UpgradeNotReady = 21,
+    TimelockActive = 21,
     /// An upgrade delay over MAX_UPGRADE_DELAY_SECONDS.
     DelayTooLong = 22,
 }
