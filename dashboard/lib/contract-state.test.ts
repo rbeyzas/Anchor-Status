@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Address, nativeToScVal, xdr } from '@stellar/stellar-sdk';
-import { anchorInfoKey, decodeAnchorInfo, decodeHealth, healthKey, keyId, readAnchorIds } from './contract-state';
+import {
+  anchorAtKey,
+  anchorInfoKey,
+  decodeAnchorAt,
+  decodeAnchorInfo,
+  decodeHealth,
+  healthKey,
+  keyId,
+  readRegistryIndex,
+} from './contract-state';
 import { cursorLedger, ledgerRanges } from './soroban';
 
 const REGISTRY = 'CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB';
@@ -103,21 +112,54 @@ describe('decodeHealth', () => {
   });
 });
 
-describe('readAnchorIds', () => {
-  it('finds AnchorIds among the other instance storage entries', () => {
-    const instance = xdr.ScVal.scvContractInstance(
-      new xdr.ScContractInstance({
-        executable: xdr.ContractExecutable.contractExecutableStellarAsset(),
-        storage: [
-          new xdr.ScMapEntry({ key: variant('Admin'), val: new Address(OPERATOR).toScVal() }),
-          new xdr.ScMapEntry({ key: variant('AnchorIds'), val: xdr.ScVal.scvVec([sym('moneygram'), sym('zeam_money')]) }),
-        ],
+describe('readRegistryIndex', () => {
+  const registry = (...storage: [string, xdr.ScVal][]) =>
+    dataEntry(
+      REGISTRY,
+      xdr.ScVal.scvLedgerKeyContractInstance(),
+      xdr.ScVal.scvContractInstance(
+        new xdr.ScContractInstance({
+          executable: xdr.ContractExecutable.contractExecutableStellarAsset(),
+          storage: [
+            new xdr.ScMapEntry({ key: variant('Admin'), val: new Address(OPERATOR).toScVal() }),
+            ...storage.map(([name, val]) => new xdr.ScMapEntry({ key: variant(name), val })),
+          ],
+        }),
+      ),
+    );
+  const ids = xdr.ScVal.scvVec([sym('moneygram'), sym('zeam_money')]);
+
+  it('reads the original layout: every id in AnchorIds', () => {
+    expect(readRegistryIndex(registry(['AnchorIds', ids]))).toEqual({ layout: 'ids', ids: ['moneygram', 'zeam_money'] });
+  });
+
+  it('reads the paged layout: only AnchorCount, ids in their own entries', () => {
+    expect(readRegistryIndex(registry(['AnchorCount', u32(110)]))).toEqual({ layout: 'paged', count: 110 });
+  });
+
+  it('keeps the old list mid-migration, while the paged one is still filling', () => {
+    // AnchorCount is set before AnchorIds is removed by finalize_migration.
+    expect(readRegistryIndex(registry(['AnchorCount', u32(40)], ['AnchorIds', ids]))).toEqual({
+      layout: 'ids',
+      ids: ['moneygram', 'zeam_money'],
+    });
+  });
+
+  it('reads a registry with nothing registered as empty', () => {
+    expect(readRegistryIndex(registry())).toEqual({ layout: 'ids', ids: [] });
+  });
+
+  it('builds AnchorAt(i) as a variant with a u32 field and reads the id back', () => {
+    const scKey = xdr.ScVal.scvVec([sym('AnchorAt'), u32(7)]);
+    const expected = xdr.LedgerKey.contractData(
+      new xdr.LedgerKeyContractData({
+        contract: new Address(REGISTRY).toScAddress(),
+        key: scKey,
+        durability: xdr.ContractDataDurability.persistent,
       }),
     );
-    expect(readAnchorIds(dataEntry(REGISTRY, xdr.ScVal.scvLedgerKeyContractInstance(), instance))).toEqual([
-      'moneygram',
-      'zeam_money',
-    ]);
+    expect(keyId(anchorAtKey(REGISTRY, 7))).toBe(keyId(expected));
+    expect(decodeAnchorAt(dataEntry(REGISTRY, scKey, sym('moneygram')))).toBe('moneygram');
   });
 });
 

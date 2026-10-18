@@ -29,6 +29,10 @@ export const instanceKey = (contractId: string) =>
 export const anchorInfoKey = (registryId: string, anchorId: string) =>
   contractDataKey(registryId, enumKey('Anchor', xdr.ScVal.scvSymbol(anchorId)));
 
+/** Registry `DataKey::AnchorAt(i)` → the i-th anchor id (paged layout). */
+export const anchorAtKey = (registryId: string, index: number) =>
+  contractDataKey(registryId, enumKey('AnchorAt', xdr.ScVal.scvU32(index)));
+
 /** Oracle `DataKey::Health(id)` → AnchorHealth. */
 export const healthKey = (oracleId: string, anchorId: string) =>
   contractDataKey(oracleId, enumKey('Health', xdr.ScVal.scvSymbol(anchorId)));
@@ -45,14 +49,35 @@ function contractDataVal(entry: xdr.LedgerEntryData): xdr.ScVal {
   return entry.contractData.val;
 }
 
-/** Registry `DataKey::AnchorIds`, kept in instance storage. */
-export function readAnchorIds(instance: xdr.LedgerEntryData): string[] {
+/**
+ * Where the registry keeps its anchor list, read from its instance storage.
+ * Two layouts exist:
+ *   ids    the original: every id in one `AnchorIds` vector.
+ *   paged  after the upgrade: `AnchorCount` here, each id in its own
+ *          persistent `AnchorAt(i)` entry, read with `anchorAtKey`.
+ * While `AnchorIds` exists it wins: the migration fills `AnchorAt` over
+ * several transactions and only `finalize_migration` removes `AnchorIds`,
+ * so the old list is complete until the new one is.
+ */
+export type RegistryIndex = { layout: 'ids'; ids: string[] } | { layout: 'paged'; count: number };
+
+export function readRegistryIndex(instance: xdr.LedgerEntryData): RegistryIndex {
   const val = contractDataVal(instance);
   if (val.type !== 'scvContractInstance') throw new Error(`expected a contract instance, got ${val.type}`);
-  const wanted = enumKey('AnchorIds').toXDR('base64');
-  const entry = (val.instance.storage ?? []).find((e) => e.key.toXDR('base64') === wanted);
-  return entry ? (scValToNative(entry.val) as string[]).map(String) : [];
+  const find = (key: xdr.ScVal) => {
+    const wanted = key.toXDR('base64');
+    return (val.instance.storage ?? []).find((e) => e.key.toXDR('base64') === wanted);
+  };
+  const ids = find(enumKey('AnchorIds'));
+  if (ids) return { layout: 'ids', ids: (scValToNative(ids.val) as string[]).map(String) };
+  const count = find(enumKey('AnchorCount'));
+  if (count) return { layout: 'paged', count: Number(scValToNative(count.val)) };
+  // A registry with no anchor registered yet has neither.
+  return { layout: 'ids', ids: [] };
 }
+
+/** An `AnchorAt(i)` entry's value: the anchor id. */
+export const decodeAnchorAt = (entry: xdr.LedgerEntryData) => String(scValToNative(contractDataVal(entry)));
 
 /** A unit enum variant decodes as `[name]`. */
 const tag = (v: unknown) => String(Array.isArray(v) ? v[0] : v);

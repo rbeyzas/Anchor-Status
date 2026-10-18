@@ -5,8 +5,10 @@ import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchImportedAnchorIds, mergeImportedInto } from './onboarding-server';
 import { fetchArchive, mergeArchiveInto } from './history';
 import {
+  anchorAtKey,
   anchorInfoKey,
   cardKey,
+  decodeAnchorAt,
   decodeAnchorInfo,
   decodeCard,
   decodeHealth,
@@ -14,7 +16,7 @@ import {
   instanceKey,
   keyId,
   NEW_HEALTH,
-  readAnchorIds,
+  readRegistryIndex,
 } from './contract-state';
 import { createRpcPool, type RpcPool } from './rpc';
 import { fetchScoreSummary, mergeCardContext } from './score-summary';
@@ -130,6 +132,23 @@ async function fetchEntries(pool: RpcPool, keys: xdr.LedgerKey[]) {
 const isArchived = (entry: Entry, latestLedger: number) =>
   entry.liveUntilLedgerSeq !== undefined && entry.liveUntilLedgerSeq < latestLedger;
 
+/** The registry's anchor ids in registration order, from either layout
+ * (see `readRegistryIndex`). */
+async function readAnchorIds(pool: RpcPool, instance: Entry): Promise<string[]> {
+  const index = readRegistryIndex(instance.val);
+  if (index.layout === 'ids') return index.ids;
+  const keys = Array.from({ length: index.count }, (_, i) => anchorAtKey(REGISTRY_CONTRACT_ID, i));
+  const { entries } = await fetchEntries(pool, keys);
+  const ids: string[] = [];
+  for (const [i, key] of keys.entries()) {
+    const entry = entries.get(keyId(key));
+    // One unreadable slot must not take the other anchors off the page.
+    if (entry) ids.push(decodeAnchorAt(entry.val));
+    else console.warn(`[dashboard] registry AnchorAt(${i}) of ${index.count} is missing`);
+  }
+  return ids;
+}
+
 async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorViewModel[]; unreadable: UnreadableAnchor[] }> {
   assertLiveConfigPresent();
 
@@ -137,7 +156,7 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
     keyId(instanceKey(REGISTRY_CONTRACT_ID)),
   );
   if (!registryInstance) throw new Error('AnchorRegistry contract not found');
-  const anchorIds = readAnchorIds(registryInstance.val);
+  const anchorIds = await readAnchorIds(pool, registryInstance);
 
   // Every anchor's record, health and card in two calls, instead of
   // simulated contract calls per anchor.
