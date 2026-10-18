@@ -16,8 +16,7 @@
 #   6) Installs the dashboard's dependencies and prints the URL to open.
 #
 # The script is idempotent — steps already done (deploy) are
-# skipped on a re-run. See docs/DEMO.md for the full presentation
-# walkthrough.
+# skipped on a re-run.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -75,5 +74,4 @@ echo "Then open: http://localhost:3000"
 echo ""
 echo "================================================================"
 echo " Demo setup complete."
-echo " See docs/DEMO.md for the presentation walkthrough."
 echo "================================================================"

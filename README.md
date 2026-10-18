@@ -5,7 +5,7 @@
 <p align="center">
   <b><a href="https://anchor-status.vercel.app">Live dashboard</a></b> ·
   <b><a href="https://anchor-status.vercel.app/scores">Live scores</a></b> ·
-  <b><a href="docs/SUBMISSION.md">Judge's guide</a></b> ·
+  <b><a href="docs/instaward/EVIDENCE.md">Evidence log</a></b> ·
   <a href="#quick-start"><b>Quick start</b></a> ·
   <a href="#how-it-works"><b>How it works</b></a> ·
   <a href="#running-the-full-system"><b>Run it locally</b></a> ·
@@ -150,7 +150,7 @@ bash scripts/deploy-contracts.sh      # build + deploy both contracts to testnet
 bash scripts/demo.sh                  # bring every service up end-to-end
 ```
 
-`scripts/demo.sh` is idempotent — safe to re-run, it skips steps already done. See [`docs/DEMO.md`](docs/DEMO.md) for a guided walkthrough.
+`scripts/demo.sh` is idempotent — safe to re-run, it skips steps already done.
 
 ## Running the full system
 
@@ -237,7 +237,7 @@ The dashboard's pages:
 bash scripts/demo.sh
 ```
 
-Runs setup, deploy (if needed), every collector once, one aggregation pass, and installs the dashboard — then prints the command to start it. See [`docs/DEMO.md`](docs/DEMO.md) for the full walkthrough.
+Runs setup, deploy (if needed), every collector once, one aggregation pass, and installs the dashboard — then prints the command to start it.
 
 ### 7. Continuous collection (the deployed setup)
 
@@ -365,7 +365,7 @@ Mona is not a Stellar app with a Stellar component bolted on: every measurement 
 
 Its first card is the methodology working as designed on an anchor we do not control: every pillar passed (availability, speed and integrity all 100) but only 3 checks over a few hours exist, so confidence is 2 out of 100 and the headline is pulled to **51** — near "unknown" — instead of the flattering 100 a new anchor would get from the raw report average. The number will climb toward its pillars as the measured window grows, not because anything about the anchor changed.
 
-**Continuation path.** InstaAward straight after the hackathon, then an SCF Build Award once the scoring methodology runs on mainnet backed by real transfers. Milestones, success measures and the known limitations we are addressing are in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Continuation path.** InstaAward straight after the hackathon, then an SCF Build Award once the scoring methodology runs on mainnet backed by real transfers.
 
 ## Testing
 
@@ -396,11 +396,8 @@ Every contract and service ships with its own test suite; none require network a
 
 | Document | What it covers |
 | --- | --- |
-| [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | **Start here if you are judging this**: each criterion mapped to the evidence for it, including what is not met |
 | [`docs/SCORING.md`](docs/SCORING.md) | The scoring method: pillars, confidence, gates, verification |
-| [`docs/DEMO.md`](docs/DEMO.md) | Guided walkthrough of the demo |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Milestones and known limitations |
-| [`docs/TODO.md`](docs/TODO.md) | Open work in priority order (in Turkish) |
+| [`docs/instaward/EVIDENCE.md`](docs/instaward/EVIDENCE.md) | What was delivered for each item of the grant work, with commits and testnet transactions |
 | [`graphify-out/GRAPH_REPORT.md`](graphify-out/GRAPH_REPORT.md) | Auto-generated map of the codebase: central nodes, communities, cross-module links |
 | [`scripts/README.md`](scripts/README.md) | Collector-host setup and the onboarding intake |
 
