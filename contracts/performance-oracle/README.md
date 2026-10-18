@@ -16,6 +16,10 @@ slashes or moves anyone's stake.
   Rejects reports more than 5 minutes in the future or 2 days in the past.
 - `submit_report_with_evidence(..., evidence)` — the same, plus the SHA-256
   of the published evidence document, emitted in `report_submitted`.
+- Both refuse an anchor that AnchorRegistry has deactivated
+  (`AnchorDeactivated`), before anything is written. A registry from before
+  deactivation existed has no `get_anchor_status`; that counts as active,
+  so the two contracts can be upgraded in either order.
 - `publish_score_card(reporter, anchor_id, card)` — `card` is a
   `ScoreCardInput`: score, availability, speed, integrity, market (optional),
   confidence, flags, window_end, methodology_version, inputs_hash (one

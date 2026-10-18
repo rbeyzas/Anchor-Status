@@ -7,7 +7,7 @@ mod types;
 #[cfg(test)]
 mod test;
 
-use anchor_registry::{AnchorRegistryClient, SourceType};
+use anchor_registry::{AnchorRegistryClient, AnchorState, SourceType};
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol};
 use types::{
@@ -168,6 +168,7 @@ impl PerformanceOracle {
         if info.source_type != authorized_source {
             return Err(Error::ReporterWrongSourceType);
         }
+        require_active(&registry, &anchor_id)?;
 
         let percentages = [card.score, card.availability, card.speed, card.integrity, card.confidence];
         if percentages.iter().any(|p| *p > 100)
@@ -313,6 +314,17 @@ fn floor_score(card: &ScoreCard) -> Option<u32> {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Refuses an anchor the registry has deactivated. A registry without
+/// get_anchor_status (code from before deactivation existed) answers with
+/// an error, which counts as active, so the two contracts can be upgraded
+/// in either order.
+fn require_active(registry: &AnchorRegistryClient, anchor_id: &Symbol) -> Result<(), Error> {
+    match registry.try_get_anchor_status(anchor_id) {
+        Ok(Ok(status)) if status.state == AnchorState::Deactivated => Err(Error::AnchorDeactivated),
+        _ => Ok(()),
+    }
+}
+
 fn record_report(
     env: Env,
     reporter: Address,
@@ -343,6 +355,14 @@ fn record_report(
     if now.saturating_sub(timestamp) > MAX_REPORT_AGE_SECONDS {
         return Err(Error::ReportTimestampTooOld);
     }
+
+    let registry_address: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::RegistryAddress)
+        .ok_or(Error::NotInitialized)?;
+    let registry = AnchorRegistryClient::new(&env, &registry_address);
+    require_active(&registry, &anchor_id)?;
 
     let score_key = DataKey::Score(anchor_id.clone());
     let old_score: u32 = env
@@ -376,13 +396,8 @@ fn record_report(
     env.storage().persistent().set(&health_key, &health);
     bump_persistent(&env, &health_key);
 
-    let registry_address: Address = env
-        .storage()
-        .instance()
-        .get(&DataKey::RegistryAddress)
-        .ok_or(Error::NotInitialized)?;
     if card.is_none() {
-        AnchorRegistryClient::new(&env, &registry_address).update_score(&anchor_id, &ema);
+        registry.update_score(&anchor_id, &ema);
     }
     bump_instance(&env);
 

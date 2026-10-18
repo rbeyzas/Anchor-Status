@@ -372,6 +372,60 @@
               "key": {
                 "vec": [
                   {
+                    "symbol": "AnchorAt"
+                  },
+                  {
+                    "u32": 0
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "symbol": "anchor_1"
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 1555200
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "AnchorPos"
+                  },
+                  {
+                    "symbol": "anchor_1"
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "u32": 0
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 1555200
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
+              "key": {
+                "vec": [
+                  {
                     "symbol": "WithdrawalRequest"
                   },
                   {
@@ -437,16 +491,12 @@
                       "key": {
                         "vec": [
                           {
-                            "symbol": "AnchorIds"
+                            "symbol": "AnchorCount"
                           }
                         ]
                       },
                       "val": {
-                        "vec": [
-                          {
-                            "symbol": "anchor_1"
-                          }
-                        ]
+                        "u32": 1
                       }
                     },
                     {

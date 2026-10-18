@@ -688,3 +688,64 @@ fn the_verdict_of_an_anchor_scored_by_reports_only_carries_no_card() {
     let verdict = h.oracle.get_verdict(&anchor_id);
     assert_eq!((verdict.score, verdict.confidence, verdict.flags, verdict.withheld, verdict.card_score), (65, None, 0, false, None));
 }
+
+#[test]
+fn a_deactivated_anchor_gets_no_report_or_card_until_reactivated() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (reporter, anchor_id) = mainnet_anchor(&h);
+    at(&env, 10_000);
+    h.oracle.submit_report(&reporter, &anchor_id, &true, &5, &10_000, &SourceType::RealMainnet);
+    let before = h.oracle.get_health(&anchor_id);
+
+    h.registry.deactivate_anchor(&anchor_id, &String::from_str(&env, "stopped operating"));
+    assert_eq!(
+        h.oracle.try_submit_report(&reporter, &anchor_id, &false, &0, &10_000, &SourceType::RealMainnet),
+        Err(Ok(Error::AnchorDeactivated))
+    );
+    assert_eq!(
+        h.oracle.try_publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200)),
+        Err(Ok(Error::AnchorDeactivated))
+    );
+    assert_eq!(h.oracle.get_health(&anchor_id), before, "nothing about it changed");
+    assert!(h.oracle.get_score_card(&anchor_id).is_none());
+
+    h.registry.reactivate_anchor(&anchor_id);
+    h.oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+    assert_eq!(h.registry.get_anchor_info(&anchor_id).score, 81);
+}
+
+mod live_registry {
+    soroban_sdk::contractimport!(file = "../fixtures/anchor_registry_live.wasm");
+}
+
+#[test]
+fn works_with_the_live_registry_that_has_no_status_yet() {
+    // The registry testnet runs today has no get_anchor_status; until it is
+    // upgraded, every anchor must count as active, not be refused.
+    let env = Env::default();
+    env.mock_all_auths();
+    let admin = Address::generate(&env);
+    let token_address = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let registry_id = env.register(live_registry::WASM, ());
+    let registry = live_registry::Client::new(&env, &registry_id);
+    let oracle_id = env.register(PerformanceOracle, ());
+    let oracle = PerformanceOracleClient::new(&env, &oracle_id);
+    registry.init(&admin, &oracle_id, &token_address);
+    oracle.init(&admin, &registry_id);
+
+    let reporter = Address::generate(&env);
+    oracle.authorize_reporter(&reporter, &SourceType::RealMainnet);
+    let anchor_id = Symbol::new(&env, "anchor_1");
+    registry.register_anchor(
+        &Address::generate(&env),
+        &anchor_id,
+        &String::from_str(&env, "Test Anchor"),
+        &String::from_str(&env, "anchor.example.com"),
+        &live_registry::SourceType::RealMainnet,
+    );
+    at(&env, 10_000);
+    oracle.submit_report(&reporter, &anchor_id, &true, &5, &10_000, &SourceType::RealMainnet);
+    oracle.publish_score_card(&reporter, &anchor_id, &card(&env, 81, 61, 7_200));
+    assert_eq!(registry.get_anchor_info(&anchor_id).score, 81);
+}

@@ -17,4 +17,7 @@ pub enum Error {
     StaleScoreCard = 8,
     /// The anchor is not registered in AnchorRegistry.
     AnchorNotFound = 9,
+    /// The anchor is deactivated in AnchorRegistry: nothing more is taken
+    /// for it.
+    AnchorDeactivated = 10,
 }

@@ -1,6 +1,8 @@
 #![no_std]
 
 mod errors;
+#[cfg(feature = "contract")]
+mod events;
 #[cfg(not(feature = "contract"))]
 mod client;
 mod types;
@@ -11,14 +13,26 @@ mod test;
 pub use errors::Error;
 #[cfg(not(feature = "contract"))]
 pub use client::AnchorRegistryClient;
-pub use types::{AnchorInfo, SourceType};
+pub use types::{AnchorInfo, AnchorState, AnchorStatus, SourceType};
 
 use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol, Vec};
-use types::{DataKey, WithdrawalRequest};
+use types::{AnchorState as State, DataKey, WithdrawalRequest};
+pub use types::{PendingDelay, PendingUpgrade};
 
 /// How long, in seconds, an operator must wait between requesting a stake
 /// withdrawal and executing it. 7 days.
 pub const WITHDRAWAL_COOLDOWN_SECONDS: u64 = 60 * 60 * 24 * 7;
+
+/// The most ids `list_anchors_page` returns in one call, so a page always
+/// fits a transaction's read limits.
+pub const MAX_PAGE: u32 = 100;
+
+/// The longest upgrade delay that can be set: long enough for a mainnet
+/// review, short enough that a mistake cannot lock the contract for good.
+pub const MAX_UPGRADE_DELAY_SECONDS: u64 = 60 * 60 * 24 * 30;
+
+/// The longest deactivation reason accepted, in bytes.
+pub const MAX_REASON_BYTES: u32 = 256;
 
 // Storage TTLs, in ledgers (~5s each). Soroban archives any entry whose TTL
 // runs out; an archived anchor record makes every read fail until someone
@@ -51,6 +65,66 @@ fn bump_persistent(env: &Env, key: &DataKey) {
 }
 
 #[cfg(feature = "contract")]
+fn require_admin(env: &Env) -> Result<Address, Error> {
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(Error::NotInitialized)?;
+    admin.require_auth();
+    Ok(admin)
+}
+
+#[cfg(feature = "contract")]
+fn require_anchor(env: &Env, anchor_id: &Symbol) -> Result<AnchorInfo, Error> {
+    env.storage()
+        .persistent()
+        .get(&DataKey::Anchor(anchor_id.clone()))
+        .ok_or(Error::AnchorNotFound)
+}
+
+#[cfg(feature = "contract")]
+fn is_deactivated(env: &Env, anchor_id: &Symbol) -> bool {
+    env.storage()
+        .persistent()
+        .get::<_, AnchorStatus>(&DataKey::Status(anchor_id.clone()))
+        .is_some_and(|s| s.state == State::Deactivated)
+}
+
+/// The upgrade delay in effect: a pending shortening counts once its time
+/// has come.
+#[cfg(feature = "contract")]
+fn upgrade_delay(env: &Env) -> u64 {
+    let pending: Option<PendingDelay> = env.storage().instance().get(&DataKey::PendingDelay);
+    match pending {
+        Some(p) if env.ledger().timestamp() >= p.effective_at => p.seconds,
+        _ => env.storage().instance().get(&DataKey::UpgradeDelay).unwrap_or(0),
+    }
+}
+
+/// The original AnchorIds index, while it still exists.
+#[cfg(feature = "contract")]
+fn old_index(env: &Env) -> Option<Vec<Symbol>> {
+    env.storage().instance().get(&DataKey::AnchorIds)
+}
+
+#[cfg(feature = "contract")]
+fn stored_count(env: &Env) -> u32 {
+    env.storage().instance().get(&DataKey::AnchorCount).unwrap_or(0)
+}
+
+/// Puts `anchor_id` at position `i` of the paged index, both ways.
+#[cfg(feature = "contract")]
+fn set_position(env: &Env, i: u32, anchor_id: &Symbol) {
+    let at = DataKey::AnchorAt(i);
+    let pos = DataKey::AnchorPos(anchor_id.clone());
+    env.storage().persistent().set(&at, anchor_id);
+    env.storage().persistent().set(&pos, &i);
+    bump_persistent(env, &at);
+    bump_persistent(env, &pos);
+}
+
+#[cfg(feature = "contract")]
 #[contract]
 pub struct AnchorRegistry;
 
@@ -78,6 +152,7 @@ impl AnchorRegistry {
             .instance()
             .set(&DataKey::TokenAddress, &token_address);
         bump_instance(&env);
+        events::Initialized { admin, oracle: oracle_address, token: token_address }.publish(&env);
         Ok(())
     }
 
@@ -92,6 +167,9 @@ impl AnchorRegistry {
         source_type: SourceType,
     ) -> Result<(), Error> {
         operator.require_auth();
+        if env.storage().instance().has(&DataKey::AnchorIds) {
+            return Err(Error::MigrationInProgress);
+        }
 
         let key = DataKey::Anchor(anchor_id.clone());
         if env.storage().persistent().has(&key) {
@@ -114,26 +192,100 @@ impl AnchorRegistry {
         env.storage().persistent().set(&key, &info);
         bump_persistent(&env, &key);
 
-        let mut ids: Vec<Symbol> = env
-            .storage()
-            .instance()
-            .get(&DataKey::AnchorIds)
-            .unwrap_or_else(|| Vec::new(&env));
-        ids.push_back(anchor_id);
-        env.storage().instance().set(&DataKey::AnchorIds, &ids);
+        let count = stored_count(&env);
+        set_position(&env, count, &anchor_id);
+        env.storage().instance().set(&DataKey::AnchorCount, &(count + 1));
         bump_instance(&env);
+        events::AnchorRegistered {
+            anchor_id,
+            operator: info.operator,
+            domain: info.domain,
+            source_type: info.source_type,
+        }
+        .publish(&env);
 
         Ok(())
     }
 
-    /// Returns the ids of every registered anchor, in registration order.
-    /// Used by the dashboard to discover which anchors exist on-chain
-    /// (there is no other way to enumerate them).
+    /// How many anchors are registered.
+    pub fn anchor_count(env: Env) -> u32 {
+        match old_index(&env) {
+            Some(ids) => ids.len(),
+            None => stored_count(&env),
+        }
+    }
+
+    /// Up to `limit` (at most MAX_PAGE) anchor ids from position `start`,
+    /// in registration order. An empty page means `start` is past the end.
+    /// While the old index still exists it is the one read: it stays
+    /// complete until finalize_migration, the paged one does not.
+    pub fn list_anchors_page(env: Env, start: u32, limit: u32) -> Vec<Symbol> {
+        let mut page = Vec::new(&env);
+        let take = if limit > MAX_PAGE { MAX_PAGE } else { limit };
+        match old_index(&env) {
+            Some(ids) => {
+                let end = (start.saturating_add(take)).min(ids.len());
+                for i in start..end {
+                    page.push_back(ids.get_unchecked(i));
+                }
+            }
+            None => {
+                let end = (start.saturating_add(take)).min(stored_count(&env));
+                for i in start..end {
+                    page.push_back(env.storage().persistent().get(&DataKey::AnchorAt(i)).unwrap());
+                }
+            }
+        }
+        page
+    }
+
+    /// Every anchor id, in registration order. Kept for existing callers;
+    /// it reads one entry per anchor, so with many anchors use
+    /// `anchor_count` and `list_anchors_page` instead.
     pub fn list_anchors(env: Env) -> Vec<Symbol> {
-        env.storage()
-            .instance()
-            .get(&DataKey::AnchorIds)
-            .unwrap_or_else(|| Vec::new(&env))
+        if let Some(ids) = old_index(&env) {
+            return ids;
+        }
+        let mut all = Vec::new(&env);
+        for i in 0..stored_count(&env) {
+            all.push_back(env.storage().persistent().get(&DataKey::AnchorAt(i)).unwrap());
+        }
+        all
+    }
+
+    /// Admin-only, once after upgrading from the AnchorIds layout: copies up
+    /// to `batch` more ids into the paged index and returns how many are
+    /// left. Run until it returns 0, then call finalize_migration. Each id
+    /// costs two writes, so keep `batch` within a transaction's write limit.
+    pub fn migrate_anchor_index(env: Env, batch: u32) -> Result<u32, Error> {
+        require_admin(&env)?;
+        let ids = old_index(&env).ok_or(Error::NothingToMigrate)?;
+        let done: u32 = env.storage().instance().get(&DataKey::MigrationCursor).unwrap_or(0);
+        let end = done.saturating_add(batch).min(ids.len());
+        for i in done..end {
+            set_position(&env, i, &ids.get_unchecked(i));
+        }
+        env.storage().instance().set(&DataKey::MigrationCursor, &end);
+        bump_instance(&env);
+        events::IndexMigrated { copied: end, total: ids.len() }.publish(&env);
+        Ok(ids.len() - end)
+    }
+
+    /// Admin-only: switches to the paged index once every id is in it, and
+    /// deletes the old AnchorIds entry. Registration is open again after.
+    pub fn finalize_migration(env: Env) -> Result<(), Error> {
+        require_admin(&env)?;
+        let ids = old_index(&env).ok_or(Error::NothingToMigrate)?;
+        let done: u32 = env.storage().instance().get(&DataKey::MigrationCursor).unwrap_or(0);
+        if done < ids.len() {
+            return Err(Error::MigrationIncomplete);
+        }
+        env.storage().instance().set(&DataKey::AnchorCount, &ids.len());
+        env.storage().instance().remove(&DataKey::AnchorIds);
+        env.storage().instance().remove(&DataKey::MigrationCursor);
+        bump_instance(&env);
+        events::IndexFinalized { count: ids.len() }.publish(&env);
+        Ok(())
     }
 
     /// Transfers `amount` of the stake token from the anchor's operator into
@@ -150,6 +302,11 @@ impl AnchorRegistry {
             .ok_or(Error::AnchorNotFound)?;
 
         info.operator.require_auth();
+        // Withdrawing stays open; adding stake to an anchor nobody measures
+        // does not.
+        if is_deactivated(&env, &anchor_id) {
+            return Err(Error::AnchorDeactivated);
+        }
 
         let token_address: Address = env.storage().instance().get(&DataKey::TokenAddress).unwrap();
         let token_client = token::Client::new(&env, &token_address);
@@ -160,6 +317,7 @@ impl AnchorRegistry {
         env.storage().persistent().set(&key, &info);
         bump_persistent(&env, &key);
         bump_instance(&env);
+        events::StakeAdded { anchor_id, amount, stake: info.stake }.publish(&env);
         Ok(())
     }
 
@@ -184,10 +342,11 @@ impl AnchorRegistry {
             amount,
             unlock_time: env.ledger().timestamp() + WITHDRAWAL_COOLDOWN_SECONDS,
         };
-        let req_key = DataKey::WithdrawalRequest(anchor_id);
+        let req_key = DataKey::WithdrawalRequest(anchor_id.clone());
         env.storage().persistent().set(&req_key, &request);
         bump_persistent(&env, &req_key);
         bump_persistent(&env, &key);
+        events::WithdrawalRequested { anchor_id, amount, unlock_time: request.unlock_time }.publish(&env);
         Ok(())
     }
 
@@ -225,6 +384,7 @@ impl AnchorRegistry {
         env.storage().persistent().set(&key, &info);
         bump_persistent(&env, &key);
         env.storage().persistent().remove(&req_key);
+        events::StakeWithdrawn { anchor_id, amount: request.amount, stake: info.stake }.publish(&env);
         Ok(())
     }
 
@@ -242,8 +402,11 @@ impl AnchorRegistry {
         }
         let oracle_address: Address = env.storage().instance().get(&DataKey::OracleAddress).unwrap();
         oracle_address.require_auth();
+        if is_deactivated(&env, &anchor_id) {
+            return Err(Error::AnchorDeactivated);
+        }
 
-        let key = DataKey::Anchor(anchor_id);
+        let key = DataKey::Anchor(anchor_id.clone());
         let mut info: AnchorInfo = env
             .storage()
             .persistent()
@@ -253,22 +416,225 @@ impl AnchorRegistry {
         info.last_updated = env.ledger().timestamp();
         env.storage().persistent().set(&key, &info);
         bump_persistent(&env, &key);
+        // The index entries are written once; without this they would be
+        // archived after ~90 days and the anchor would drop out of the list.
+        let pos_key = DataKey::AnchorPos(anchor_id.clone());
+        if let Some(pos) = env.storage().persistent().get::<_, u32>(&pos_key) {
+            bump_persistent(&env, &pos_key);
+            bump_persistent(&env, &DataKey::AnchorAt(pos));
+        }
         bump_instance(&env);
+        events::ScoreUpdated { anchor_id, score: new_score }.publish(&env);
         Ok(())
     }
 
-    /// Admin-only: replaces this contract's code in place. The contract ID
-    /// and all stored state are kept, so a fix no longer means redeploying
-    /// under a new ID and re-pointing every service and the dashboard.
-    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
-        let admin: Address = env
+    /// Admin-only, step one of handing over the admin role: names the next
+    /// admin. Nothing changes until that address accepts, so a typo cannot
+    /// hand the contract to an address nobody controls. A new proposal
+    /// replaces the previous one.
+    pub fn propose_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        let admin = require_admin(&env)?;
+        env.storage().instance().set(&DataKey::PendingAdmin, &new_admin);
+        bump_instance(&env);
+        events::AdminProposed { admin, proposed: new_admin }.publish(&env);
+        Ok(())
+    }
+
+    /// Step two, signed by the proposed admin: it becomes the admin.
+    pub fn accept_admin(env: Env) -> Result<(), Error> {
+        let pending: Address = env
             .storage()
             .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)?;
-        admin.require_auth();
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+            .get(&DataKey::PendingAdmin)
+            .ok_or(Error::NoPendingAdmin)?;
+        pending.require_auth();
+        let previous: Address = env.storage().instance().get(&DataKey::Admin).ok_or(Error::NotInitialized)?;
+        env.storage().instance().set(&DataKey::Admin, &pending);
+        env.storage().instance().remove(&DataKey::PendingAdmin);
+        bump_instance(&env);
+        events::AdminChanged { previous, admin: pending }.publish(&env);
         Ok(())
+    }
+
+    /// Admin-only: sets the wait between propose_upgrade and
+    /// execute_upgrade. A longer delay applies at once; a shorter one only
+    /// after the current delay has passed, so the lock cannot be dropped
+    /// and an upgrade pushed through in the same breath.
+    pub fn set_upgrade_delay(env: Env, seconds: u64) -> Result<(), Error> {
+        require_admin(&env)?;
+        if seconds > MAX_UPGRADE_DELAY_SECONDS {
+            return Err(Error::DelayTooLong);
+        }
+        let current = upgrade_delay(&env);
+        let now = env.ledger().timestamp();
+        let effective_at = if seconds >= current {
+            env.storage().instance().set(&DataKey::UpgradeDelay, &seconds);
+            env.storage().instance().remove(&DataKey::PendingDelay);
+            now
+        } else {
+            let pending = PendingDelay { seconds, effective_at: now + current };
+            env.storage().instance().set(&DataKey::PendingDelay, &pending);
+            pending.effective_at
+        };
+        bump_instance(&env);
+        events::UpgradeDelaySet { seconds, effective_at }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: proposes new code. It can run once the delay has passed.
+    /// The wasm must already be uploaded; publish its hash so anyone can
+    /// check what is coming.
+    pub fn propose_upgrade(env: Env, wasm_hash: BytesN<32>) -> Result<PendingUpgrade, Error> {
+        require_admin(&env)?;
+        if env.storage().instance().has(&DataKey::PendingUpgrade) {
+            return Err(Error::UpgradePending);
+        }
+        let pending = PendingUpgrade { wasm_hash, executable_at: env.ledger().timestamp() + upgrade_delay(&env) };
+        env.storage().instance().set(&DataKey::PendingUpgrade, &pending);
+        bump_instance(&env);
+        events::UpgradeProposed { wasm_hash: pending.wasm_hash.clone(), executable_at: pending.executable_at }.publish(&env);
+        Ok(pending)
+    }
+
+    /// Admin-only: replaces this contract's code with the proposed wasm,
+    /// once its delay has passed. The contract ID and all stored state are
+    /// kept.
+    pub fn execute_upgrade(env: Env) -> Result<(), Error> {
+        require_admin(&env)?;
+        let pending: PendingUpgrade = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingUpgrade)
+            .ok_or(Error::NoPendingUpgrade)?;
+        if env.ledger().timestamp() < pending.executable_at {
+            return Err(Error::UpgradeNotReady);
+        }
+        env.storage().instance().remove(&DataKey::PendingUpgrade);
+        events::UpgradeExecuted { wasm_hash: pending.wasm_hash.clone() }.publish(&env);
+        env.deployer().update_current_contract_wasm(pending.wasm_hash);
+        Ok(())
+    }
+
+    /// Admin-only: withdraws the proposed upgrade.
+    pub fn cancel_upgrade(env: Env) -> Result<(), Error> {
+        require_admin(&env)?;
+        let pending: PendingUpgrade = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingUpgrade)
+            .ok_or(Error::NoPendingUpgrade)?;
+        env.storage().instance().remove(&DataKey::PendingUpgrade);
+        bump_instance(&env);
+        events::UpgradeCancelled { wasm_hash: pending.wasm_hash }.publish(&env);
+        Ok(())
+    }
+
+    pub fn get_pending_upgrade(env: Env) -> Option<PendingUpgrade> {
+        env.storage().instance().get(&DataKey::PendingUpgrade)
+    }
+
+    /// The delay in effect now, in seconds.
+    pub fn get_upgrade_delay(env: Env) -> u64 {
+        upgrade_delay(&env)
+    }
+
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        env.storage().instance().get(&DataKey::Admin).ok_or(Error::NotInitialized)
+    }
+
+    /// Admin-only: stops measuring an anchor, with the reason the dashboard
+    /// shows. The record and its history stay; the oracle refuses new
+    /// reports and cards, and update_score refuses new scores.
+    pub fn deactivate_anchor(env: Env, anchor_id: Symbol, reason: String) -> Result<(), Error> {
+        require_admin(&env)?;
+        require_anchor(&env, &anchor_id)?;
+        if is_deactivated(&env, &anchor_id) {
+            return Err(Error::AnchorDeactivated);
+        }
+        if reason.len() > MAX_REASON_BYTES {
+            return Err(Error::ReasonTooLong);
+        }
+        let status = AnchorStatus { state: State::Deactivated, reason, since: env.ledger().timestamp() };
+        let key = DataKey::Status(anchor_id.clone());
+        env.storage().persistent().set(&key, &status);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
+        events::AnchorDeactivated { anchor_id, reason: status.reason }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: undoes deactivate_anchor.
+    pub fn reactivate_anchor(env: Env, anchor_id: Symbol) -> Result<(), Error> {
+        require_admin(&env)?;
+        require_anchor(&env, &anchor_id)?;
+        if !is_deactivated(&env, &anchor_id) {
+            return Err(Error::NotDeactivated);
+        }
+        let status = AnchorStatus {
+            state: State::Active,
+            reason: String::from_str(&env, ""),
+            since: env.ledger().timestamp(),
+        };
+        let key = DataKey::Status(anchor_id.clone());
+        env.storage().persistent().set(&key, &status);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
+        events::AnchorReactivated { anchor_id }.publish(&env);
+        Ok(())
+    }
+
+    /// Admin-only: deletes a deactivated anchor that holds no stake and has
+    /// no withdrawal pending, so nobody's money can be left behind. Meant
+    /// for registrations that were wrong; an anchor that simply stopped is
+    /// deactivated and kept. The last anchor in the index takes the removed
+    /// one's position, so after a removal the order is no longer exactly
+    /// registration order.
+    pub fn remove_anchor(env: Env, anchor_id: Symbol) -> Result<(), Error> {
+        require_admin(&env)?;
+        if env.storage().instance().has(&DataKey::AnchorIds) {
+            return Err(Error::MigrationInProgress);
+        }
+        let info = require_anchor(&env, &anchor_id)?;
+        if !is_deactivated(&env, &anchor_id) {
+            return Err(Error::NotDeactivated);
+        }
+        if info.stake != 0 {
+            return Err(Error::StakeNotZero);
+        }
+        if env.storage().persistent().has(&DataKey::WithdrawalRequest(anchor_id.clone())) {
+            return Err(Error::WithdrawalPending);
+        }
+
+        let pos_key = DataKey::AnchorPos(anchor_id.clone());
+        let pos: u32 = env.storage().persistent().get(&pos_key).unwrap();
+        let last = stored_count(&env) - 1;
+        if pos != last {
+            let moved: Symbol = env.storage().persistent().get(&DataKey::AnchorAt(last)).unwrap();
+            set_position(&env, pos, &moved);
+        }
+        env.storage().persistent().remove(&DataKey::AnchorAt(last));
+        env.storage().persistent().remove(&pos_key);
+        env.storage().persistent().remove(&DataKey::Anchor(anchor_id.clone()));
+        env.storage().persistent().remove(&DataKey::Status(anchor_id.clone()));
+        env.storage().instance().set(&DataKey::AnchorCount, &last);
+        bump_instance(&env);
+        events::AnchorRemoved { anchor_id }.publish(&env);
+        Ok(())
+    }
+
+    /// Whether an anchor is measured. An anchor never deactivated is
+    /// active since its registration.
+    pub fn get_anchor_status(env: Env, anchor_id: Symbol) -> Result<AnchorStatus, Error> {
+        let info = require_anchor(&env, &anchor_id)?;
+        Ok(env
+            .storage()
+            .persistent()
+            .get(&DataKey::Status(anchor_id))
+            .unwrap_or(AnchorStatus {
+                state: State::Active,
+                reason: String::from_str(&env, ""),
+                since: info.registered_at,
+            }))
     }
 
     pub fn get_anchor_info(env: Env, anchor_id: Symbol) -> Result<AnchorInfo, Error> {

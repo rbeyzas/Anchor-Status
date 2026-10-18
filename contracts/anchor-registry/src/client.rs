@@ -12,7 +12,7 @@
 use soroban_sdk::{contractclient, Address, Env, Symbol};
 
 use crate::errors::Error;
-use crate::types::AnchorInfo;
+use crate::types::{AnchorInfo, AnchorStatus};
 
 #[contractclient(name = "AnchorRegistryClient")]
 pub trait AnchorRegistryInterface {
@@ -24,4 +24,5 @@ pub trait AnchorRegistryInterface {
     ) -> Result<(), Error>;
     fn update_score(env: Env, anchor_id: Symbol, new_score: u32) -> Result<(), Error>;
     fn get_anchor_info(env: Env, anchor_id: Symbol) -> Result<AnchorInfo, Error>;
+    fn get_anchor_status(env: Env, anchor_id: Symbol) -> Result<AnchorStatus, Error>;
 }
