@@ -15,7 +15,18 @@ cd "$(dirname "$0")/.."
 HOST="${COLLECTOR_HOST:?set COLLECTOR_HOST, e.g. root@<collector-host>}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/anchor-status}"
 DATA_DIR="${DATA_DIR:-/var/lib/anchor-status}"
-SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15)
+CTL=$(mktemp -u /tmp/deploy-ssh.XXXXXX)
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15 -o ControlPath="$CTL")
+
+# One SSH connection for the whole deploy, shared by every step below. The
+# primary's provider resets a share of new SSH handshakes, so only this
+# first one has to get through, and it is retried.
+for attempt in 1 2 3 4 5 6 7 8; do
+  ssh "${SSH_OPTS[@]}" -o ControlMaster=yes -o ControlPersist=600 -fN "$HOST" && break
+  [ "$attempt" = 8 ] && { echo "cannot reach $HOST"; exit 1; }
+  sleep 5
+done
+trap 'ssh -o ControlPath="$CTL" -O exit "$HOST" 2>/dev/null' EXIT
 
 # Wait for an in-flight collection round to finish rather than swapping
 # files underneath it. -w: give up waiting after 10 minutes and deploy anyway
