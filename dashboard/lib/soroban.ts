@@ -1,5 +1,4 @@
 import { rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
-import { isDelisted } from './delisted';
 import { stroopsToXlm } from './format';
 import { fetchAnchorStatus, mergeStatusInto } from './anchor-status';
 import { fetchImportedAnchorIds, mergeImportedInto } from './onboarding-server';
@@ -227,9 +226,9 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
 /** Reads the contracts from Soroban RPC. There is no fallback data: if the
  * chain can't be read, the page says so and shows nothing, rather than
  * anything that looks like a real score but isn't. */
-// The registry has no remove call, so the retired simulated anchors are
-// still registered; they are left off the page here.
-const isListed = (a: AnchorViewModel) => a.sourceType !== 'SimulatedMock' && !isDelisted(a.anchorId);
+// The retired simulated anchors are still registered; they are left off
+// the page here until they are removed on-chain.
+const isListed = (a: AnchorViewModel) => a.sourceType !== 'SimulatedMock';
 
 export async function getDashboardData(): Promise<DashboardData> {
   try {
@@ -253,7 +252,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         ),
         summary,
       ),
-      unreadable: live.unreadable.filter((u) => !isDelisted(u.anchorId)),
+      unreadable: live.unreadable,
       dataSource: 'live',
     };
   } catch (err) {
