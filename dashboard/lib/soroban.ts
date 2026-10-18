@@ -226,10 +226,6 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
 /** Reads the contracts from Soroban RPC. There is no fallback data: if the
  * chain can't be read, the page says so and shows nothing, rather than
  * anything that looks like a real score but isn't. */
-// The retired simulated anchors are still registered; they are left off
-// the page here until they are removed on-chain.
-const isListed = (a: AnchorViewModel) => a.sourceType !== 'SimulatedMock';
-
 export async function getDashboardData(): Promise<DashboardData> {
   try {
     const [live, archive, status, summary, importedIds] = await Promise.all([
@@ -247,7 +243,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         // Last of the enrichments: it only tags, so it can't be undone by
         // the merges that rebuild view models from the chain data.
         mergeImportedInto(
-          mergeStatusInto(mergeArchiveInto(live.anchors.filter(isListed), archive), status),
+          mergeStatusInto(mergeArchiveInto(live.anchors, archive), status),
           importedIds,
         ),
         summary,

@@ -390,7 +390,7 @@ Every contract and service ships with its own test suite; none require network a
 - **Trend and risk floor live in contract state**, not in event history, so detecting them never depends on how long an RPC node keeps events. Transaction volume never adds points: the number of checks feeds confidence only, and an anchor's age is shown as context only.
 - **Cross-contract authorization**: `PerformanceOracle` is the only caller `AnchorRegistry` accepts for `update_score`, enforced by Soroban's own invoker-authentication — no shared secret or allowlist needed.
 - **Verifiable, not trusted.** Each report can carry the SHA-256 of a published evidence document, emitted on-chain with the score change: the anchor's own signed SEP-10 challenge and, for testnet deposits, the payout on the ledger. `npm run verify -- <hash>` in `services/mainnet-probe` checks one independently. A score card's inputs bundle is checked the same way with `npm run verify-score` in `services/aggregator`, which recomputes the card and compares it with the one on-chain.
-- **Upgrades keep the address.** Both contracts have an admin-only `upgrade`; `scripts/upgrade-contracts.sh` replaces the code in place, so a fix doesn't change contract IDs or reset state.
+- **Upgrades keep the address, and wait.** The registry's code changes only through `propose_upgrade` and, after its delay, `execute_upgrade` (the oracle still has an instant admin-only `upgrade` until it gets the same time lock). `scripts/upgrade-contracts.sh` runs either; with a multisig admin it writes the unsigned transaction for the signers instead of sending it. A fix doesn't change contract IDs or reset state.
 
 ## Docs
 
