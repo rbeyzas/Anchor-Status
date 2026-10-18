@@ -50,6 +50,15 @@ Contracts (testnet):
 - The page-level hide lists went once their entries were off the chain:
   `lib/delisted.ts` (commit `4e8ccce`) and the `SimulatedMock` filter.
 
+### 1.8 stellar.toml at monarank.xyz (D1) — 18 Oct, in part
+- `https://monarank.xyz/.well-known/stellar.toml` (HTTP 200,
+  `access-control-allow-origin: *`, `text/plain`): `ORG_URL`
+  `https://monarank.xyz`, `ORG_NAME` MonaRank, and, as non-SEP-1 keys with
+  a comment saying so, `MONA_ANCHOR_REGISTRY`, `MONA_PERFORMANCE_ORACLE`
+  and their `MONA_NETWORK_PASSPHRASE` (testnet). Commit `698192f`.
+- Still to add: `ACCOUNTS` with A's and B's reporter keys and the multisig
+  admin, once those keys are final (D1: `revoke_reporter`, key rotation).
+
 ### 1.9 Identifying User-Agent (D1) — 18 Oct
 - Every request from mainnet-probe, testnet-probe and passive-monitor,
   including testnet-probe's browser, sends
