@@ -1,0 +1,22 @@
+{
+  "name": "@anchor-oracle/reference-anchor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small testnet anchor we control (SEP-1, SEP-10, SEP-6), served at ref1.monarank.xyz: measured like any other anchor, and the one D3's claim and dispute demos run on.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "setup": "tsx src/setup.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.0.1",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
+  }
+}
