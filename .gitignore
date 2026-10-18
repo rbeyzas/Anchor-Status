@@ -15,6 +15,11 @@ venv/
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+# Vercel CLI link (project and org ids) and local Claude Code permissions
+.vercel/
+.claude/settings.local.json
 
 # runtime state & collected data (lives on the server, not in git)
 services/testnet-probe/results/
@@ -23,6 +28,7 @@ services/mainnet-probe/output/
 services/mainnet-probe/results/
 services/mainnet-probe/evidence/
 services/testnet-probe/evidence/
+services/testnet-probe/output/
 services/aggregator/state.json
 
 # os / editor
