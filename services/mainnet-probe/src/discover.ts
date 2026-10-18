@@ -28,7 +28,7 @@ async function fetchAllPages<T extends { paging_token?: string }>(base: string, 
     const url = new URL(base);
     url.searchParams.set('limit', '200');
     if (cursor) url.searchParams.set('cursor', cursor);
-    const { value: res } = await timedFetch(fetch, url.toString(), { headers: { 'User-Agent': 'anchor-status' } }, 30_000);
+    const { value: res } = await timedFetch(fetch, url.toString(), {}, 30_000);
     const records = ((await res.json()) as Paged<T>)._embedded?.records ?? [];
     out.push(...records);
     cursor = records[records.length - 1]?.paging_token;

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import { chromium } from 'playwright';
+import { USER_AGENT } from './user-agent.js';
 
 /**
  * Some sandboxes pre-install a Chromium build at a fixed path (env
@@ -48,7 +49,7 @@ export async function completeInteractiveFlow(
     executablePath: preinstalledChromiumPath(),
   });
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ userAgent: USER_AGENT });
     const deadline = Date.now() + timeoutMs;
 
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });

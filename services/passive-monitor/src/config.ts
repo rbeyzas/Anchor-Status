@@ -1,3 +1,4 @@
+import './user-agent.js';
 import { config as loadDotenv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
