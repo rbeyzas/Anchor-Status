@@ -21,6 +21,7 @@ export const config = {
   networkPassphrase:
     process.env.SOROBAN_NETWORK_PASSPHRASE ?? 'Test SDF Network ; September 2015',
   performanceOracleContractId: () => required('PERFORMANCE_ORACLE_CONTRACT_ID'),
+  anchorRegistryContractId: () => required('ANCHOR_REGISTRY_CONTRACT_ID'),
 
   reporterSecretKeys: {
     RealMainnet: () => required('REPORTER_MAINNET_SECRET_KEY'),

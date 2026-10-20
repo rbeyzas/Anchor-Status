@@ -92,3 +92,12 @@ describe('compareShadow', async () => {
     expect(r.max).toBe(0);
   });
 });
+
+describe('signingKeyFromToml', async () => {
+  const { signingKeyFromToml } = await import('../d3.js');
+  it('reads the top-level SIGNING_KEY', () => {
+    const key = 'GBA7U6K6JNTVEATZNJOT66O6P2W6NLUYQI25JOA6MRM2GHTI26THJXAB';
+    expect(signingKeyFromToml(`VERSION = "2.0.0"\nSIGNING_KEY = "${key}"\n`)).toBe(key);
+    expect(signingKeyFromToml('VERSION = "2.0.0"\n')).toBeNull();
+  });
+});

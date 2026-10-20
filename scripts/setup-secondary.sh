@@ -14,7 +14,7 @@ B="${SECONDARY_HOST:?set SECONDARY_HOST, e.g. root@<secondary-host>}"
 REMOTE_DIR=/opt/anchor-status
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15)
 
-echo "1/5 system packages on $B"
+echo "1/6 system packages on $B"
 ssh "${SSH_OPTS[@]}" "$B" 'set -euo pipefail
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -q
@@ -25,7 +25,7 @@ ssh "${SSH_OPTS[@]}" "$B" 'set -euo pipefail
   fi
   mkdir -p '"$REMOTE_DIR"' /var/lib/anchor-status /var/log/anchor-status'
 
-echo "2/5 .env (public settings from $A, role secondary)"
+echo "2/6 .env (public settings from $A, role secondary)"
 if ssh "${SSH_OPTS[@]}" "$B" "test -f $REMOTE_DIR/.env"; then
   echo "   $B already has a .env, left as it is"
 else
@@ -37,13 +37,13 @@ else
   ssh "${SSH_OPTS[@]}" "$B" "chmod 600 $REMOTE_DIR/.env"
 fi
 
-echo "3/5 code, dependencies and cron"
+echo "3/6 code, dependencies and cron"
 COLLECTOR_HOST="$B" bash scripts/deploy-to-server.sh
 
-echo "4/5 headless Chromium for testnet-probe"
+echo "4/6 headless Chromium for testnet-probe"
 ssh "${SSH_OPTS[@]}" "$B" "cd $REMOTE_DIR/services/testnet-probe && npx --yes playwright install --with-deps chromium >/dev/null && echo '   chromium ok'"
 
-echo "5/5 nightly copy of $A's archive to $B (scripts/backup-archive.sh)"
+echo "5/6 nightly copy of $A's archive to $B (scripts/backup-archive.sh)"
 ssh "${SSH_OPTS[@]}" "$A" 'test -f /root/.ssh/backup_push || ssh-keygen -q -t ed25519 -N "" -C backup-push-from-A -f /root/.ssh/backup_push'
 pub=$(ssh "${SSH_OPTS[@]}" "$A" 'cat /root/.ssh/backup_push.pub')
 # On B this key may only add to incoming/: no reads, no deletes.
@@ -55,5 +55,12 @@ ssh "${SSH_OPTS[@]}" "$A" "grep -q '^BACKUP_HOST=' $REMOTE_DIR/.env || echo 'BAC
   ssh-keygen -F ${B#*@} >/dev/null 2>&1 || ssh-keyscan -H ${B#*@} >> /root/.ssh/known_hosts 2>/dev/null
   echo '5 3 * * * root $REMOTE_DIR/scripts/backup-archive.sh push >> /var/log/anchor-status/backup.log 2>&1' > /etc/cron.d/anchor-backup
   chmod 644 /etc/cron.d/anchor-backup"
+
+echo "6/6 nginx: B's evidence and shadow cards, read-only"
+ssh "${SSH_OPTS[@]}" "$B" 'command -v nginx >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -yq nginx >/dev/null'
+scp -q "${SSH_OPTS[@]}" scripts/nginx/secondary.conf "$B:/etc/nginx/sites-available/anchor-status"
+ssh "${SSH_OPTS[@]}" "$B" 'ln -sfn /etc/nginx/sites-available/anchor-status /etc/nginx/sites-enabled/anchor-status
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t -q && systemctl reload nginx'
 
 echo "done: $B measures every 20 minutes; nothing is written on-chain yet"

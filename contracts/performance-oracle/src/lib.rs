@@ -9,14 +9,16 @@ mod types;
 #[cfg(test)]
 mod test;
 
-use anchor_registry::{AnchorRegistryClient, AnchorState, PendingDelay, PendingUpgrade, SourceType};
+use anchor_registry::{AnchorInfo, AnchorRegistryClient, AnchorState, PendingDelay, PendingUpgrade, SourceType};
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol, Vec};
 pub use quorum::{FLAG_REPORTER_DISAGREEMENT, MAX_REPORTERS};
 use types::{
-    AnchorHealth, DataKey, PendingQuorumConfig, PendingRound, QuorumConfig, QuorumInfo, QuorumReachedEvent,
-    ReportSubmittedEvent, ReporterOutlierEvent, RiskStatusChangedEvent, ScoreCard, ScoreCardInput,
-    ScoreCardPublishedEvent, ScoreCardSubmittedEvent, Submission, Verdict,
+    AnchorHealth, Attestation, DataKey, Dispute, DisputeConfig, DisputeOpenedEvent, DisputeResolvedEvent,
+    DisputeStatus, DisputeVotedEvent, PendingQuorumConfig, PendingRound, QuorumConfig, QuorumInfo,
+    QuorumReachedEvent, ReportSubmittedEvent, ReporterOutlierEvent, RiskStatusChangedEvent, ScoreCard,
+    ScoreCardInput, ScoreCardPublishedEvent, ScoreCardSubmittedEvent, SigningKeyAttestationEvent, Submission,
+    Verdict,
 };
 
 /// Reports timestamped further than this many seconds in the future
@@ -29,6 +31,14 @@ const MAX_REPORT_AGE_SECONDS: u64 = 2 * 24 * 60 * 60;
 /// enough for a mainnet review, short enough that a mistake cannot lock the
 /// contract for good.
 pub const MAX_UPGRADE_DELAY_SECONDS: u64 = 60 * 60 * 24 * 30;
+
+/// Set in a verdict's flags while the card is disputed (open or upheld).
+pub const FLAG_DISPUTED: u32 = 1 << 17;
+
+/// Disputes without a DisputeConfig: 10 XLM of stake (in stroops) and a
+/// week between a rejected dispute and the next.
+pub const DEFAULT_DISPUTE_MIN_STAKE: i128 = 100_000_000;
+pub const DEFAULT_DISPUTE_COOLDOWN_SECONDS: u64 = 7 * 24 * 60 * 60;
 
 // Storage TTLs, in ledgers (~5s each). Soroban archives any entry whose TTL
 // runs out; an archived score or health record makes reads fail until it is
@@ -79,6 +89,41 @@ fn quorum_config(env: &Env) -> QuorumConfig {
         .instance()
         .get(&DataKey::QuorumCfg)
         .unwrap_or(QuorumConfig { threshold: 1, max_spread: 100, round_seconds: 0 })
+}
+
+fn dispute_config(env: &Env) -> DisputeConfig {
+    env.storage().instance().get(&DataKey::DisputeCfg).unwrap_or(DisputeConfig {
+        min_stake: DEFAULT_DISPUTE_MIN_STAKE,
+        cooldown_seconds: DEFAULT_DISPUTE_COOLDOWN_SECONDS,
+    })
+}
+
+fn registry_client(env: &Env) -> Result<AnchorRegistryClient<'_>, Error> {
+    let address: Address = env.storage().instance().get(&DataKey::RegistryAddress).ok_or(Error::NotInitialized)?;
+    Ok(AnchorRegistryClient::new(env, &address))
+}
+
+/// `reporter` signed and is authorized for the anchor's own source type;
+/// the anchor is registered and active. Returns its record.
+fn require_reporter_for(
+    env: &Env,
+    registry: &AnchorRegistryClient,
+    reporter: &Address,
+    anchor_id: &Symbol,
+) -> Result<AnchorInfo, Error> {
+    reporter.require_auth();
+    let key = DataKey::Reporter(reporter.clone());
+    let authorized: SourceType = env.storage().persistent().get(&key).ok_or(Error::NotAuthorizedReporter)?;
+    bump_persistent(env, &key);
+    let info = match registry.try_get_anchor_info(anchor_id) {
+        Ok(Ok(info)) => info,
+        _ => return Err(Error::AnchorNotFound),
+    };
+    if info.source_type != authorized {
+        return Err(Error::ReporterWrongSourceType);
+    }
+    require_active(registry, anchor_id)?;
+    Ok(info)
 }
 
 fn reporters_of(env: &Env, source_type: &SourceType) -> Vec<Address> {
@@ -526,6 +571,20 @@ impl PerformanceOracle {
         );
         bump_persistent(&env, &quorum_key);
 
+        // A dispute still open against the previous card has nothing left
+        // to decide: the card it named is no longer the anchor's.
+        let dispute_key = DataKey::Dispute(anchor_id.clone());
+        if let Some(mut dispute) = env.storage().persistent().get::<_, Dispute>(&dispute_key) {
+            if dispute.status == DisputeStatus::Open {
+                dispute.status = DisputeStatus::Superseded;
+                dispute.resolved_at = now;
+                env.storage().persistent().set(&dispute_key, &dispute);
+                bump_persistent(&env, &dispute_key);
+                DisputeResolvedEvent { anchor_id: anchor_id.clone(), status: dispute.status, window_end: dispute.window_end }
+                    .publish(&env);
+            }
+        }
+
         // The registry holds the score of record: 0 while the card is too
         // uncertain to use, so that nobody reading the registry alone takes
         // a number that the card itself says not to show.
@@ -581,6 +640,182 @@ impl PerformanceOracle {
         Ok(stored.score)
     }
 
+    /// A reporter's reading of the anchor's SEP-1 SIGNING_KEY, from its
+    /// stellar.toml. Once `threshold` reporters (the scores' quorum) have
+    /// read the same key, it goes to AnchorRegistry, where the anchor can
+    /// use it to claim its record. A reporter's newer reading replaces its
+    /// older one. Returns how many reporters agree on this key so far.
+    pub fn attest_signing_key(env: Env, reporter: Address, anchor_id: Symbol, signing_key: BytesN<32>) -> Result<u32, Error> {
+        let registry = registry_client(&env)?;
+        require_reporter_for(&env, &registry, &reporter, &anchor_id)?;
+        let key = DataKey::Attestations(anchor_id.clone());
+        let mut readings: Vec<Attestation> = env.storage().temporary().get(&key).unwrap_or(Vec::new(&env));
+        if let Some(i) = readings.iter().position(|a| a.reporter == reporter) {
+            readings.remove(i as u32);
+        }
+        readings.push_back(Attestation { reporter: reporter.clone(), signing_key: signing_key.clone() });
+        let agreeing = readings.iter().filter(|a| a.signing_key == signing_key).count() as u32;
+        let threshold = quorum_config(&env).threshold;
+        SigningKeyAttestationEvent {
+            anchor_id: anchor_id.clone(),
+            reporter,
+            signing_key: signing_key.clone(),
+            agreeing,
+            threshold,
+        }
+        .publish(&env);
+        if agreeing >= threshold {
+            env.storage().temporary().remove(&key);
+            registry.set_signing_key(&anchor_id, &signing_key);
+        } else {
+            env.storage().temporary().set(&key, &readings);
+            env.storage().temporary().extend_ttl(&key, ROUND_TTL_LEDGERS, ROUND_TTL_LEDGERS);
+        }
+        bump_instance(&env);
+        Ok(agreeing)
+    }
+
+    /// The operator the anchor's own SIGNING_KEY named (see
+    /// AnchorRegistry.claim_anchor) objects to the anchor's current card.
+    /// One dispute per card; the record must hold DisputeConfig.min_stake
+    /// (checked, never moved); after a rejected dispute a cooldown applies.
+    /// While open, the verdict carries FLAG_DISPUTED. The reporters decide
+    /// with vote_dispute.
+    pub fn open_dispute(
+        env: Env,
+        operator: Address,
+        anchor_id: Symbol,
+        window_end: u64,
+        reason_code: u32,
+        evidence_hash: BytesN<32>,
+    ) -> Result<(), Error> {
+        operator.require_auth();
+        let registry = registry_client(&env)?;
+        match registry.try_get_claim(&anchor_id) {
+            Ok(Ok(Some(claim))) if claim.operator == operator => {}
+            _ => return Err(Error::NotTheClaimedOperator),
+        }
+        let info = match registry.try_get_anchor_info(&anchor_id) {
+            Ok(Ok(info)) => info,
+            _ => return Err(Error::AnchorNotFound),
+        };
+        let config = dispute_config(&env);
+        if info.stake < config.min_stake {
+            return Err(Error::StakeTooLow);
+        }
+        let card: ScoreCard = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Card(anchor_id.clone()))
+            .ok_or(Error::NotTheCurrentCard)?;
+        if card.window_end != window_end {
+            return Err(Error::NotTheCurrentCard);
+        }
+        let now = env.ledger().timestamp();
+        let key = DataKey::Dispute(anchor_id.clone());
+        if let Some(previous) = env.storage().persistent().get::<_, Dispute>(&key) {
+            if previous.status == DisputeStatus::Open || previous.window_end == window_end {
+                return Err(Error::DisputeAlreadyOpen);
+            }
+        }
+        if env.storage().persistent().get::<_, u64>(&DataKey::DisputeCooldown(anchor_id.clone())).is_some_and(|until| now < until) {
+            return Err(Error::DisputeCoolingDown);
+        }
+        let dispute = Dispute {
+            operator: operator.clone(),
+            window_end,
+            opened_at: now,
+            reason_code,
+            evidence_hash: evidence_hash.clone(),
+            status: DisputeStatus::Open,
+            uphold: Vec::new(&env),
+            reject: Vec::new(&env),
+            resolved_at: 0,
+        };
+        env.storage().persistent().set(&key, &dispute);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
+        DisputeOpenedEvent { anchor_id, operator, window_end, reason_code, evidence_hash }.publish(&env);
+        Ok(())
+    }
+
+    /// A reporter's vote on the anchor's open dispute. `threshold`
+    /// reporters (the scores' quorum) upholding it withhold the card's
+    /// score until a newer card; as many rejecting it close it and start
+    /// the cooldown. One vote per reporter.
+    pub fn vote_dispute(env: Env, reporter: Address, anchor_id: Symbol, uphold: bool) -> Result<DisputeStatus, Error> {
+        let registry = registry_client(&env)?;
+        require_reporter_for(&env, &registry, &reporter, &anchor_id)?;
+        let key = DataKey::Dispute(anchor_id.clone());
+        let mut dispute: Dispute = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .filter(|d: &Dispute| d.status == DisputeStatus::Open)
+            .ok_or(Error::NoOpenDispute)?;
+        if dispute.uphold.contains(&reporter) || dispute.reject.contains(&reporter) {
+            return Err(Error::AlreadyVoted);
+        }
+        if uphold {
+            dispute.uphold.push_back(reporter.clone());
+        } else {
+            dispute.reject.push_back(reporter.clone());
+        }
+        DisputeVotedEvent {
+            anchor_id: anchor_id.clone(),
+            reporter,
+            uphold,
+            uphold_votes: dispute.uphold.len(),
+            reject_votes: dispute.reject.len(),
+        }
+        .publish(&env);
+
+        let threshold = quorum_config(&env).threshold;
+        let now = env.ledger().timestamp();
+        if dispute.uphold.len() >= threshold {
+            dispute.status = DisputeStatus::Upheld;
+            dispute.resolved_at = now;
+            // Nobody reading the registry alone should take the disputed
+            // number either.
+            registry.update_score(&anchor_id, &0);
+        } else if dispute.reject.len() >= threshold {
+            dispute.status = DisputeStatus::Rejected;
+            dispute.resolved_at = now;
+            let cooldown_key = DataKey::DisputeCooldown(anchor_id.clone());
+            env.storage().persistent().set(&cooldown_key, &(now + dispute_config(&env).cooldown_seconds));
+            bump_persistent(&env, &cooldown_key);
+        }
+        env.storage().persistent().set(&key, &dispute);
+        bump_persistent(&env, &key);
+        if dispute.status != DisputeStatus::Open {
+            DisputeResolvedEvent { anchor_id, status: dispute.status, window_end: dispute.window_end }.publish(&env);
+        }
+        bump_instance(&env);
+        Ok(dispute.status)
+    }
+
+    /// The anchor's latest dispute, whatever its status.
+    pub fn get_dispute(env: Env, anchor_id: Symbol) -> Option<Dispute> {
+        env.storage().persistent().get(&DataKey::Dispute(anchor_id))
+    }
+
+    /// Admin-only: the stake a record needs to open a dispute, and the
+    /// cooldown after a rejected one.
+    pub fn set_dispute_config(env: Env, config: DisputeConfig) -> Result<(), Error> {
+        require_admin(&env)?;
+        if config.min_stake < 0 || config.cooldown_seconds > MAX_UPGRADE_DELAY_SECONDS {
+            return Err(Error::InvalidDisputeConfig);
+        }
+        env.storage().instance().set(&DataKey::DisputeCfg, &config);
+        bump_instance(&env);
+        events::DisputeConfigSet { min_stake: config.min_stake, cooldown_seconds: config.cooldown_seconds }.publish(&env);
+        Ok(())
+    }
+
+    pub fn get_dispute_config(env: Env) -> DisputeConfig {
+        dispute_config(&env)
+    }
+
     pub fn get_score_card(env: Env, anchor_id: Symbol) -> Option<ScoreCard> {
         env.storage().persistent().get(&DataKey::Card(anchor_id))
     }
@@ -601,11 +836,20 @@ impl PerformanceOracle {
             .persistent()
             .get::<_, ScoreCard>(&DataKey::Card(anchor_id.clone()))
         {
+            // A dispute counts against the card it named only.
+            let status = env
+                .storage()
+                .persistent()
+                .get::<_, Dispute>(&DataKey::Dispute(anchor_id.clone()))
+                .filter(|d| d.window_end == card.window_end)
+                .map(|d| d.status);
+            let disputed = matches!(status, Some(DisputeStatus::Open) | Some(DisputeStatus::Upheld));
+            let upheld = status == Some(DisputeStatus::Upheld);
             return Verdict {
-                score: score_of_record(&card),
+                score: if upheld { 0 } else { score_of_record(&card) },
                 confidence: Some(card.confidence),
-                flags: card.flags,
-                withheld: card.confidence < scoring::CONFIDENCE_INSUFFICIENT,
+                flags: card.flags | if disputed { FLAG_DISPUTED } else { 0 },
+                withheld: upheld || card.confidence < scoring::CONFIDENCE_INSUFFICIENT,
                 card_score: Some(card.score),
             };
         }

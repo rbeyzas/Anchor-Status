@@ -730,3 +730,126 @@ fn migration_publishes_its_progress() {
     client.finalize_migration();
     assert_event(&env, &["index_finalized"]);
 }
+
+// ---- Operator claims (SOW deliverable 3) ----
+
+use ed25519_dalek::{Signer, SigningKey};
+use soroban_sdk::{xdr::ToXdr, Bytes};
+
+/// A registered anchor with an attested SIGNING_KEY, and that key.
+fn claimable(env: &Env, client: &AnchorRegistryClient<'_>, seed: u8) -> (Symbol, SigningKey) {
+    let deployer = Address::generate(env);
+    let id = register(env, client, &deployer, "anchor_1");
+    let key = SigningKey::from_bytes(&[seed; 32]);
+    client.set_signing_key(&id, &BytesN::from_array(env, &key.verifying_key().to_bytes()));
+    (id, key)
+}
+
+fn sign(env: &Env, key: &SigningKey, message: &Bytes) -> BytesN<64> {
+    let mut buf = std::vec![0u8; message.len() as usize];
+    message.copy_into_slice(&mut buf);
+    BytesN::from_array(env, &key.sign(&buf).to_bytes())
+}
+
+#[test]
+fn the_anchors_own_key_hands_its_record_to_an_operator() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let (id, key) = claimable(&env, &client, 7);
+    let operator = Address::generate(&env);
+    let message = client.claim_message(&id, &operator);
+    client.claim_anchor(&id, &operator, &sign(&env, &key, &message));
+
+    assert_eq!(client.get_anchor_info(&id).operator, operator);
+    let claim = client.get_claim(&id).unwrap();
+    assert_eq!(claim.operator, operator);
+    assert_eq!(claim.signing_key, BytesN::from_array(&env, &key.verifying_key().to_bytes()));
+    assert_ne!(client.claim_message(&id, &operator), message, "the next claim needs a new signature");
+}
+
+#[test]
+fn a_claim_signed_by_another_key_fails() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let (id, _key) = claimable(&env, &client, 7);
+    let operator = Address::generate(&env);
+    let impostor = SigningKey::from_bytes(&[8; 32]);
+    let signature = sign(&env, &impostor, &client.claim_message(&id, &operator));
+    assert!(client.try_claim_anchor(&id, &operator, &signature).is_err());
+    assert_eq!(client.get_claim(&id), None);
+}
+
+#[test]
+fn a_claim_signature_works_once() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let (id, key) = claimable(&env, &client, 7);
+    let operator = Address::generate(&env);
+    let signature = sign(&env, &key, &client.claim_message(&id, &operator));
+    client.claim_anchor(&id, &operator, &signature);
+    assert!(client.try_claim_anchor(&id, &operator, &signature).is_err(), "a replay");
+}
+
+#[test]
+fn a_claim_signed_for_another_network_or_operator_fails() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let (id, key) = claimable(&env, &client, 7);
+    let operator = Address::generate(&env);
+    let elsewhere = ClaimMessage {
+        domain: Symbol::new(&env, "monarank_claim"),
+        network_id: BytesN::from_array(&env, &[1; 32]),
+        registry: client.address.clone(),
+        anchor_id: id.clone(),
+        operator: operator.clone(),
+        nonce: 0,
+    };
+    let signature = sign(&env, &key, &elsewhere.to_xdr(&env));
+    assert!(client.try_claim_anchor(&id, &operator, &signature).is_err(), "another network");
+
+    let someone_else = Address::generate(&env);
+    let for_someone_else = sign(&env, &key, &client.claim_message(&id, &someone_else));
+    assert!(client.try_claim_anchor(&id, &operator, &for_someone_else).is_err(), "another operator");
+}
+
+#[test]
+fn no_claim_before_the_key_is_attested() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let id = register(&env, &client, &Address::generate(&env), "anchor_1");
+    let operator = Address::generate(&env);
+    let signature = BytesN::from_array(&env, &[0; 64]);
+    assert_eq!(client.try_claim_anchor(&id, &operator, &signature), Err(Ok(Error::NoSigningKey)));
+}
+
+#[test]
+fn a_record_holding_a_stake_cannot_be_claimed() {
+    let env = Env::default();
+    let (client, _admin, _oracle, token, _tc) = setup(&env);
+    let (id, key) = claimable(&env, &client, 7);
+    mint(&env, &token, &client.get_anchor_info(&id).operator, 100);
+    client.stake(&id, &100);
+    let operator = Address::generate(&env);
+    let signature = sign(&env, &key, &client.claim_message(&id, &operator));
+    assert_eq!(client.try_claim_anchor(&id, &operator, &signature), Err(Ok(Error::StakeNotZero)));
+}
+
+#[test]
+fn a_deactivated_anchor_cannot_be_claimed() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let (id, key) = claimable(&env, &client, 7);
+    client.deactivate_anchor(&id, &String::from_str(&env, "test"));
+    let operator = Address::generate(&env);
+    let signature = sign(&env, &key, &client.claim_message(&id, &operator));
+    assert_eq!(client.try_claim_anchor(&id, &operator, &signature), Err(Ok(Error::AnchorDeactivated)));
+}
+
+#[test]
+fn only_the_oracle_sets_a_signing_key() {
+    let env = Env::default();
+    let (client, _admin, _oracle, _token, _tc) = setup(&env);
+    let id = register(&env, &client, &Address::generate(&env), "anchor_1");
+    env.set_auths(&[]);
+    assert!(client.try_set_signing_key(&id, &BytesN::from_array(&env, &[3; 32])).is_err());
+}

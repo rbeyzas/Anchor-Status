@@ -13,9 +13,9 @@ mod test;
 pub use errors::Error;
 #[cfg(not(feature = "contract"))]
 pub use client::AnchorRegistryClient;
-pub use types::{AnchorInfo, AnchorState, AnchorStatus, SourceType};
+pub use types::{AnchorInfo, AnchorState, AnchorStatus, ClaimInfo, ClaimMessage, SourceType};
 
-use soroban_sdk::{contract, contractimpl, token, Address, BytesN, Env, String, Symbol, Vec};
+use soroban_sdk::{contract, contractimpl, token, xdr::ToXdr, Address, Bytes, BytesN, Env, String, Symbol, Vec};
 use types::{AnchorState as State, DataKey, WithdrawalRequest};
 pub use types::{PendingDelay, PendingUpgrade};
 
@@ -111,6 +111,22 @@ fn old_index(env: &Env) -> Option<Vec<Symbol>> {
 #[cfg(feature = "contract")]
 fn stored_count(env: &Env) -> u32 {
     env.storage().instance().get(&DataKey::AnchorCount).unwrap_or(0)
+}
+
+/// The bytes an anchor's SIGNING_KEY signs to hand its record to
+/// `operator` (the XDR of a ClaimMessage).
+#[cfg(feature = "contract")]
+fn claim_message_bytes(env: &Env, anchor_id: &Symbol, operator: &Address) -> Bytes {
+    let nonce: u64 = env.storage().persistent().get(&DataKey::ClaimNonce(anchor_id.clone())).unwrap_or(0);
+    ClaimMessage {
+        domain: Symbol::new(env, "monarank_claim"),
+        network_id: env.ledger().network_id(),
+        registry: env.current_contract_address(),
+        anchor_id: anchor_id.clone(),
+        operator: operator.clone(),
+        nonce,
+    }
+    .to_xdr(env)
 }
 
 /// Puts `anchor_id` at position `i` of the paged index, both ways.
@@ -616,6 +632,10 @@ impl AnchorRegistry {
         env.storage().persistent().remove(&pos_key);
         env.storage().persistent().remove(&DataKey::Anchor(anchor_id.clone()));
         env.storage().persistent().remove(&DataKey::Status(anchor_id.clone()));
+        // The claim count stays, so a signature for this id never works
+        // again if it is registered anew.
+        env.storage().persistent().remove(&DataKey::SigningKey(anchor_id.clone()));
+        env.storage().persistent().remove(&DataKey::Claim(anchor_id.clone()));
         env.storage().instance().set(&DataKey::AnchorCount, &last);
         bump_instance(&env);
         events::AnchorRemoved { anchor_id }.publish(&env);
@@ -635,6 +655,88 @@ impl AnchorRegistry {
                 reason: String::from_str(&env, ""),
                 since: info.registered_at,
             }))
+    }
+
+    /// PerformanceOracle-only: the anchor's SEP-1 SIGNING_KEY, once a
+    /// quorum of reporters has read the same key from its stellar.toml.
+    /// It is the key claim_anchor checks. A contract cannot read a
+    /// stellar.toml; the reporters are its eyes, under the same quorum as
+    /// the scores.
+    pub fn set_signing_key(env: Env, anchor_id: Symbol, signing_key: BytesN<32>) -> Result<(), Error> {
+        let oracle_address: Address = env.storage().instance().get(&DataKey::OracleAddress).ok_or(Error::NotInitialized)?;
+        oracle_address.require_auth();
+        require_anchor(&env, &anchor_id)?;
+        let key = DataKey::SigningKey(anchor_id.clone());
+        env.storage().persistent().set(&key, &signing_key);
+        bump_persistent(&env, &key);
+        bump_instance(&env);
+        events::SigningKeyAttested { anchor_id, signing_key }.publish(&env);
+        Ok(())
+    }
+
+    pub fn get_signing_key(env: Env, anchor_id: Symbol) -> Option<BytesN<32>> {
+        env.storage().persistent().get(&DataKey::SigningKey(anchor_id))
+    }
+
+    /// The exact bytes the anchor's SIGNING_KEY must sign so that
+    /// claim_anchor hands its record to `operator`. Read it with a
+    /// simulated call and sign it off-chain; it changes after every claim.
+    pub fn claim_message(env: Env, anchor_id: Symbol, operator: Address) -> Bytes {
+        claim_message_bytes(&env, &anchor_id, &operator)
+    }
+
+    /// Hands an anchor's record to `operator`, on the anchor's own word: an
+    /// ed25519 signature of claim_message by the SIGNING_KEY a quorum of
+    /// reporters attested. `operator` signs the transaction too. A
+    /// signature for another network, registry, anchor, operator or an
+    /// earlier claim does not verify. Refused while the record holds a
+    /// stake, which the current operator must withdraw first.
+    pub fn claim_anchor(env: Env, anchor_id: Symbol, operator: Address, signature: BytesN<64>) -> Result<(), Error> {
+        operator.require_auth();
+        let key = DataKey::Anchor(anchor_id.clone());
+        let mut info = require_anchor(&env, &anchor_id)?;
+        if is_deactivated(&env, &anchor_id) {
+            return Err(Error::AnchorDeactivated);
+        }
+        let signing_key: BytesN<32> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::SigningKey(anchor_id.clone()))
+            .ok_or(Error::NoSigningKey)?;
+        if info.stake != 0 {
+            return Err(Error::StakeNotZero);
+        }
+        if env.storage().persistent().has(&DataKey::WithdrawalRequest(anchor_id.clone())) {
+            return Err(Error::WithdrawalPending);
+        }
+        // Traps unless the signature verifies: the whole call fails.
+        env.crypto()
+            .ed25519_verify(&signing_key, &claim_message_bytes(&env, &anchor_id, &operator), &signature);
+
+        let nonce_key = DataKey::ClaimNonce(anchor_id.clone());
+        let nonce: u64 = env.storage().persistent().get(&nonce_key).unwrap_or(0);
+        env.storage().persistent().set(&nonce_key, &(nonce + 1));
+        bump_persistent(&env, &nonce_key);
+
+        let previous_operator = info.operator.clone();
+        info.operator = operator.clone();
+        env.storage().persistent().set(&key, &info);
+        bump_persistent(&env, &key);
+        let claim_key = DataKey::Claim(anchor_id.clone());
+        env.storage().persistent().set(
+            &claim_key,
+            &ClaimInfo { operator: operator.clone(), signing_key: signing_key.clone(), claimed_at: env.ledger().timestamp() },
+        );
+        bump_persistent(&env, &claim_key);
+        bump_instance(&env);
+        events::AnchorClaimed { anchor_id, previous_operator, operator, signing_key }.publish(&env);
+        Ok(())
+    }
+
+    /// Who claimed the anchor, if anyone has: the operator its own
+    /// SIGNING_KEY named.
+    pub fn get_claim(env: Env, anchor_id: Symbol) -> Option<ClaimInfo> {
+        env.storage().persistent().get(&DataKey::Claim(anchor_id))
     }
 
     pub fn get_anchor_info(env: Env, anchor_id: Symbol) -> Result<AnchorInfo, Error> {

@@ -37,6 +37,67 @@ pub enum DataKey {
     Round(Symbol),
     /// anchor_id -> QuorumInfo behind the current card (persistent).
     Quorum(Symbol),
+    // Operator claims and disputes (SOW deliverable 3).
+    /// anchor_id -> the reporters' SIGNING_KEY attestations so far
+    /// (temporary, like a round).
+    Attestations(Symbol),
+    /// anchor_id -> its latest Dispute (persistent).
+    Dispute(Symbol),
+    /// anchor_id -> no new dispute before this timestamp (persistent).
+    DisputeCooldown(Symbol),
+    /// DisputeConfig (instance); absent = the defaults.
+    DisputeCfg,
+}
+
+/// One reporter's reading of an anchor's stellar.toml SIGNING_KEY.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct Attestation {
+    pub reporter: Address,
+    pub signing_key: BytesN<32>,
+}
+
+#[contracttype]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DisputeStatus {
+    /// Waiting for the reporters' votes; the card carries FLAG_DISPUTED.
+    Open,
+    /// Enough reporters agreed: the card's score is withheld.
+    Upheld,
+    /// Enough reporters disagreed: the card stands; a cooldown follows.
+    Rejected,
+    /// A newer card was final before a decision.
+    Superseded,
+}
+
+/// An operator's objection to its anchor's current card.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct Dispute {
+    pub operator: Address,
+    /// The card disputed: the window it covers.
+    pub window_end: u64,
+    pub opened_at: u64,
+    /// The operator's reason, as a code its evidence explains.
+    pub reason_code: u32,
+    /// SHA-256 of the operator's published evidence.
+    pub evidence_hash: BytesN<32>,
+    pub status: DisputeStatus,
+    pub uphold: Vec<Address>,
+    pub reject: Vec<Address>,
+    /// When it stopped being Open; 0 while open.
+    pub resolved_at: u64,
+}
+
+/// Spam protection for disputes. The stake is only checked, never moved.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct DisputeConfig {
+    /// Stake the anchor's record must hold to open a dispute, in the stake
+    /// token's smallest unit.
+    pub min_stake: i128,
+    /// After a rejected dispute, no new one for this long.
+    pub cooldown_seconds: u64,
 }
 
 /// How many authorized reporters must agree before a score card counts.
@@ -282,4 +343,49 @@ pub struct ReporterOutlierEvent {
     pub reporter: Address,
     pub score: u32,
     pub median: u32,
+}
+
+/// A reporter's reading of an anchor's SIGNING_KEY was recorded.
+#[contractevent(topics = ["signing_key_attestation"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct SigningKeyAttestationEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub reporter: Address,
+    pub signing_key: BytesN<32>,
+    /// Reporters that read this same key so far, and how many make it final.
+    pub agreeing: u32,
+    pub threshold: u32,
+}
+
+#[contractevent(topics = ["dispute_opened"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisputeOpenedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub operator: Address,
+    pub window_end: u64,
+    pub reason_code: u32,
+    pub evidence_hash: BytesN<32>,
+}
+
+#[contractevent(topics = ["dispute_voted"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisputeVotedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    #[topic]
+    pub reporter: Address,
+    pub uphold: bool,
+    pub uphold_votes: u32,
+    pub reject_votes: u32,
+}
+
+#[contractevent(topics = ["dispute_resolved"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisputeResolvedEvent {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub status: DisputeStatus,
+    pub window_end: u64,
 }

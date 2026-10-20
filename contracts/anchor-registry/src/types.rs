@@ -105,4 +105,36 @@ pub enum DataKey {
     PendingDelay,
     /// The proposed upgrade, if any (instance).
     PendingUpgrade,
+    /// The anchor's SEP-1 SIGNING_KEY, as a quorum of reporters attested it
+    /// through PerformanceOracle (persistent).
+    SigningKey(Symbol),
+    /// Claims accepted so far for the anchor; part of the signed message,
+    /// so a signature works once (persistent, kept after a removal).
+    ClaimNonce(Symbol),
+    /// Who claimed the anchor, with which key, when (persistent).
+    Claim(Symbol),
+}
+
+/// An accepted claim: the anchor's own SIGNING_KEY handed its record to
+/// `operator`.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct ClaimInfo {
+    pub operator: Address,
+    pub signing_key: BytesN<32>,
+    pub claimed_at: u64,
+}
+
+/// What an anchor signs to claim its record. Its XDR is the message: it
+/// names the network, this registry, the anchor, the new operator and the
+/// claim count, so a signature is good for exactly one claim.
+#[derive(Clone, Debug, PartialEq)]
+#[contracttype]
+pub struct ClaimMessage {
+    pub domain: Symbol,
+    pub network_id: BytesN<32>,
+    pub registry: Address,
+    pub anchor_id: Symbol,
+    pub operator: Address,
+    pub nonce: u64,
 }

@@ -40,4 +40,7 @@ pub enum Error {
     TimelockActive = 21,
     /// An upgrade delay over MAX_UPGRADE_DELAY_SECONDS.
     DelayTooLong = 22,
+    /// claim_anchor before a quorum of reporters attested the anchor's
+    /// SIGNING_KEY.
+    NoSigningKey = 23,
 }

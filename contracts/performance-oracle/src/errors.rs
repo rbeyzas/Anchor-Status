@@ -32,8 +32,11 @@ pub enum Error {
     InvalidQuorumConfig = 15,
     /// revoke_reporter for an address that is not a reporter.
     ReporterNotFound = 16,
-    // 17 is free. 18-22 carry the same numbers as in AnchorRegistry, so #21
-    // is TimelockActive in both contracts.
+    /// open_dispute by anyone but the operator the anchor's own
+    /// SIGNING_KEY named (AnchorRegistry.claim_anchor).
+    NotTheClaimedOperator = 17,
+    // 18-22 carry the same numbers as in AnchorRegistry, so #21 is
+    // TimelockActive in both contracts.
     /// accept_admin with no admin proposed.
     NoPendingAdmin = 18,
     /// propose_upgrade while another one is pending: cancel it first.
@@ -44,4 +47,18 @@ pub enum Error {
     TimelockActive = 21,
     /// An upgrade delay over MAX_UPGRADE_DELAY_SECONDS.
     DelayTooLong = 22,
+    /// The anchor's current card is already disputed.
+    DisputeAlreadyOpen = 23,
+    /// A dispute was rejected recently; wait for the cooldown.
+    DisputeCoolingDown = 24,
+    /// The anchor's record holds less stake than DisputeConfig.min_stake.
+    StakeTooLow = 25,
+    /// The window named is not the anchor's current card.
+    NotTheCurrentCard = 26,
+    /// vote_dispute with no open dispute.
+    NoOpenDispute = 27,
+    /// The reporter already voted on this dispute.
+    AlreadyVoted = 28,
+    /// A negative min_stake, or a cooldown over MAX_UPGRADE_DELAY_SECONDS.
+    InvalidDisputeConfig = 29,
 }

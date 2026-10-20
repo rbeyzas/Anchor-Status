@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "calibrate": "tsx src/scoring/calibrate.ts",
-    "shadow": "tsx src/scoring/shadow.ts"
+    "shadow": "tsx src/scoring/shadow.ts",
+    "d3": "tsx src/d3.ts"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^17.0.1",

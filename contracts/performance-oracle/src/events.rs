@@ -81,3 +81,10 @@ pub struct QuorumConfigSet {
     /// threshold.
     pub effective_at: u64,
 }
+
+#[contractevent(topics = ["dispute_config_set"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DisputeConfigSet {
+    pub min_stake: i128,
+    pub cooldown_seconds: u64,
+}

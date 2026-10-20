@@ -137,3 +137,21 @@ pub struct UpgradeExecuted {
 pub struct UpgradeCancelled {
     pub wasm_hash: BytesN<32>,
 }
+
+#[contractevent(topics = ["signing_key_attested"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct SigningKeyAttested {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub signing_key: BytesN<32>,
+}
+
+#[contractevent(topics = ["anchor_claimed"])]
+#[derive(Clone, Debug, PartialEq)]
+pub struct AnchorClaimed {
+    #[topic]
+    pub anchor_id: Symbol,
+    pub previous_operator: Address,
+    pub operator: Address,
+    pub signing_key: BytesN<32>,
+}

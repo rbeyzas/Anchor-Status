@@ -7,6 +7,63 @@ Contracts (testnet):
 - AnchorRegistry `CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB`
 - PerformanceOracle `CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU`
 
+## Week 3 (2–8 Nov)
+
+### 3.1–3.2 Operator claims and disputes (D3) — 20 Oct
+- `contracts/anchor-registry`: `set_signing_key` (PerformanceOracle only),
+  `get_signing_key`, `claim_message`, `claim_anchor`, `get_claim`. The
+  claim message is the XDR of a `ClaimMessage` naming the network id, this
+  registry, the anchor, the new operator and a per-anchor nonce, so a
+  signature works for exactly one claim; `claim_anchor` checks it with
+  `ed25519_verify` against the attested SIGNING_KEY and refuses while the
+  record holds a stake. Events `signing_key_attested`, `anchor_claimed`;
+  error `NoSigningKey` (#23). Tests: 38 + the upgrade test (8 new).
+- `contracts/performance-oracle`: `attest_signing_key` (a reporter's reading
+  of the anchor's stellar.toml; the scores' quorum makes it final and sends
+  it to the registry), `open_dispute` (only the claimed operator, one per
+  card, `min_stake` checked and never moved, cooldown after a rejection),
+  `vote_dispute` (the scores' threshold upholds or rejects), `get_dispute`,
+  `set_dispute_config` / `get_dispute_config` (default 10 XLM, 7 days).
+  `get_verdict` sets `FLAG_DISPUTED` (bit 17, 131072) while a dispute is
+  open or upheld; upheld withholds the score (0, also in the registry); a
+  newer final card supersedes an open dispute. Events
+  `signing_key_attestation`, `dispute_opened`, `dispute_voted`,
+  `dispute_resolved`, `dispute_config_set`; errors #17, #23–#29. Tests: 87
+  (10 new).
+- `services/aggregator/src/d3.ts`: `npm run d3 -- attest | claim |
+  dispute-open | dispute-vote | show`. `attest` reads the anchor's
+  stellar.toml itself on the reporter's own server.
+- Wasm: registry `e62e6e25…085a`, oracle `42a8d332…fa88`.
+- Rehearsal on fresh IDs, `scripts/rehearse-d3.sh` (registry
+  [`CBHPRX6T…7PJK`](https://stellar.expert/explorer/testnet/contract/CBHPRX6TS2VF5XZ5LWLEMO4CFYILZYZWUJH4LDLOYYDTNJ2IKW6A7PJK),
+  oracle
+  [`CDAP43LL…PJK27`](https://stellar.expert/explorer/testnet/contract/CDAP43LLXFODAODDQY4XND2BWJTOQ3TPPVYRLDRDQURQYH5CI6OPJK27),
+  both deployed with the live code and upgraded the live way):
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| Registry and oracle upgraded to the D3 wasm | propose/execute each | [`8fc65e59`](https://stellar.expert/explorer/testnet/tx/8fc65e599ffa27dbc8121d366f25b22ced887c0d8033aaa7e2ef3475959655b3), [`883c0d26`](https://stellar.expert/explorer/testnet/tx/883c0d2696ca9415e6386bd795b312d0833ae54ca8fd2a72cd2c9de3f3a852cc), [`90c715ce`](https://stellar.expert/explorer/testnet/tx/90c715ce9c3153acb0d2322759740abc7067af66157bf522d9c5adc6950ba39f), [`3e97e489`](https://stellar.expert/explorer/testnet/tx/3e97e4897a84f366825b164a20d76ec1dd8ce2332370b85fac1f117f35a6662d) |
+| Two reporters read ref1.monarank.xyz's stellar.toml (`npm run d3 -- attest`) | `GBA7U6K6…JXAB` in the registry after the second | [`9189618f`](https://stellar.expert/explorer/testnet/tx/9189618fccd45d594216320c1497c38e3ef82adc0fa248269ab690c0905793ca), [`02a98e0f`](https://stellar.expert/explorer/testnet/tx/02a98e0f40eb93e55e3dcec2283b6d7277982772e0863be214cf0396d0f1d3ee) |
+| Test anchor claimed with a wrong key | refused: `Error(Crypto, InvalidInput)` from `ed25519_verify` | |
+| Claimed with its SIGNING_KEY (`npm run d3 -- claim`) | operator `GBUDCR2W…LHXM3` | [`08e6aa95`](https://stellar.expert/explorer/testnet/tx/08e6aa9566539beaad1d5e9107f344b7c2a66a175ccdd7d14a4a6eabaa97aea5) |
+| A stranger opens a dispute | refused: #17 `NotTheClaimedOperator` | |
+| Dispute opened | verdict flags 131072, not withheld | [`e4b2d271`](https://stellar.expert/explorer/testnet/tx/e4b2d271f1947f8862794c00c39f1602eaa89eeae36fbb9f09958f134d37bceb) |
+| Two uphold votes | Upheld: verdict score 0, withheld, flags 131072; registry score 0 | [`b28b4f4d`](https://stellar.expert/explorer/testnet/tx/b28b4f4da9c617e50a56e6ba39c5eb18353a2b3b5551cbe01b6984c1adc267e4), [`239e6bd4`](https://stellar.expert/explorer/testnet/tx/239e6bd44b93f971fe8c2f89a2a1f3c961f5e8758aac87e90b6f85cba60ad04a) |
+| Next card disputed, two reject votes | Rejected | [`e3705f0a`](https://stellar.expert/explorer/testnet/tx/e3705f0a841f597366aec42eaf91ef687ed65275211da64d4833c7c05b67a148), [`918b60bc`](https://stellar.expert/explorer/testnet/tx/918b60bcba390408cd9fd492fdd3d4b7d9c6a55f21ad29cb7472be66f8f7f394), [`c5e3d633`](https://stellar.expert/explorer/testnet/tx/c5e3d6331fb39c9240e4d350aeb0e2072cc7c42b52e6a496153d72bd41ff8f03) |
+| A dispute inside the cooldown | refused: #24 `DisputeCoolingDown` | |
+| Dispute opened after the cooldown, then a newer card | Superseded; verdict score 76, no flag | [`2cdc2044`](https://stellar.expert/explorer/testnet/tx/2cdc20441a64228228a62aa1c617ee2741ea7597f62551fa34540f4bfc7d5793), [`b1fc43e2`](https://stellar.expert/explorer/testnet/tx/b1fc43e2c8187ce564a5c1601676cf587adc316c4b7a64712e0f1e2e23fafe79), [`d8a29dcb`](https://stellar.expert/explorer/testnet/tx/d8a29dcbd27b548984c96a952a9cea7dea83c2f0898ef1d33eb5e5b1affd092c) |
+
+### 3.6 The 24-hour time lock, live (D2) — 20–21 Oct
+- Both live contracts were told about the D3 code a day ahead; the wasm
+  uploaded from a local build hashed exactly as rehearsed.
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| Registry `propose_upgrade(e62e6e25…)` | executable from 2026-10-21 13:16:02 UTC | [`dc1af239`](https://stellar.expert/explorer/testnet/tx/dc1af23956e7c9d8babcbe829c13721c1ea5be6075bdb3938df2f48b3584f34a) |
+| Oracle `propose_upgrade(42a8d332…)` | executable from 2026-10-21 13:16:07 UTC | [`7edca4ee`](https://stellar.expert/explorer/testnet/tx/7edca4ee71f405f7d54f0b7ff54cb7c16871c4d93a4a4a3ac726de5bf860aa21) |
+| `execute_upgrade` at once, both contracts | refused in simulation, nothing sent: `HostError: Error(Contract, #21)` = `TimelockActive` | |
+| `execute_upgrade` after 24 hours | (21 Oct, registry first, then the oracle) | |
+
 ## Week 2 (26 Oct–1 Nov)
 
 ### Reproducible contract builds (D2) — 18 Oct
@@ -138,6 +195,46 @@ Contracts (testnet):
   default (threshold 1), so the collector's cards stay final at once until
   the aggregator publishes on round boundaries (2.4) and B's keys are in
   (2.7).
+
+### 2.4 Aggregator on round windows (D1) — 18 Oct
+- `services/aggregator`: a card's window ends on the oracle's round
+  boundary, read from `get_quorum_config` (hourly while it has none), so
+  every reporter scores the same window; with a threshold over 1 every
+  anchor is sent once per round; `AGGREGATOR_CARDS_ONLY=true` (server B)
+  sends no single reports; "round already final", "already submitted",
+  "not registered" and "deactivated" (#8, #12, #9, #10) are logged, not
+  counted as failures. Tests: `npm test` (91). Deployed to both servers;
+  the first round on A: 28 reports, 0 failed, `quorum 1, no rounds`.
+
+### 2.7 Second reporter, key rotation, shadow mode (D1) — 18–20 Oct
+- Shadow mode since 18 Oct: both servers compute every card each round and
+  keep it in `/var/lib/anchor-status/shadow-cards.jsonl` without sending it
+  (with a threshold of 1, B's cards would race A's on-chain).
+  `npm run shadow -- compare a.jsonl b.jsonl` measures the score gap per
+  anchor and window; it sets `max_spread` before the quorum goes on. B's
+  file is public: http://95.169.201.61/shadow-cards.jsonl.
+- Server B's own reporter keys, generated on B and never copied off it,
+  authorized for each source type; B runs `AGGREGATOR_CARDS_ONLY=true` and
+  stays `SECONDARY_PUBLISH=false` until the quorum is on. B serves its
+  evidence at http://95.169.201.61/evidence/ (`scripts/nginx/secondary.conf`).
+- Server A's reporter keys rotated: new keys generated on A and authorized,
+  swapped into A's `.env` under the collector lock, one round checked (18
+  reports, all signed by the new keys per Horizon, none by the old ones
+  since the swap), then the old keys and the retired mock reporter revoked.
+  `get_reporters` now lists exactly A's and B's key for each network.
+- `stellar.toml` lists every account in `ACCOUNTS` and each reporter server
+  with its keys and evidence URL in `MONA_REPORTERS`.
+
+| Step | Transaction |
+| --- | --- |
+| B mainnet reporter `GC3ODFHC…2OX5` authorized | [`1a869492`](https://stellar.expert/explorer/testnet/tx/1a86949228d3e02754e58a826525e890975ddd7d0d0472c5c2f325be7fc6e15d) |
+| B testnet reporter `GBN2RFNK…J2RB` authorized | [`1c4753a0`](https://stellar.expert/explorer/testnet/tx/1c4753a0bed7b3829a61b8701a3de7f1677b28ba5cf667a4aa6d434a5f83ade7) |
+| A's new mainnet reporter `GDLWUVYW…X54H` authorized | [`7745167e`](https://stellar.expert/explorer/testnet/tx/7745167e4fdffe61b0f3a90278ee6f2fa482e5b0e336c7dff7b396876bfa74b4) |
+| A's new testnet reporter `GBWXKNZB…MHPQG` authorized | [`17ab3f24`](https://stellar.expert/explorer/testnet/tx/17ab3f24018a212507e543de1aab0737793a42dd1a5ac34f92410068a6cf4de3) |
+| A's old mainnet reporter `GCFY6PRM…LTAJ` revoked | [`17c2a5cb`](https://stellar.expert/explorer/testnet/tx/17c2a5cba4ae63a8fe26f135b1429b96ca0c8eec77d4ff030dd3b7ad2398e8cc) |
+| A's old testnet reporter `GA4F2BIC…YWCC` revoked | [`fcdd690d`](https://stellar.expert/explorer/testnet/tx/fcdd690debf18a9a3ac7e57fc234e5220282102b111d069824e073ce86cfabb4) |
+| Retired mock reporter `GDK2XJTC…S7JE` revoked | [`ef1ef5e5`](https://stellar.expert/explorer/testnet/tx/ef1ef5e589c48ee70b86943e2950d46aa908ad9b986d951ae0e770d9b97218b1) |
+| Oracle `set_upgrade_delay(86400)`: oracle upgrades and a lower quorum threshold now wait 24 hours | [`33ef5791`](https://stellar.expert/explorer/testnet/tx/33ef579191ae9e8b7a395da31c7d45d89c15512663fabee96ccc80ffcc0d358a) |
 
 ## Week 1 (19–25 Oct)
 

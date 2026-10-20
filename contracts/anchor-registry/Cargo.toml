@@ -24,6 +24,9 @@ soroban-sdk = "27.0.6"
 
 [dev-dependencies]
 soroban-sdk = { version = "27.0.6", features = ["testutils"] }
+# Real ed25519 signatures for the claim tests (already in the lock file
+# through soroban-sdk; never part of the wasm).
+ed25519-dalek = "2"
 
 [profile.release]
 opt-level = "z"

@@ -1164,3 +1164,174 @@ fn lower_median_and_majority_are_what_they_say() {
     assert_eq!(majority_flags(&[0b1, 0b1, 0b0]), 0b1);
     assert_eq!(majority_flags(&[0b1, 0b0]), 0, "a tie is not a majority");
 }
+
+// ---- Signing-key attestation and disputes (SOW deliverable 3) ----
+
+use ed25519_dalek::{Signer, SigningKey};
+use types::{DisputeConfig, DisputeStatus};
+
+const STAKE: i128 = DEFAULT_DISPUTE_MIN_STAKE;
+
+/// Reporters, an anchor whose SIGNING_KEY they attested, claimed by an
+/// operator who staked the minimum, and a final card (window 7_200).
+fn disputable(h: &Harness, reporters: u32, threshold: u32) -> (std::vec::Vec<Address>, Symbol, Address) {
+    let (r, id) = quorum_setup(h, reporters, threshold, 100);
+    let key = SigningKey::from_bytes(&[5; 32]);
+    let public = BytesN::from_array(&h.env, &key.verifying_key().to_bytes());
+    for reporter in r.iter().take(threshold as usize) {
+        h.oracle.attest_signing_key(reporter, &id, &public);
+    }
+    let operator = Address::generate(&h.env);
+    let message = h.registry.claim_message(&id, &operator);
+    let mut buf = std::vec![0u8; message.len() as usize];
+    message.copy_into_slice(&mut buf);
+    h.registry.claim_anchor(&id, &operator, &BytesN::from_array(&h.env, &key.sign(&buf).to_bytes()));
+    token::StellarAssetClient::new(&h.env, &h.token_address).mint(&operator, &STAKE);
+    h.registry.stake(&id, &STAKE);
+    for reporter in r.iter().take(threshold as usize) {
+        h.oracle.publish_score_card(reporter, &id, &scored(&h.env, 70, 7_200, 1));
+    }
+    (r, id, operator)
+}
+
+fn evidence(env: &Env) -> BytesN<32> {
+    BytesN::from_array(env, &[4; 32])
+}
+
+#[test]
+fn a_signing_key_reaches_the_registry_once_enough_reporters_read_it() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id) = quorum_setup(&h, 3, 2, 10);
+    let key = BytesN::from_array(&env, &[1; 32]);
+    let other = BytesN::from_array(&env, &[2; 32]);
+    assert_eq!(h.oracle.attest_signing_key(&r[0], &id, &key), 1);
+    assert_eq!(h.oracle.attest_signing_key(&r[1], &id, &other), 1, "a different key does not count");
+    assert_eq!(h.registry.get_signing_key(&id), None);
+    assert_eq!(h.oracle.attest_signing_key(&r[2], &id, &key), 2);
+    assert_eq!(h.registry.get_signing_key(&id), Some(key));
+}
+
+#[test]
+fn only_a_reporter_for_the_anchors_type_attests_its_key() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_r, id) = quorum_setup(&h, 1, 1, 10);
+    let testnet = Address::generate(&env);
+    h.oracle.authorize_reporter(&testnet, &SourceType::RealTestnet);
+    let key = BytesN::from_array(&env, &[1; 32]);
+    assert_eq!(h.oracle.try_attest_signing_key(&testnet, &id, &key), Err(Ok(Error::ReporterWrongSourceType)));
+    assert_eq!(h.oracle.try_attest_signing_key(&Address::generate(&env), &id, &key), Err(Ok(Error::NotAuthorizedReporter)));
+}
+
+#[test]
+fn only_the_claimed_operator_opens_a_dispute() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_r, id, _operator) = disputable(&h, 2, 2);
+    let stranger = Address::generate(&env);
+    assert_eq!(h.oracle.try_open_dispute(&stranger, &id, &7_200, &1, &evidence(&env)), Err(Ok(Error::NotTheClaimedOperator)));
+
+    // An anchor nobody claimed: its registering key is not its operator.
+    let unclaimed = Symbol::new(&env, "anchor_2");
+    let registrant = register_and_stake(&h, &unclaimed, STAKE);
+    assert_eq!(h.oracle.try_open_dispute(&registrant, &unclaimed, &7_200, &1, &evidence(&env)), Err(Ok(Error::NotTheClaimedOperator)));
+}
+
+#[test]
+fn a_dispute_needs_the_minimum_stake() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_r, id, operator) = disputable(&h, 2, 2);
+    h.oracle.set_dispute_config(&DisputeConfig { min_stake: STAKE + 1, cooldown_seconds: 60 });
+    assert_eq!(h.oracle.try_open_dispute(&operator, &id, &7_200, &1, &evidence(&env)), Err(Ok(Error::StakeTooLow)));
+    assert_eq!(h.registry.get_anchor_info(&id).stake, STAKE, "the stake is checked, never moved");
+}
+
+#[test]
+fn a_dispute_names_the_current_card() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_r, id, operator) = disputable(&h, 2, 2);
+    assert_eq!(h.oracle.try_open_dispute(&operator, &id, &3_600, &1, &evidence(&env)), Err(Ok(Error::NotTheCurrentCard)));
+}
+
+#[test]
+fn an_upheld_dispute_withholds_the_score() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id, operator) = disputable(&h, 2, 2);
+    h.oracle.open_dispute(&operator, &id, &7_200, &3, &evidence(&env));
+    let v = h.oracle.get_verdict(&id);
+    assert_ne!(v.flags & FLAG_DISPUTED, 0);
+    assert!(!v.withheld, "open: flagged, not yet withheld");
+    assert_eq!(h.oracle.try_open_dispute(&operator, &id, &7_200, &3, &evidence(&env)), Err(Ok(Error::DisputeAlreadyOpen)));
+
+    assert_eq!(h.oracle.vote_dispute(&r[0], &id, &true), DisputeStatus::Open);
+    assert_eq!(h.oracle.try_vote_dispute(&r[0], &id, &true), Err(Ok(Error::AlreadyVoted)));
+    assert_eq!(h.oracle.vote_dispute(&r[1], &id, &true), DisputeStatus::Upheld);
+    assert_eq!(events_named(&env, "dispute_resolved"), 1);
+
+    let v = h.oracle.get_verdict(&id);
+    assert!(v.withheld);
+    assert_eq!(v.score, 0);
+    assert_eq!(v.card_score, Some(70), "the card itself is kept");
+    assert_ne!(v.flags & FLAG_DISPUTED, 0);
+    assert_eq!(h.registry.get_anchor_info(&id).score, 0);
+}
+
+#[test]
+fn a_rejected_dispute_leaves_the_card_and_starts_the_cooldown() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id, operator) = disputable(&h, 2, 2);
+    h.oracle.set_dispute_config(&DisputeConfig { min_stake: STAKE, cooldown_seconds: 3_600 });
+    h.oracle.open_dispute(&operator, &id, &7_200, &3, &evidence(&env));
+    h.oracle.vote_dispute(&r[0], &id, &false);
+    assert_eq!(h.oracle.vote_dispute(&r[1], &id, &false), DisputeStatus::Rejected);
+    let v = h.oracle.get_verdict(&id);
+    assert_eq!((v.score, v.flags & FLAG_DISPUTED, v.withheld), (70, 0, false));
+    assert_eq!(h.oracle.try_vote_dispute(&r[0], &id, &true), Err(Ok(Error::NoOpenDispute)));
+
+    // A newer card, disputed during the cooldown and after it.
+    for reporter in r.iter() {
+        h.oracle.publish_score_card(reporter, &id, &scored(&env, 60, 10_800, 2));
+    }
+    assert_eq!(h.oracle.try_open_dispute(&operator, &id, &10_800, &3, &evidence(&env)), Err(Ok(Error::DisputeCoolingDown)));
+    at(&env, NOW + 3_600);
+    h.oracle.open_dispute(&operator, &id, &10_800, &3, &evidence(&env));
+}
+
+#[test]
+fn a_newer_card_supersedes_an_open_dispute() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (r, id, operator) = disputable(&h, 2, 2);
+    h.oracle.open_dispute(&operator, &id, &7_200, &3, &evidence(&env));
+    for reporter in r.iter() {
+        h.oracle.publish_score_card(reporter, &id, &scored(&env, 80, 10_800, 2));
+    }
+    assert_eq!(h.oracle.get_dispute(&id).unwrap().status, DisputeStatus::Superseded);
+    let v = h.oracle.get_verdict(&id);
+    assert_eq!((v.score, v.flags & FLAG_DISPUTED), (80, 0));
+}
+
+#[test]
+fn only_reporters_for_the_anchor_vote() {
+    let env = Env::default();
+    let h = setup(&env);
+    let (_r, id, operator) = disputable(&h, 2, 2);
+    h.oracle.open_dispute(&operator, &id, &7_200, &3, &evidence(&env));
+    assert_eq!(h.oracle.try_vote_dispute(&operator, &id, &true), Err(Ok(Error::NotAuthorizedReporter)));
+}
+
+#[test]
+fn the_dispute_config_is_the_admins_and_must_make_sense() {
+    let env = Env::default();
+    let h = setup(&env);
+    assert_eq!(h.oracle.get_dispute_config().min_stake, DEFAULT_DISPUTE_MIN_STAKE);
+    let bad = DisputeConfig { min_stake: -1, cooldown_seconds: 60 };
+    assert_eq!(h.oracle.try_set_dispute_config(&bad), Err(Ok(Error::InvalidDisputeConfig)));
+    env.set_auths(&[]);
+    assert!(h.oracle.try_set_dispute_config(&DisputeConfig { min_stake: 0, cooldown_seconds: 60 }).is_err());
+}
