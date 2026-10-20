@@ -1,0 +1,29 @@
+# cargo-fuzz targets for PerformanceOracle (SOW deliverable 1). Run from
+# contracts/performance-oracle:
+#   cargo +nightly fuzz run publish_sequence -- -max_total_time=3600
+[package]
+name = "performance-oracle-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+soroban-sdk = { version = "27.0.6", features = ["testutils"] }
+performance-oracle = { path = ".." }
+anchor-registry = { path = "../../anchor-registry" }
+
+[[bin]]
+name = "publish_sequence"
+path = "fuzz_targets/publish_sequence.rs"
+test = false
+doc = false
+bench = false
+
+# Not part of any parent workspace.
+[workspace]
+members = ["."]

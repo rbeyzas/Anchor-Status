@@ -8,6 +8,8 @@ mod client;
 mod types;
 
 #[cfg(test)]
+mod proptests;
+#[cfg(test)]
 mod test;
 
 pub use errors::Error;

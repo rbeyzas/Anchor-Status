@@ -7,18 +7,20 @@ mod scoring;
 mod types;
 
 #[cfg(test)]
+mod proptests;
+#[cfg(test)]
 mod test;
 
 use anchor_registry::{AnchorInfo, AnchorRegistryClient, AnchorState, PendingDelay, PendingUpgrade, SourceType};
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Symbol, Vec};
 pub use quorum::{FLAG_REPORTER_DISAGREEMENT, MAX_REPORTERS};
+pub use types::{Dispute, DisputeConfig, DisputeStatus, QuorumConfig, QuorumInfo, ScoreCard, ScoreCardInput, Verdict};
 use types::{
-    AnchorHealth, Attestation, DataKey, Dispute, DisputeConfig, DisputeOpenedEvent, DisputeResolvedEvent,
-    DisputeStatus, DisputeVotedEvent, PendingQuorumConfig, PendingRound, QuorumConfig, QuorumInfo,
-    QuorumReachedEvent, ReportSubmittedEvent, ReporterOutlierEvent, RiskStatusChangedEvent, ScoreCard,
-    ScoreCardInput, ScoreCardPublishedEvent, ScoreCardSubmittedEvent, SigningKeyAttestationEvent, Submission,
-    Verdict,
+    AnchorHealth, Attestation, DataKey, DisputeOpenedEvent, DisputeResolvedEvent, DisputeVotedEvent,
+    PendingQuorumConfig, PendingRound, QuorumReachedEvent, ReportSubmittedEvent, ReporterOutlierEvent,
+    RiskStatusChangedEvent, ScoreCardPublishedEvent, ScoreCardSubmittedEvent, SigningKeyAttestationEvent,
+    Submission,
 };
 
 /// Reports timestamped further than this many seconds in the future

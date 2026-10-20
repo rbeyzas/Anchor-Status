@@ -1,4 +1,10 @@
 // npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>] [--testnet-log <file>]
+// npm run verify-score -- --quorum <anchor id>
+//
+// With --quorum, rebuilds the anchor's on-chain card from every reporter's
+// own bundle: each fetched from that reporter's evidence URL (MonaRank's
+// stellar.toml, [[MONA_REPORTERS]]), hashed, recomputed, and then combined
+// the way the oracle combines them (quorum-verify.ts).
 //
 // Checks that a score-inputs bundle hashes to its name, recomputes the card
 // from it, and optionally compares that card with the one on-chain and the
@@ -6,12 +12,13 @@
 // and trusts nothing but the bundle and the chain.
 import fs from 'node:fs';
 import path from 'node:path';
-import { Address, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { Address, contract, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { SCORE_INPUTS_SCHEMA, sha256Hex } from '../evidence.js';
 import { computeCard, flagNames } from './engine.js';
 import { applyIncidents } from './incidents.js';
 import { dayDigest, type ProbeLine } from './inputs.js';
 import { readTestnetProbeLines } from './load.js';
+import { checkQuorum, evidenceUrlsFromToml, type QuorumInfo } from './quorum-verify.js';
 import type { ScoreCard, ScoreInputs } from './types.js';
 
 const DEFAULT_EVIDENCE_URL = process.env.EVIDENCE_BASE_URL ?? 'http://37.221.76.23/evidence/';
@@ -72,6 +79,59 @@ export async function onChainCard(rpcUrl: string, oracleId: string, anchorId: st
   };
 }
 
+/** The QuorumInfo behind the anchor's card, read straight from the ledger. */
+export async function onChainQuorum(rpcUrl: string, oracleId: string, anchorId: string): Promise<QuorumInfo | null> {
+  const key = xdr.LedgerKey.contractData(
+    new xdr.LedgerKeyContractData({
+      contract: new Address(oracleId).toScAddress(),
+      key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('Quorum'), xdr.ScVal.scvSymbol(anchorId)]),
+      durability: xdr.ContractDataDurability.persistent,
+    }),
+  );
+  const { entries } = await new rpc.Server(rpcUrl).getLedgerEntries(key);
+  if (entries.length === 0 || entries[0].val.type !== 'contractData') return null;
+  const raw = scValToNative(entries[0].val.contractData.val) as Record<string, unknown>;
+  return {
+    window_end: Number(raw.window_end),
+    reporters: (raw.reporters as string[]).map(String),
+    scores: (raw.scores as number[]).map(Number),
+    inputs_hashes: (raw.inputs_hashes as Uint8Array[]).map((h) => Buffer.from(h).toString('hex')),
+    spread: Number(raw.spread),
+    outliers: (raw.outliers as string[]).map(String),
+  };
+}
+
+async function verifyQuorum(anchorId: string): Promise<boolean> {
+  const { config } = await import('../config.js');
+  const oracleId = config.performanceOracleContractId();
+  const info = await onChainQuorum(config.rpcUrl, oracleId, anchorId);
+  const chain = await onChainCard(config.rpcUrl, oracleId, anchorId);
+  if (!info || !chain) {
+    console.log(`on-chain: ${anchorId} has no ${info ? 'card' : 'quorum record'}`);
+    return false;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const oracle: any = await contract.Client.from({ contractId: oracleId, networkPassphrase: config.networkPassphrase, rpcUrl: config.rpcUrl });
+  const maxSpread = Number((await oracle.get_quorum_config()).result.max_spread);
+  const tomlUrl = process.env.STELLAR_TOML_URL ?? 'https://monarank.xyz/.well-known/stellar.toml';
+  const urls = evidenceUrlsFromToml(await (await fetch(tomlUrl)).text());
+  console.log(`${anchorId}: card for the window ending ${new Date(info.window_end * 1000).toISOString()}, ${info.reporters.length} reporter(s), spread ${info.spread}`);
+
+  const recomputed: ScoreCard[] = [];
+  for (const [i, reporter] of info.reporters.entries()) {
+    const hash = info.inputs_hashes[i];
+    const base = urls.get(reporter) ?? DEFAULT_EVIDENCE_URL;
+    const res = await fetch(`${base}${hash}.json`);
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${base}${hash}.json (reporter ${reporter})`);
+    const { card } = recompute(await res.text(), hash);
+    recomputed.push(card);
+    console.log(`  ${reporter.slice(0, 8)}… bundle ${hash.slice(0, 12)} from ${base}: submitted ${info.scores[i]}, recomputed ${card.score} (confidence ${card.confidence})`);
+  }
+  const problems = checkQuorum(info, recomputed, chain, maxSpread);
+  console.log(problems.length ? `on-chain card DIFFERS from its bundles:\n  ${problems.join('\n  ')}` : 'on-chain card matches the median of its reporters\' bundles exactly');
+  return problems.length === 0;
+}
+
 /**
  * Recomputes the per-day digests from a copy of the probe logs. The same
  * collector incidents the scorer applied are applied here, or every card
@@ -120,6 +180,11 @@ async function main() {
     const i = args.indexOf(name);
     return i >= 0 ? args[i + 1] : undefined;
   };
+  const quorumAnchor = opt('--quorum');
+  if (quorumAnchor) {
+    if (!(await verifyQuorum(quorumAnchor))) process.exitCode = 1;
+    return;
+  }
   const ref = args.find((a, i) => !a.startsWith('--') && !['--anchor', '--logs', '--testnet-log'].includes(args[i - 1]));
   if (!ref) {
     console.error('usage: npm run verify-score -- <bundle sha256 | url | file> [--anchor <id>] [--logs <dir>] [--testnet-log <file>]');

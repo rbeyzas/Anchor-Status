@@ -101,3 +101,36 @@ describe('signingKeyFromToml', async () => {
     expect(signingKeyFromToml('VERSION = "2.0.0"\n')).toBeNull();
   });
 });
+
+describe('quorum verification', async () => {
+  const { checkQuorum, combineCards, evidenceUrlsFromToml, FLAG_REPORTER_DISAGREEMENT, lowerMedian, majorityFlags } = await import('./quorum-verify.js');
+  const c = (score: number, extra: Partial<ScoreCard> = {}): ScoreCard => ({ ...card(score, 7200), ...extra });
+
+  it('takes the lower median and majority flags, like the contract', () => {
+    expect(lowerMedian([9, 1])).toBe(1);
+    expect(lowerMedian([3, 9, 1])).toBe(3);
+    expect(majorityFlags([0b011, 0b001, 0b100])).toBe(0b001);
+    const { card: out, spread } = combineCards([c(74, { market: 90 }), c(95, { market: null })], 10);
+    expect(out.score).toBe(74);
+    expect(spread).toBe(21);
+    expect(out.market).toBeNull();
+    expect(out.flags & FLAG_REPORTER_DISAGREEMENT).not.toBe(0);
+  });
+
+  it('accepts a card rebuilt exactly from its bundles and names any difference', () => {
+    const info = { window_end: 7200, reporters: ['GA', 'GB'], scores: [74, 95], inputs_hashes: ['aa', 'bb'], spread: 21, outliers: ['GB'] };
+    const bundles = [c(74), c(95)];
+    const chain = { ...combineCards(bundles, 10).card, inputs_hash: 'aa' };
+    expect(checkQuorum(info, bundles, chain, 10)).toEqual([]);
+    expect(checkQuorum(info, [c(74), c(80)], chain, 10)).toContain('reporter GB: submitted 95, its bundle gives 80');
+    expect(checkQuorum(info, bundles, { ...chain, score: 95 }, 10).some((p) => p.startsWith('score:'))).toBe(true);
+  });
+
+  it('maps every reporter key to its server\'s evidence URL', () => {
+    const toml = `[[MONA_REPORTERS]]\nserver = "A"\nmainnet = "GDLWUVYW6ZEDFCMRLQPM4TLRLMXX6M3UQ3XE7AEALFXY5VV55WKZX54H"\ntestnet = "GBWXKNZBCZYKCMLGUBWQBBVLYTZ6OYMXVATDH6UWNRELHS2D2C5MHPQG"\nevidence = "http://a.example/evidence"\n\n[[MONA_REPORTERS]]\nserver = "B"\nmainnet = "GC3ODFHC32QZKAR3FQWSKZHH5QWN5ZDDYS5KLCH5FNDDRXRAVMMH2OX5"\nevidence = "http://b.example/evidence/"\n\n[DOCUMENTATION]\nORG_NAME = "x"\n`;
+    const urls = evidenceUrlsFromToml(toml);
+    expect(urls.get('GBWXKNZBCZYKCMLGUBWQBBVLYTZ6OYMXVATDH6UWNRELHS2D2C5MHPQG')).toBe('http://a.example/evidence/');
+    expect(urls.get('GC3ODFHC32QZKAR3FQWSKZHH5QWN5ZDDYS5KLCH5FNDDRXRAVMMH2OX5')).toBe('http://b.example/evidence/');
+    expect(urls.size).toBe(3);
+  });
+});
