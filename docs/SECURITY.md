@@ -30,16 +30,18 @@ row names where the code handles the risk and what remains.
 
 ## Testing behind this assessment
 
-- Unit tests: `cargo test` in both crates (registry 38 + the upgrade test,
-  oracle 87 at the time of writing).
+- Tests: `cargo test` in both crates (registry 39 including its property
+  test, plus the upgrade test; oracle 91 including 4 property tests, at the
+  time of writing).
 - Property tests (proptest, `src/proptests.rs`): the quorum's median, flag
   majority, spread, outliers and order independence over 10,000 random
   rounds each; the paged index over 1,000 random register/remove sequences,
   checked after every step.
 - Fuzzing (cargo-fuzz, `contracts/performance-oracle/fuzz`): random
   sequences of cards, reports and unauthorized attempts against a real
-  registry/oracle pair, checked against a model after every step. Results
-  in [`docs/instaward/EVIDENCE.md`](instaward/EVIDENCE.md).
+  registry/oracle pair, checked against a model after every step; one hour
+  on 20 Oct 2026, 606,544 sequences, no failure
+  ([`docs/instaward/EVIDENCE.md`](instaward/EVIDENCE.md)).
 - Testnet rehearsals of every upgrade on fresh contracts, and the live
   upgrades' before/after comparisons, in the same evidence log.
 

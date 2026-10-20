@@ -53,6 +53,55 @@ Contracts (testnet):
 | A dispute inside the cooldown | refused: #24 `DisputeCoolingDown` | |
 | Dispute opened after the cooldown, then a newer card | Superseded; verdict score 76, no flag | [`2cdc2044`](https://stellar.expert/explorer/testnet/tx/2cdc20441a64228228a62aa1c617ee2741ea7597f62551fa34540f4bfc7d5793), [`b1fc43e2`](https://stellar.expert/explorer/testnet/tx/b1fc43e2c8187ce564a5c1601676cf587adc316c4b7a64712e0f1e2e23fafe79), [`d8a29dcb`](https://stellar.expert/explorer/testnet/tx/d8a29dcbd27b548984c96a952a9cea7dea83c2f0898ef1d33eb5e5b1affd092c) |
 
+### 3.3 Property tests and fuzzing (D1, D2) — 20 Oct
+- **Proptest, quorum** (`contracts/performance-oracle/src/proptests.rs`,
+  10,000 cases each): the lower median is a submitted value with at most
+  half the values on either side; a flag holds exactly when more than half
+  the reporters raise it; a round's final card is its field-wise median,
+  its spread, `FLAG_REPORTER_DISAGREEMENT` exactly when the spread exceeds
+  `max_spread`, exactly the reporters further than that as outliers, the
+  market rule, and the median reporter's bundle; the order of arrival
+  changes no number. `cargo test proptests`: 4 passed, 40,000 rounds.
+- **Proptest, paged index** (`contracts/anchor-registry/src/proptests.rs`,
+  1,000 random sequences of up to 40 registrations and removals, any page
+  size 1–100): after every step the count matches a model and the pages
+  hold each registered anchor exactly once, with no gap and nothing
+  removed. Passed.
+- **cargo-fuzz** (`contracts/performance-oracle/fuzz`, target
+  `publish_sequence`): random sequences of up to 64 cards, single reports
+  and unauthorized attempts against a real registry and oracle pair, 1 to 5
+  reporters, any threshold, checked against a model after every step: (1)
+  the registry's score is always the final card's score of record, (2) the
+  card changes only when `threshold` distinct authorized reporters submitted
+  the same window, and then to their lower median; every call also succeeds
+  or fails exactly as the model says. Run on 20 Oct, 18:25–19:25 UTC:
+  **606,544 sequences in 3,601 s, no failure**, 1,473 new inputs kept.
+  `cargo +nightly fuzz run --sanitizer none publish_sequence -- -max_total_time=3600 -max_len=2048`
+  (on macOS with `RUSTFLAGS="-Clink-arg=-Wl,-undefined,dynamic_lookup"`).
+
+### 4.3 verify-score for quorum cards (D1) — 20 Oct
+- `npm run verify-score -- --quorum <anchor_id>` reads the anchor's
+  `Quorum(id)` record and card from the ledger, finds each reporter's
+  evidence URL in MonaRank's stellar.toml (`[[MONA_REPORTERS]]`), fetches
+  and hashes every reporter's bundle, recomputes each reporter's card, and
+  rebuilds the final card the way the oracle does
+  (`services/aggregator/src/scoring/quorum-verify.ts`). Run on the live
+  cards of moneygram, ref1_monarank_xyz_testnet and stellar_test_anchor
+  (one reporter each while the threshold is 1): "on-chain card matches the
+  median of its reporters' bundles exactly".
+
+### 3.9 Mainnet runbook and security self-assessment (D2) — 20 Oct
+- [`docs/MAINNET_RUNBOOK.md`](../MAINNET_RUNBOOK.md): prerequisites, the
+  pinned build and its check, the mainnet configuration profile (7-day
+  delay, 2-of-3 multisig admin, quorum settings), deploy steps, resource
+  costs measured from simulation, checks after deploy, upgrades and
+  rollback.
+- [`docs/SECURITY.md`](../SECURITY.md): the contracts reviewed against a
+  Soroban security checklist (authorization, governance, upgrade safety,
+  quorum, replay, input validation, growth, storage expiry, arithmetic,
+  funds, cross-contract calls, time, transparency, disputes), with the code
+  that handles each risk and what remains.
+
 ### 3.6 The 24-hour time lock, live (D2) — 20–21 Oct
 - Both live contracts were told about the D3 code a day ahead; the wasm
   uploaded from a local build hashed exactly as rehearsed.
