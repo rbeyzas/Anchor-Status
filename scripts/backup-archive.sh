@@ -22,8 +22,9 @@ push() {
   dst="${dst:?set BACKUP_HOST in .env, e.g. root@<secondary-host>}"
   local key="${BACKUP_KEY:-/root/.ssh/backup_push}"
   for attempt in 1 2 3 4 5 6; do
-    # rrsync on B roots every path at incoming/.
-    if rsync -az --exclude '*.bak' \
+    # rrsync on B roots every path at incoming/. Copies of .env (env.*)
+    # hold the admin and reporter keys and must never leave A.
+    if rsync -az --exclude '*.bak' --exclude 'env' --exclude 'env.*' --exclude '.env*' \
         -e "ssh -i $key -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30" \
         /var/lib/anchor-status/ "$dst:/"; then
       log push "sent to $dst"
