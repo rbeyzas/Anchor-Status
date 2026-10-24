@@ -20,6 +20,10 @@ venv/
 # Vercel CLI link (project and org ids) and local Claude Code permissions
 .vercel/
 .claude/
+# Written to the working directory by scripts/rehearse-*.sh (rehearsal logs)
+# and scripts/upgrade-contracts.sh (unsigned multisig transactions).
+rehearsal-*.log
+*.xdr
 
 # runtime state & collected data (lives on the server, not in git)
 services/testnet-probe/results/
