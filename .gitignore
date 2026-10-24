@@ -27,6 +27,11 @@ rehearsal-*.log
 
 # runtime state & collected data (lives on the server, not in git)
 services/testnet-probe/results/
+# On the collector it is a symlink to /var/lib/anchor-status/probe-results,
+# which the trailing-slash pattern does not match.
+services/testnet-probe/results
+# The deploy's record of each service's installed dependencies.
+.deps.sum
 services/passive-monitor/output/
 services/mainnet-probe/output/
 services/mainnet-probe/results/

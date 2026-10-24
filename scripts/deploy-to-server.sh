@@ -2,8 +2,15 @@
 # Deploys the collector host incrementally. Run from a checkout:
 #   COLLECTOR_HOST=root@<collector-host> bash scripts/deploy-to-server.sh
 #
+# What goes live is what is pushed to main, never a local working tree: the
+# host's own checkout (a git clone in REMOTE_DIR) is moved to origin/main by
+# scripts/server-autodeploy.sh, so `git rev-parse HEAD` on the host says
+# exactly which code runs. Until 24 Oct 2026 this copied the local tree with
+# rsync, which could ship unpushed changes and never removed deleted files.
+#
 # Incremental on purpose — it never rebuilds the host from scratch:
-#   * rsync without --delete: only changed files are copied.
+#   * only what changed since the host's commit moves; the .env and the
+#     untracked node_modules stay.
 #   * npm install runs only for services whose package.json/lock changed.
 #   * cron, nginx and the results symlink are installed only if missing,
 #     so an already-configured host is left exactly as it is.
@@ -33,15 +40,11 @@ trap 'ssh -o ControlPath="$CTL" -O exit "$HOST" 2>/dev/null' EXIT
 # (a round takes ~3, and a stuck round must not block deploys forever).
 ssh "${SSH_OPTS[@]}" "$HOST" "flock -w 600 /var/lock/anchor-collect.lock -c true" || true
 
-rsync -az \
-  --exclude 'node_modules/' --exclude '.next/' --exclude '.venv/' \
-  --exclude 'target/' --exclude '.git/' --exclude 'graphify-out/' \
-  --exclude '.vercel/' --exclude '*.pdf' \
-  --exclude '.env' --exclude '.env.*' \
-  --exclude 'services/testnet-probe/results/' \
-  --exclude 'services/passive-monitor/output/' \
-  -e "ssh ${SSH_OPTS[*]}" \
-  ./ "$HOST:$REMOTE_DIR/"
+# Says what goes live: origin/main as last fetched here, whatever is on disk.
+pushed=$(git rev-parse origin/main 2>/dev/null || true)
+[ -n "$(git status --porcelain --untracked-files=no)" ] && echo "note: local changes are not deployed; only origin/main is"
+echo "deploying origin/main ${pushed:0:8}"
+ssh "${SSH_OPTS[@]}" "$HOST" "cd $REMOTE_DIR && git rev-parse --git-dir >/dev/null && scripts/server-autodeploy.sh && echo \"host now at \$(git rev-parse --short HEAD)\""
 
 # Only the services the collector actually runs.
 ssh "${SSH_OPTS[@]}" "$HOST" "set -euo pipefail

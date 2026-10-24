@@ -15,6 +15,28 @@ Root-level setup / deploy / demo scripts.
 
 These scripts **require network access** to Stellar testnet.
 
+## Updating the servers
+
+Both servers run a git clone of this repo in `/opt/anchor-status`, and only
+what is pushed to `main` goes live:
+
+```sh
+COLLECTOR_HOST=root@<host> bash scripts/deploy-to-server.sh
+```
+
+runs `scripts/server-autodeploy.sh` on the host (under the collection lock:
+fetch, hard reset to `origin/main`, install changed dependencies, restart
+the intake if it changed), so `git rev-parse HEAD` there is the code that
+runs. Untracked files (`.env`, `node_modules`, data) are never touched.
+
+Until 24 Oct 2026 the deploy copied the local tree with rsync instead: it
+could ship unpushed changes and never removed deleted files. On that day A's
+stale checkout was moved to `origin/main` without touching its files (the
+old position is the branch `pre-align-2026-10-24`), B got git and the same
+clone (`safe.directory` set for root, the tree being owned by uid 501 from
+the rsync copies). Files removed from the repo before then may still lie
+untracked on both; `git status` lists them.
+
 ## Collector host: the public files
 
 nginx serves each public file by an explicit `location =`; everything else
