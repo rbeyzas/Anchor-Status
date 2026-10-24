@@ -53,7 +53,7 @@ Contracts (testnet):
 | A dispute inside the cooldown | refused: #24 `DisputeCoolingDown` | |
 | Dispute opened after the cooldown, then a newer card | Superseded; verdict score 76, no flag | [`2cdc2044`](https://stellar.expert/explorer/testnet/tx/2cdc20441a64228228a62aa1c617ee2741ea7597f62551fa34540f4bfc7d5793), [`b1fc43e2`](https://stellar.expert/explorer/testnet/tx/b1fc43e2c8187ce564a5c1601676cf587adc316c4b7a64712e0f1e2e23fafe79), [`d8a29dcb`](https://stellar.expert/explorer/testnet/tx/d8a29dcbd27b548984c96a952a9cea7dea83c2f0898ef1d33eb5e5b1affd092c) |
 
-### 3.4 Multisig admin account, live (D2) — 24 Oct
+### 3.4–3.5 Multisig admin, live (D2) — 24 Oct
 - [`GBLHN3SL…JO2F`](https://stellar.expert/explorer/testnet/account/GBLHN3SLZUV245KXQNCL5I6RWJ6RT3EMKHKLJNOIU77XU2WW5X2MJO2F):
   three signers of weight 1, each key generated on its holder's own
   machine and only its public key shared: `GBC4GADS…VMWG`,
@@ -66,7 +66,12 @@ Contracts (testnet):
 | Signers added | [`6ffea7cf`](https://stellar.expert/explorer/testnet/tx/6ffea7cf3ddc1cacaca7f95772bae0c03794850d9335b3faff6cece0bd3ed05a), [`c51578f0`](https://stellar.expert/explorer/testnet/tx/c51578f04f7bf2231b89aaec32b56b646b9c75d6852e8e994dd6825845fb6839), [`2f3e517f`](https://stellar.expert/explorer/testnet/tx/2f3e517fcfd9bd11de14c6e985fd4681a42d0c29ea584cb6763f0d1ac0fbc039) |
 | Master weight 0, thresholds 1/2/2 | [`9e1c693d`](https://stellar.expert/explorer/testnet/tx/9e1c693db3f803d7f16897d57449addaf6784fdc6e1a0b4360347a764ed8e3ab) |
 | `propose_admin(multisig)` on the registry and the oracle, by the one-key admin `GARNK5UJ…`; nothing changes until the multisig accepts | [`270990ef`](https://stellar.expert/explorer/testnet/tx/270990efae4f25d1961dda3d980f947bbd22f9bbc2e72874a6f35f741a32ad6d), [`b0af4f9b`](https://stellar.expert/explorer/testnet/tx/b0af4f9bb9bbfc9d906e72ceec5ac677a5305b011dff13644d9274d4a2c88203) |
-| `accept_admin`, signed by two of the three through /panel's queue | (pending) |
+| `accept_admin` on the registry, proposed and signed in /panel's queue by `GBIJOL2I…` and `GBC4GADS…` (an earlier proposal was rejected by its own proposer) | [`d2df259b`](https://stellar.expert/explorer/testnet/tx/d2df259b91ae7b41a39253fa8098c1ab65e147773c3f936fa5f11a24ad2e0dd1) |
+| `accept_admin` on the oracle, signed by `GBC4GADS…` and `GBIJOL2I…` | [`e8a91c4a`](https://stellar.expert/explorer/testnet/tx/e8a91c4a35fa5d9ac9f24e520494536cd7ee55f66dbc527de0a6278b166f67b6) |
+
+- `get_admin` on both contracts: `GBLHN3SL…JO2F`. The one-key admin
+  `GARNK5UJ…` can no longer act on either; stellar.toml's `MONA_ADMIN`
+  and `ACCOUNTS` name the multisig.
 
 ### 3.4–3.5 Multisig admin, rehearsal (D2) — 24 Oct
 - `scripts/rehearse-multisig.sh`: the live code under fresh IDs (registry

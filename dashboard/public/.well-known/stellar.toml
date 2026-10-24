@@ -7,9 +7,11 @@
 VERSION = "2.0.0"
 SIGNING_KEY = "GB4LRKMBNZCVFHA3N35X5YXMURAG42YRWYG5CGD2KZQLFDFXZNCCLVO2"
 
-# Every account MonaRank controls: the contracts' admin, each reporter
-# server's keys (see MONA_REPORTERS) and the probe's SIGNING_KEY.
+# Every account MonaRank controls: the contracts' admin (a 2-of-3 multisig),
+# the key that deployed them, each reporter server's keys (see
+# MONA_REPORTERS) and the probe's SIGNING_KEY.
 ACCOUNTS = [
+  "GBLHN3SLZUV245KXQNCL5I6RWJ6RT3EMKHKLJNOIU77XU2WW5X2MJO2F",
   "GARNK5UJIU6ZUQ6P3VB6BAE4OZHB44IJ6J7ZQLCW3J5ITIULYY7R3OD3",
   "GDLWUVYW6ZEDFCMRLQPM4TLRLMXX6M3UQ3XE7AEALFXY5VV55WKZX54H",
   "GBWXKNZBCZYKCMLGUBWQBBVLYTZ6OYMXVATDH6UWNRELHS2D2C5MHPQG",
@@ -24,7 +26,10 @@ ACCOUNTS = [
 MONA_NETWORK_PASSPHRASE = "Test SDF Network ; September 2015"
 MONA_ANCHOR_REGISTRY = "CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB"
 MONA_PERFORMANCE_ORACLE = "CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU"
-MONA_ADMIN = "GARNK5UJIU6ZUQ6P3VB6BAE4OZHB44IJ6J7ZQLCW3J5ITIULYY7R3OD3"
+# Both contracts' admin since 24 Oct 2026: a multisig account whose three
+# signers (one an offline backup) are listed on Horizon; any two of them act
+# for it, and its own key signs nothing.
+MONA_ADMIN = "GBLHN3SLZUV245KXQNCL5I6RWJ6RT3EMKHKLJNOIU77XU2WW5X2MJO2F"
 
 # The oracle's authorized reporters, one server each, measuring
 # independently. A score card is final once enough of them agree

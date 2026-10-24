@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Wallet } from '@phosphor-icons/react';
 import type { GovernanceData } from '@/lib/governance';
 import type { AnchorViewModel } from '@/lib/types';
-import { connectWallet, disconnectWallet } from '@/lib/wallet';
+import { connectWallet, disconnectWallet, restoreWallet } from '@/lib/wallet';
 import { AdminView } from './AdminView';
 import { OperatorView } from './OperatorView';
 import { shortKey } from './parts';
@@ -22,6 +22,11 @@ export function Panel({ anchors, governance }: { anchors: PanelAnchor[]; governa
   const [address, setAddress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Stay connected across reloads, until Disconnect.
+  useEffect(() => {
+    void restoreWallet().then((restored) => restored && setAddress((current) => current ?? restored));
+  }, []);
 
   async function connect() {
     setBusy(true);

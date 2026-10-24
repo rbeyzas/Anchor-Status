@@ -44,6 +44,18 @@ export async function connectWallet(): Promise<string> {
   return address;
 }
 
+/** The account connected before the page was reloaded, if any. The kit
+ * keeps it in localStorage until disconnectWallet(); the kit itself is only
+ * loaded when there is one. */
+export async function restoreWallet(): Promise<string | null> {
+  try {
+    if (!localStorage.getItem('@StellarWalletsKit/activeAddress')) return null;
+    return (await (await kit()).getAddress()).address || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function disconnectWallet(): Promise<void> {
   if (kitPromise) await (await kit()).disconnect();
 }
