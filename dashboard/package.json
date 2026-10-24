@@ -12,6 +12,7 @@
     "sync-graph": "node scripts/sync-graph.mjs"
   },
   "dependencies": {
+    "@creit-tech/stellar-wallets-kit": "npm:@jsr/creit-tech__stellar-wallets-kit@^2.7.1",
     "@phosphor-icons/react": "^2.1.10",
     "@stellar/stellar-sdk": "^17.0.1",
     "framer-motion": "^13.2.0",

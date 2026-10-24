@@ -7,7 +7,10 @@ import {
   anchorAtKey,
   anchorInfoKey,
   cardKey,
+  claimKey,
   decodeAnchorAt,
+  decodeClaim,
+  decodeWithdrawal,
   decodeAnchorInfo,
   decodeCard,
   decodeDispute,
@@ -25,13 +28,14 @@ import {
   readQuorumThreshold,
   readRegistryIndex,
   roundKey,
+  withdrawalKey,
 } from './contract-state';
 import { createRpcPool, type RpcPool } from './rpc';
 import { fetchScoreSummary, mergeCardContext } from './score-summary';
 import type { AnchorViewModel, DashboardData, ScorePoint, UnreadableAnchor } from './types';
 
-const REGISTRY_CONTRACT_ID = process.env.NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID ?? '';
-const ORACLE_CONTRACT_ID = process.env.NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID ?? '';
+export const REGISTRY_CONTRACT_ID = process.env.NEXT_PUBLIC_ANCHOR_REGISTRY_CONTRACT_ID ?? '';
+export const ORACLE_CONTRACT_ID = process.env.NEXT_PUBLIC_PERFORMANCE_ORACLE_CONTRACT_ID ?? '';
 
 // Score history covers the public RPC's full event retention: 7 days. A
 // backup provider may keep more, but the page stays on the same window
@@ -77,18 +81,21 @@ async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T)
   return out;
 }
 
-/** Every `report_submitted` event of the last 7 days, grouped by anchor. */
-async function fetchAllScoreHistory(pool: RpcPool): Promise<Map<string, ScorePoint[]>> {
+/** Every event of the last 7 days from `contractIds` whose first topic is
+ * one of `topics`, oldest first. */
+export async function fetchRecentEvents(pool: RpcPool, contractIds: string[], topics: string[]): Promise<rpc.Api.EventResponse[]> {
   const health = await pool.call((s) => s.getHealth());
   const end = health.latestLedger + 1;
   const start = Math.max(health.oldestLedger + 1, end - HISTORY_LEDGERS);
-  const filters: rpc.Api.EventFilter[] = [
-    {
+  // A filter holds at most 5 topic patterns; `**` matches any further topics.
+  const filters: rpc.Api.EventFilter[] = [];
+  for (let i = 0; i < topics.length; i += 5) {
+    filters.push({
       type: 'contract',
-      contractIds: [ORACLE_CONTRACT_ID],
-      topics: [[xdr.ScVal.scvSymbol('report_submitted').toXDR('base64'), '*']],
-    },
-  ];
+      contractIds,
+      topics: topics.slice(i, i + 5).map((t) => [xdr.ScVal.scvSymbol(t).toXDR('base64'), '**']),
+    });
+  }
 
   // Each range is read to its end, then cut at it: cursor pages cannot
   // carry an endLedger, so the last page may run into the next range.
@@ -106,11 +113,15 @@ async function fetchAllScoreHistory(pool: RpcPool): Promise<Map<string, ScorePoi
     return events;
   });
 
-  const byAnchor = new Map<string, ScorePoint[]>();
   const seen = new Set<string>();
-  for (const event of ranges.flat()) {
-    if (seen.has(event.id)) continue;
-    seen.add(event.id);
+  return ranges.flat().filter((e) => !seen.has(e.id) && seen.add(e.id));
+}
+
+/** Every `report_submitted` event of the last 7 days, grouped by anchor. */
+async function fetchAllScoreHistory(pool: RpcPool): Promise<Map<string, ScorePoint[]>> {
+  const events = await fetchRecentEvents(pool, [ORACLE_CONTRACT_ID], ['report_submitted']);
+  const byAnchor = new Map<string, ScorePoint[]>();
+  for (const event of events) {
     const anchorId = event.topic[1] ? String(scValToNative(event.topic[1])) : undefined;
     if (!anchorId) continue;
     const data = scValToNative(event.value) as { new_score: number; evidence?: Uint8Array | null };
@@ -126,7 +137,7 @@ async function fetchAllScoreHistory(pool: RpcPool): Promise<Map<string, ScorePoi
 type Entry = rpc.Api.LedgerEntryResult;
 
 /** Reads the given keys in batches, keyed by their XDR. */
-async function fetchEntries(pool: RpcPool, keys: xdr.LedgerKey[]) {
+export async function fetchEntries(pool: RpcPool, keys: xdr.LedgerKey[]) {
   const batches: xdr.LedgerKey[][] = [];
   for (let i = 0; i < keys.length; i += LEDGER_ENTRIES_BATCH) batches.push(keys.slice(i, i + LEDGER_ENTRIES_BATCH));
   const responses = await Promise.all(batches.map((batch) => pool.call((s) => s.getLedgerEntries(...batch))));
@@ -178,6 +189,8 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
     quorumKey(ORACLE_CONTRACT_ID, id),
     roundKey(ORACLE_CONTRACT_ID, id),
     disputeKey(ORACLE_CONTRACT_ID, id),
+    claimKey(REGISTRY_CONTRACT_ID, id),
+    withdrawalKey(REGISTRY_CONTRACT_ID, id),
   ]);
   const [{ entries, latestLedger }, history] = await Promise.all([
     fetchEntries(pool, keys),
@@ -238,6 +251,10 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
     const quorum = quorumVal && optional('quorum', () => decodeQuorum(quorumVal, threshold));
     const pendingRound = roundVal && optional('pending round', () => decodeRound(roundVal, threshold));
     const dispute = disputeVal && optional('dispute', () => decodeDispute(disputeVal));
+    const claimVal = live(claimKey(REGISTRY_CONTRACT_ID, anchorId));
+    const withdrawalVal = live(withdrawalKey(REGISTRY_CONTRACT_ID, anchorId));
+    const claim = claimVal && optional('claim', () => decodeClaim(claimVal));
+    const withdrawal = withdrawalVal && optional('withdrawal request', () => decodeWithdrawal(withdrawalVal));
     const lastUpdated = new Date(Number(info.lastUpdated) * 1000).toISOString();
     const points = history.get(anchorId) ?? [];
     anchors.push({
@@ -245,6 +262,7 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
       name: info.name,
       domain: info.domain,
       sourceType: info.sourceType,
+      operator: info.operator,
       stake: stroopsToXlm(info.stake),
       score: info.score,
       scoreHistory: points.length > 0 ? points : [{ timestamp: lastUpdated, score: info.score }],
@@ -257,6 +275,8 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
       ...(pendingRound ? { pendingRound } : {}),
       ...(dispute ? { dispute } : {}),
       ...(deactivated ? { deactivated } : {}),
+      ...(claim ? { claim } : {}),
+      ...(withdrawal ? { withdrawal } : {}),
     });
   }
   if (pool.activeProvider !== 'primary') console.warn('[dashboard] this render was served by the backup RPC');

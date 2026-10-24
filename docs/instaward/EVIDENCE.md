@@ -53,6 +53,28 @@ Contracts (testnet):
 | A dispute inside the cooldown | refused: #24 `DisputeCoolingDown` | |
 | Dispute opened after the cooldown, then a newer card | Superseded; verdict score 76, no flag | [`2cdc2044`](https://stellar.expert/explorer/testnet/tx/2cdc20441a64228228a62aa1c617ee2741ea7597f62551fa34540f4bfc7d5793), [`b1fc43e2`](https://stellar.expert/explorer/testnet/tx/b1fc43e2c8187ce564a5c1601676cf587adc316c4b7a64712e0f1e2e23fafe79), [`d8a29dcb`](https://stellar.expert/explorer/testnet/tx/d8a29dcbd27b548984c96a952a9cea7dea83c2f0898ef1d33eb5e5b1affd092c) |
 
+### 3.4–3.5 Multisig admin, rehearsal (D2) — 24 Oct
+- `scripts/rehearse-multisig.sh`: the live code under fresh IDs (registry
+  [`CB5DOHTN…UTT6`](https://stellar.expert/explorer/testnet/contract/CB5DOHTNMRZOMXUAO3FBCP7FARHLVGGHY5XITOYVCIHXR6PXI55GUTT6),
+  oracle
+  [`CAUXDSJU…K5RE`](https://stellar.expert/explorer/testnet/contract/CAUXDSJUX76BOGZYFOKRTADG7XWX2SWUSLYNCSTOZTKLIH263BCQK5RE)),
+  handed to a 2-of-3 multisig account
+  [`GBEDW7I4…HVLV`](https://stellar.expert/explorer/testnet/account/GBEDW7I4NGRJNOQGTX6MWUBVWH3K7KAMN5XVYOTP5C4F7HO3R3KFHVLV)
+  with throwaway keys. The multisig signs through
+  `scripts/upgrade-contracts.sh`'s unsigned-transaction files, each signer
+  adding a signature in turn. The live handover repeats it with the real
+  three keys.
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| Multisig account: three signers of weight 1, then master weight 0 and thresholds 1/2/2 | on the ledger: low 1, medium 2, high 2; master 0 | [`906147c9`](https://stellar.expert/explorer/testnet/tx/906147c9ac5d0cd3ed9691a22f454e0498d6e2228981a2b915c9dc64cf30fe5f), [`c48024d8`](https://stellar.expert/explorer/testnet/tx/c48024d85d7ef933733beea69a0f31f7b9b971b99ee82d858478abf4bbd458e8), [`503b940d`](https://stellar.expert/explorer/testnet/tx/503b940dd41d193a5d1410fb40be7fb038f46a988db46660e9f94e7f75611bcf), [`14c2710a`](https://stellar.expert/explorer/testnet/tx/14c2710a6490c1c9fedd5d117956461fd23df4d2092059a73381002f65d14ff0) |
+| `propose_admin(multisig)` by the one-key admin, both contracts | pending admin set | [`30c105fb`](https://stellar.expert/explorer/testnet/tx/30c105fbcd42211f50e8cd2a85c364fbf80b63dff51ec915a013a59cc7e2ee85), [`0c97952c`](https://stellar.expert/explorer/testnet/tx/0c97952c97755d88229ffa8823794d2be19fbdac13db694c31608ebec3a0519b) |
+| `accept_admin` with one signature | rejected on submission, `OpBadAuth` (under the medium threshold); never on the ledger | |
+| `accept_admin` with two signatures | `get_admin` = the multisig, both contracts | [`01ca56ec`](https://stellar.expert/explorer/testnet/tx/01ca56ec9293f8df5bb887196f27973867e6518a38e753e0a800d2141615d476), [`08e7da5c`](https://stellar.expert/explorer/testnet/tx/08e7da5c4330bdaec768e0143e1d02c148d5a6e8c37a7caa41fd8cccceddaeb4) |
+| The old admin calls `propose_admin` | refused: the contract asks for the multisig's authorization, which the old key cannot give | |
+| `propose_upgrade` through `upgrade-contracts.sh`, signed by k2 and k3 (the offline backup) | accepted, both contracts | [`8d339552`](https://stellar.expert/explorer/testnet/tx/8d33955289759b675178fa29c00c5f9a733cc6aae1a0b9595a8572c79d2a9f33), [`74fdf905`](https://stellar.expert/explorer/testnet/tx/74fdf905b56f9dccf354b86a61ba4e2605c96988b274a7f78547b784edd8cda4) |
+| `execute_upgrade` after the 60-second delay, signed by k3 and k1 | executed, both contracts | [`b4a093a3`](https://stellar.expert/explorer/testnet/tx/b4a093a3776c11ef436886e0463e641d3b4ce14fd92af619d796fdbcd5f2aaf8), [`d3ddae1d`](https://stellar.expert/explorer/testnet/tx/d3ddae1d8a71771d42220378c25e23e6bb4ab43079aa90041979d8f3e87a875d) |
+
 ### 3.3 Property tests and fuzzing (D1, D2) — 20 Oct
 - **Proptest, quorum** (`contracts/performance-oracle/src/proptests.rs`,
   10,000 cases each): the lower median is a submitted value with at most

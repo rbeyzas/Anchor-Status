@@ -96,3 +96,22 @@ and `ONBOARDING_INTAKE_TOKEN` with the same token. The collector is plain
 HTTP, so the token crosses the internet in the clear: it keeps casual
 callers out, not a determined one on the path; the intake's limits are what
 bound the damage. TLS on the collector would fix it.
+
+The multisig admin's transaction queue (`/panel`, `dashboard/lib/admin-queue.ts`)
+is kept by the same intake in `/var/lib/anchor-status/onboarding/admin-queue.json`,
+behind its own location; the dashboard finds it beside `ONBOARDING_INTAKE_URL`
+(or at `ADMIN_QUEUE_URL`):
+
+```nginx
+location /api/admin-queue {
+    limit_req zone=onboarding burst=20 nodelay;
+    client_max_body_size 64k;
+    proxy_pass http://127.0.0.1:8787/admin-queue;
+}
+```
+
+The intake only stores the list; the dashboard checks every signature
+against the admin's signers on Horizon and sends the transaction. Someone
+holding the token could still edit the stored list, so the panel shows each
+transaction's contract, function and arguments read from its envelope, not
+from the stored label: a signer approves what the wallet signs.

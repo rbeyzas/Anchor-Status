@@ -73,6 +73,7 @@ describe('decodeAnchorInfo', () => {
       }),
     );
     expect(decodeAnchorInfo(entry)).toEqual({
+      operator: OPERATOR,
       name: 'MoneyGram',
       domain: 'stellar.moneygram.com',
       sourceType: 'RealMainnet',

@@ -6,6 +6,7 @@
 // writes it, holds no key, and does no network I/O of its own.
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { createItem, loadQueue, updateItem } from './admin-queue.js';
 import {
   appendSubmission,
   decideSubmission,
@@ -29,10 +30,14 @@ export interface IntakeOptions {
   maxPending: number;
   /** Requests per client per window, the client as the proxy reports it. */
   perClient: { max: number; windowMs: number };
+  /** The multisig admin's transaction queue (admin-queue.ts). */
+  adminQueueFile?: string;
   now?: () => Date;
 }
 
 const MAX_BODY_BYTES = 2048;
+/** A queued transaction carries its envelope and signatures. */
+const MAX_QUEUE_BODY_BYTES = 48 * 1024;
 
 function send(res: ServerResponse, status: number, body: Record<string, unknown>, headers: Record<string, string> = {}) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers });
@@ -46,18 +51,18 @@ function tokenMatches(given: string | string[] | undefined, expected: string): b
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** The body, or null past MAX_BODY_BYTES: the rest is discarded unread, and
+/** The body, or null past `max` bytes: the rest is discarded unread, and
  * the reply closes the connection. */
-function readBody(req: IncomingMessage): Promise<string | null> {
+function readBody(req: IncomingMessage, max = MAX_BODY_BYTES): Promise<string | null> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
-      if (size > MAX_BODY_BYTES) resolve(null);
+      if (size > max) resolve(null);
       else chunks.push(chunk);
     });
-    req.on('end', () => resolve(size > MAX_BODY_BYTES ? null : Buffer.concat(chunks).toString('utf-8')));
+    req.on('end', () => resolve(size > max ? null : Buffer.concat(chunks).toString('utf-8')));
     req.on('error', reject);
   });
 }
@@ -80,10 +85,35 @@ export function createIntakeHandler(opts: IntakeOptions) {
     return { ok: true };
   }
 
+  /** GET lists the queue; POST adds an item; POST /admin-queue/<id> updates
+   * one. The dashboard's proxy decides what may be written. */
+  async function adminQueue(req: IncomingMessage, res: ServerResponse, url: URL) {
+    const file = opts.adminQueueFile;
+    if (!file) return send(res, 404, { error: 'not found' });
+    if (!tokenMatches(req.headers['x-onboarding-token'], opts.token)) return send(res, 401, { error: 'unauthorized' });
+    if (req.method === 'GET' && url.pathname === '/admin-queue') return send(res, 200, { items: loadQueue(file) });
+    if (req.method !== 'POST') return send(res, 404, { error: 'not found' });
+    const raw = await readBody(req, MAX_QUEUE_BODY_BYTES);
+    if (raw === null) return send(res, 413, { error: 'request too large' }, { connection: 'close' });
+    let body: unknown;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return send(res, 400, { error: 'expected a JSON body' });
+    }
+    const id = url.pathname.slice('/admin-queue/'.length);
+    const result = id ? updateItem(file, id, body, now()) : createItem(file, body, now());
+    if (result === null) return send(res, 400, { error: 'unexpected fields' });
+    if (result === 'missing') return send(res, 404, { error: 'no such open item' });
+    if (result === 'full') return send(res, 503, { error: 'the queue is full' });
+    return send(res, id ? 200 : 201, { item: result });
+  }
+
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const url = new URL(req.url ?? '/', 'http://intake');
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+      if (url.pathname === '/admin-queue' || url.pathname.startsWith('/admin-queue/')) return adminQueue(req, res, url);
       const network: Network | undefined =
         url.pathname === '/' || url.pathname === '/mainnet' ? 'mainnet' : url.pathname === '/testnet' ? 'testnet' : undefined;
       if (req.method !== 'POST' || !network) return send(res, 404, { error: 'not found' });

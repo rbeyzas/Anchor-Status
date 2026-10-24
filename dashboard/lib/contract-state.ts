@@ -1,7 +1,10 @@
 import { Address, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { stroopsToXlm } from './format';
 import { flagsFromMask } from './scorecard';
 import type {
   AnchorHealth,
+  ClaimView,
+  WithdrawalView,
   DisputeStatus,
   DisputeView,
   LifecycleView,
@@ -56,6 +59,19 @@ export const cardKey = (oracleId: string, anchorId: string) =>
 export const lifecycleKey = (registryId: string, anchorId: string) =>
   contractDataKey(registryId, enumKey('Status', xdr.ScVal.scvSymbol(anchorId)));
 
+/** Registry `DataKey::Claim(id)` → ClaimInfo, once the operator claimed it. */
+export const claimKey = (registryId: string, anchorId: string) =>
+  contractDataKey(registryId, enumKey('Claim', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Registry `DataKey::WithdrawalRequest(id)` → a stake withdrawal waiting
+ * out its cooldown. */
+export const withdrawalKey = (registryId: string, anchorId: string) =>
+  contractDataKey(registryId, enumKey('WithdrawalRequest', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Oracle `DataKey::Reporters(source_type)` → every reporter authorized for it. */
+export const reportersKey = (oracleId: string, sourceType: SourceType) =>
+  contractDataKey(oracleId, enumKey('Reporters', xdr.ScVal.scvVec([xdr.ScVal.scvSymbol(sourceType)])));
+
 /** Oracle `DataKey::Quorum(id)` → QuorumInfo behind the current card. */
 export const quorumKey = (oracleId: string, anchorId: string) =>
   contractDataKey(oracleId, enumKey('Quorum', xdr.ScVal.scvSymbol(anchorId)));
@@ -72,7 +88,7 @@ export const disputeKey = (oracleId: string, anchorId: string) =>
 export const keyId = (key: xdr.LedgerKey) => key.toXDR('base64');
 
 /** The value stored in a contract-data ledger entry. */
-function contractDataVal(entry: xdr.LedgerEntryData): xdr.ScVal {
+export function contractDataVal(entry: xdr.LedgerEntryData): xdr.ScVal {
   if (entry.type !== 'contractData') throw new Error(`expected contract data, got ${entry.type}`);
   return entry.contractData.val;
 }
@@ -121,6 +137,7 @@ export const decodeAnchorAt = (entry: xdr.LedgerEntryData) => String(scValToNati
 const tag = (v: unknown) => String(Array.isArray(v) ? v[0] : v);
 
 export interface AnchorInfo {
+  operator: string;
   name: string;
   domain: string;
   sourceType: SourceType;
@@ -132,6 +149,7 @@ export interface AnchorInfo {
 export function decodeAnchorInfo(entry: xdr.LedgerEntryData): AnchorInfo {
   const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
   return {
+    operator: String(raw.operator),
     name: String(raw.name),
     domain: String(raw.domain),
     sourceType: tag(raw.source_type) as SourceType,
@@ -230,4 +248,14 @@ export function decodeDispute(entry: xdr.LedgerEntryData): DisputeView {
     upholdVotes: (raw.uphold as unknown[]).length,
     rejectVotes: (raw.reject as unknown[]).length,
   };
+}
+
+export function decodeClaim(entry: xdr.LedgerEntryData): ClaimView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  return { operator: String(raw.operator), claimedAt: new Date(Number(raw.claimed_at) * 1000).toISOString() };
+}
+
+export function decodeWithdrawal(entry: xdr.LedgerEntryData): WithdrawalView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  return { amount: stroopsToXlm(raw.amount as bigint), unlockAt: new Date(Number(raw.unlock_time) * 1000).toISOString() };
 }

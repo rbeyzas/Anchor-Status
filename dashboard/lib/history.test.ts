@@ -8,6 +8,7 @@ function anchor(overrides: Partial<AnchorViewModel> = {}): AnchorViewModel {
     name: 'A',
     domain: 'a.example',
     sourceType: 'RealMainnet',
+    operator: 'GADMIN',
     stake: 0,
     score: 50,
     scoreHistory: [{ timestamp: '2026-09-17T12:00:00Z', score: 50 }],

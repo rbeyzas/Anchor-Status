@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { onboardingPaths, readSubmissions, saveOnboardingFile } from './candidates.js';
+import type { QueueItem } from './admin-queue.js';
 import { createIntakeHandler, type IntakeOptions } from './intake.js';
 
 const TOKEN = 't'.repeat(40);
@@ -129,5 +130,44 @@ describe('intake server', () => {
     expect((await fetch(`${base}/health`)).status).toBe(200);
     expect((await fetch(`${base}/onboarding.json`)).status).toBe(404);
     expect((await fetch(`${base}/devnet`, { method: 'POST' })).status).toBe(404);
+  });
+});
+
+describe('admin queue', () => {
+  const item = { label: 'raise threshold', contract: 'C'.repeat(56), method: 'set_quorum_config', source: 'G'.repeat(56), xdr: 'AAAA', signers: ['G'.repeat(56)] };
+
+  async function queue() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'queue-'));
+    const s = await start({ adminQueueFile: path.join(dir, 'admin-queue.json') });
+    const list = async () =>
+      ((await (await fetch(`${s.base}/admin-queue`, { headers: { 'x-onboarding-token': TOKEN } })).json()) as { items: QueueItem[] }).items;
+    return { ...s, list };
+  }
+
+  it('is closed without the token', async () => {
+    const { base, post } = await queue();
+    expect((await fetch(`${base}/admin-queue`)).status).toBe(401);
+    expect((await post(item, { 'x-onboarding-token': 'wrong' }, '/admin-queue')).status).toBe(401);
+  });
+
+  it('adds an open item, updates it, and keeps a decided item as decided', async () => {
+    const { post, list } = await queue();
+    const created = await post(item, {}, '/admin-queue');
+    expect(created.status).toBe(201);
+    const { item: added } = (await created.json()) as { item: QueueItem };
+    expect(added).toMatchObject({ ...item, status: 'open' });
+    const signed = await post({ xdr: 'BBBB', signers: [...item.signers, 'H'.repeat(56)] }, {}, `/admin-queue/${added.id}`);
+    expect(((await signed.json()) as { item: QueueItem }).item).toMatchObject({ xdr: 'BBBB', status: 'open' });
+    expect((await post({ status: 'executed', txHash: 'a'.repeat(64) }, {}, `/admin-queue/${added.id}`)).status).toBe(200);
+    expect((await post({ status: 'rejected' }, {}, `/admin-queue/${added.id}`)).status).toBe(404);
+    expect(await list()).toEqual([expect.objectContaining({ id: added.id, status: 'executed', signers: [item.signers[0], 'H'.repeat(56)] })]);
+  });
+
+  it('refuses unknown or oversized fields, and an incomplete item', async () => {
+    const { post, list } = await queue();
+    expect((await post({ ...item, status: 'executed' }, {}, '/admin-queue')).status).toBe(400);
+    expect((await post({ ...item, label: 'x'.repeat(201) }, {}, '/admin-queue')).status).toBe(400);
+    expect((await post({ label: 'no envelope' }, {}, '/admin-queue')).status).toBe(400);
+    expect(await list()).toEqual([]);
   });
 });

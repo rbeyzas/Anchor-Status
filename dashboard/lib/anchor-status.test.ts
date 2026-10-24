@@ -34,6 +34,7 @@ const anchor = (extra: Partial<AnchorViewModel> = {}): AnchorViewModel => ({
   name: 'A',
   domain: 'a.example',
   sourceType: 'RealMainnet',
+  operator: 'GADMIN',
   stake: 0,
   score: 100,
   scoreHistory: [],

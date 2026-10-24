@@ -30,6 +30,7 @@ const handler = createIntakeHandler({
   },
   maxPending: Number(process.env.ONBOARDING_MAX_PENDING ?? '50'),
   perClient: { max: Number(process.env.ONBOARDING_PER_CLIENT_PER_HOUR ?? '10'), windowMs: 60 * 60 * 1000 },
+  adminQueueFile: path.join(dir, 'admin-queue.json'),
 });
 
 const server = http.createServer((req, res) => void handler(req, res));

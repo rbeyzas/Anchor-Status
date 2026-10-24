@@ -74,6 +74,14 @@ if [ ! -L "$REPO_DIR/services/testnet-probe/results" ]; then
   ln -sfn /var/lib/anchor-status/probe-results "$REPO_DIR/services/testnet-probe/results"
 fi
 
+# The intake is the one long-running process: it keeps the code it started
+# with, so a change to it needs a restart (collector rounds start fresh).
+if [ "$local_sha" != none ] && ! git diff --quiet "$local_sha" "$remote_sha" -- services/mainnet-probe/src/intake.ts \
+  services/mainnet-probe/src/intake-server.ts services/mainnet-probe/src/admin-queue.ts services/mainnet-probe/src/candidates.ts; then
+  log "restarting the onboarding intake"
+  systemctl restart onboarding-intake || log "WARNING: the intake did not restart"
+fi
+
 # The dashboard is not deployed from here: the Vercel project
 # (anchor-status-g9f7) is connected to the GitHub repo and builds every push
 # to main itself. A CLI deploy from this host would only race it.

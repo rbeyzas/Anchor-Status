@@ -99,6 +99,19 @@ export interface DisputeView {
   rejectVotes: number;
 }
 
+/** Who claimed the anchor's record (registry `Claim(id)`). */
+export interface ClaimView {
+  operator: string;
+  claimedAt: string;
+}
+
+/** A stake withdrawal waiting out its cooldown. */
+export interface WithdrawalView {
+  /** In XLM (already converted from stroops). */
+  amount: number;
+  unlockAt: string;
+}
+
 /** A deactivated anchor's on-chain status (registry `Status(id)`). */
 export interface LifecycleView {
   /** In the operator's words, shown as they are. */
@@ -144,6 +157,11 @@ export interface AnchorViewModel {
   name: string;
   domain: string;
   sourceType: SourceType;
+  /** The address that may stake for it and dispute its cards: the admin
+   * until the anchor claims its record. */
+  operator: string;
+  claim?: ClaimView;
+  withdrawal?: WithdrawalView;
   /** Admitted through /apply rather than registered by us or found by
    * discovery. Kept on the view model, not in `status`, because testnet has
    * no status file: the applications files are the only record both

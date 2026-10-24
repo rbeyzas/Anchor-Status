@@ -55,6 +55,12 @@ ssh "${SSH_OPTS[@]}" "$A" "grep -q '^BACKUP_HOST=' $REMOTE_DIR/.env || echo 'BAC
   ssh-keygen -F ${B#*@} >/dev/null 2>&1 || ssh-keyscan -H ${B#*@} >> /root/.ssh/known_hosts 2>/dev/null
   echo '5 3 * * * root $REMOTE_DIR/scripts/backup-archive.sh push >> /var/log/anchor-status/backup.log 2>&1' > /etc/cron.d/anchor-backup
   chmod 644 /etc/cron.d/anchor-backup"
+# Each server watches the other (scripts/watch-peer.mjs); it needs the
+# TELEGRAM_* and WATCH_* lines in the .env, added by hand.
+for host in "$A" "$B"; do
+  ssh "${SSH_OPTS[@]}" "$host" "echo '*/10 * * * * root node --env-file=$REMOTE_DIR/.env $REMOTE_DIR/scripts/watch-peer.mjs >> /var/log/anchor-status/watch-peer.log 2>&1' > /etc/cron.d/anchor-watch
+    chmod 644 /etc/cron.d/anchor-watch"
+done
 
 echo "6/6 nginx: B's evidence and shadow cards, read-only"
 ssh "${SSH_OPTS[@]}" "$B" 'command -v nginx >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -yq nginx >/dev/null'

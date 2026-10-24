@@ -37,6 +37,7 @@ const anchor = (id: string, extra: Partial<AnchorViewModel> = {}): AnchorViewMod
   name: id,
   domain: `${id}.com`,
   sourceType: 'RealMainnet',
+  operator: 'GADMIN',
   stake: 0,
   score: 0,
   scoreHistory: [{ timestamp: '2026-09-19T19:40:00Z', score: 74, evidence: 'e'.repeat(64) }],

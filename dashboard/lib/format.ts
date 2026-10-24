@@ -9,6 +9,15 @@ export function stroopsToXlm(stroops: number | bigint): number {
   return n / 10_000_000;
 }
 
+/** Typed XLM ("12", "0.5") to stroops, without floating point; null for
+ * anything that is not a positive amount with at most 7 decimals. */
+export function xlmToStroops(text: string): bigint | null {
+  const m = /^\s*(\d+)(?:\.(\d{1,7}))?\s*$/.exec(text);
+  if (!m) return null;
+  const stroops = BigInt(m[1]) * 10_000_000n + BigInt((m[2] ?? '').padEnd(7, '0'));
+  return stroops > 0n ? stroops : null;
+}
+
 const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   day: '2-digit',
   month: 'short',
@@ -37,6 +46,8 @@ export function formatChartAxisLabel(iso: string, allTimestamps: string[]): stri
 
 export function formatRelativeTime(iso: string, now: Date = new Date()): string {
   const diffMs = now.getTime() - new Date(iso).getTime();
+  // Ahead of now (a time lock, a cooldown): "in 3h".
+  if (diffMs < -60_000) return `in ${formatRelativeTime(now.toISOString(), new Date(now.getTime() - diffMs)).replace(' ago', '')}`;
   const diffMinutes = Math.round(diffMs / 60_000);
   if (diffMinutes < 1) return 'just now';
   if (diffMinutes < 60) return `${diffMinutes}m ago`;
