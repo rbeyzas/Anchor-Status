@@ -19,7 +19,7 @@ venv/
 *.key
 # Vercel CLI link (project and org ids) and local Claude Code permissions
 .vercel/
-.claude/settings.local.json
+.claude/
 
 # runtime state & collected data (lives on the server, not in git)
 services/testnet-probe/results/
