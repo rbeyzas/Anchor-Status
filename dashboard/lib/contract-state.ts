@@ -1,6 +1,17 @@
 import { Address, scValToNative, xdr } from '@stellar/stellar-sdk';
 import { flagsFromMask } from './scorecard';
-import type { AnchorHealth, RiskReason, ScoreCardView, SourceType, Trend } from './types';
+import type {
+  AnchorHealth,
+  DisputeStatus,
+  DisputeView,
+  LifecycleView,
+  PendingRoundView,
+  QuorumView,
+  RiskReason,
+  ScoreCardView,
+  SourceType,
+  Trend,
+} from './types';
 
 // The contracts' storage layout, read directly instead of through one
 // simulated call per anchor. These keys mirror the `DataKey` enums in
@@ -8,12 +19,12 @@ import type { AnchorHealth, RiskReason, ScoreCardView, SourceType, Trend } from 
 // contracts/performance-oracle/src/types.rs: a #[contracttype] enum variant
 // is stored as a vector of its name followed by its fields.
 
-function contractDataKey(contractId: string, key: xdr.ScVal): xdr.LedgerKey {
+function contractDataKey(contractId: string, key: xdr.ScVal, durability = xdr.ContractDataDurability.persistent): xdr.LedgerKey {
   return xdr.LedgerKey.contractData(
     new xdr.LedgerKeyContractData({
       contract: new Address(contractId).toScAddress(),
       key,
-      durability: xdr.ContractDataDurability.persistent,
+      durability,
     }),
   );
 }
@@ -40,6 +51,23 @@ export const healthKey = (oracleId: string, anchorId: string) =>
 /** Oracle `DataKey::Card(id)` → ScoreCard. */
 export const cardKey = (oracleId: string, anchorId: string) =>
   contractDataKey(oracleId, enumKey('Card', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Registry `DataKey::Status(id)` → AnchorStatus; absent means active. */
+export const lifecycleKey = (registryId: string, anchorId: string) =>
+  contractDataKey(registryId, enumKey('Status', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Oracle `DataKey::Quorum(id)` → QuorumInfo behind the current card. */
+export const quorumKey = (oracleId: string, anchorId: string) =>
+  contractDataKey(oracleId, enumKey('Quorum', xdr.ScVal.scvSymbol(anchorId)));
+
+/** Oracle `DataKey::Round(id)` → PendingRound. Temporary storage: a round
+ * that never reaches the threshold expires. */
+export const roundKey = (oracleId: string, anchorId: string) =>
+  contractDataKey(oracleId, enumKey('Round', xdr.ScVal.scvSymbol(anchorId)), xdr.ContractDataDurability.temporary);
+
+/** Oracle `DataKey::Dispute(id)` → the anchor's latest Dispute. */
+export const disputeKey = (oracleId: string, anchorId: string) =>
+  contractDataKey(oracleId, enumKey('Dispute', xdr.ScVal.scvSymbol(anchorId)));
 
 export const keyId = (key: xdr.LedgerKey) => key.toXDR('base64');
 
@@ -74,6 +102,16 @@ export function readRegistryIndex(instance: xdr.LedgerEntryData): RegistryIndex 
   if (count) return { layout: 'paged', count: Number(scValToNative(count.val)) };
   // A registry with no anchor registered yet has neither.
   return { layout: 'ids', ids: [] };
+}
+
+/** The oracle's quorum threshold, from its instance storage. No `QuorumCfg`
+ * means 1, the behaviour before quorums. */
+export function readQuorumThreshold(instance: xdr.LedgerEntryData): number {
+  const val = contractDataVal(instance);
+  if (val.type !== 'scvContractInstance') throw new Error(`expected a contract instance, got ${val.type}`);
+  const wanted = enumKey('QuorumCfg').toXDR('base64');
+  const cfg = (val.instance.storage ?? []).find((e) => e.key.toXDR('base64') === wanted);
+  return cfg ? Number((scValToNative(cfg.val) as { threshold: number }).threshold) : 1;
 }
 
 /** An `AnchorAt(i)` entry's value: the anchor id. */
@@ -143,5 +181,53 @@ export function decodeCard(entry: xdr.LedgerEntryData): ScoreCardView {
     methodologyVersion: Number(raw.methodology_version),
     inputsHash: Buffer.from(raw.inputs_hash as Uint8Array).toString('hex'),
     publishedAt: new Date(Number(raw.published_at) * 1000).toISOString(),
+  };
+}
+
+/** A deactivated anchor's on-chain status; undefined while active. */
+export function decodeLifecycle(entry: xdr.LedgerEntryData): LifecycleView | undefined {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  if (tag(raw.state) !== 'Deactivated') return undefined;
+  return { reason: String(raw.reason), since: new Date(Number(raw.since) * 1000).toISOString() };
+}
+
+export function decodeQuorum(entry: xdr.LedgerEntryData, threshold: number): QuorumView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  const outliers = new Set((raw.outliers as string[]).map(String));
+  const scores = raw.scores as number[];
+  return {
+    windowEnd: new Date(Number(raw.window_end) * 1000).toISOString(),
+    reporters: (raw.reporters as string[]).map((address, i) => ({
+      address: String(address),
+      score: Number(scores[i]),
+      outlier: outliers.has(String(address)),
+    })),
+    spread: Number(raw.spread),
+    threshold,
+  };
+}
+
+/** How many reporters have sent a card for the round still collecting. */
+export function decodeRound(entry: xdr.LedgerEntryData, threshold: number): PendingRoundView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  return {
+    windowEnd: new Date(Number(raw.window_end) * 1000).toISOString(),
+    submitted: (raw.submissions as unknown[]).length,
+    threshold,
+  };
+}
+
+export function decodeDispute(entry: xdr.LedgerEntryData): DisputeView {
+  const raw = scValToNative(contractDataVal(entry)) as Record<string, unknown>;
+  const resolvedAt = Number(raw.resolved_at);
+  return {
+    status: tag(raw.status) as DisputeStatus,
+    windowEnd: new Date(Number(raw.window_end) * 1000).toISOString(),
+    openedAt: new Date(Number(raw.opened_at) * 1000).toISOString(),
+    ...(resolvedAt > 0 ? { resolvedAt: new Date(resolvedAt * 1000).toISOString() } : {}),
+    reasonCode: Number(raw.reason_code),
+    evidenceHash: Buffer.from(raw.evidence_hash as Uint8Array).toString('hex'),
+    upholdVotes: (raw.uphold as unknown[]).length,
+    rejectVotes: (raw.reject as unknown[]).length,
   };
 }

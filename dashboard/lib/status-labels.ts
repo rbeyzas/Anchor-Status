@@ -1,5 +1,29 @@
 import { isWithheld } from './scorecard';
-import type { AnchorViewModel } from './types';
+import type { AnchorViewModel, DisputeStatus, DisputeView } from './types';
+
+/** The dispute against the card shown now, if any. The oracle keeps only the
+ * latest dispute; one about an older card says nothing about this one. */
+export function currentDispute(anchor: AnchorViewModel): DisputeView | undefined {
+  const d = anchor.dispute;
+  return d && anchor.card && d.windowEnd === anchor.card.windowEnd ? d : undefined;
+}
+
+/** An upheld dispute withholds the card's score (score 0 on-chain). */
+export const isDisputeUpheld = (anchor: AnchorViewModel) => currentDispute(anchor)?.status === 'Upheld';
+
+export const DISPUTE_LABEL: Record<DisputeStatus, string> = {
+  Open: 'Disputed by operator',
+  Upheld: 'Dispute upheld',
+  Rejected: 'Dispute rejected',
+  Superseded: 'Dispute superseded',
+};
+
+export const DISPUTE_COPY: Record<DisputeStatus, string> = {
+  Open: 'The operator objects to this card; the reporters are voting.',
+  Upheld: 'The reporters agreed with the operator: this card\'s score is withheld until the next card.',
+  Rejected: 'The reporters disagreed with the operator: the card stands.',
+  Superseded: 'A newer card became final before the reporters decided.',
+};
 
 /**
  * Whether the number is worth showing. A measured anchor, mainnet or
@@ -9,7 +33,7 @@ import type { AnchorViewModel } from './types';
 export function hasEnoughData(anchor: AnchorViewModel): boolean {
   // Measured, and shown, under the other domain of the same operator.
   if (anchor.status?.aliasOf) return false;
-  return !!anchor.card && !isWithheld(anchor.card);
+  return !!anchor.card && !isWithheld(anchor.card) && !isDisputeUpheld(anchor);
 }
 
 /** The headline to show: the card's when there is one. */
@@ -22,9 +46,13 @@ const progressToScore = (anchor: AnchorViewModel) =>
 /**
  * Order within one source: reachable, then failing, then not yet checked;
  * within those, shown scores highest first, then withheld cards closest to
- * being shown, then anchors with no card at all.
+ * being shown, then anchors with no card at all. Deactivated anchors are
+ * out of the ranking: last, by name.
  */
 export function compareAnchors(a: AnchorViewModel, b: AnchorViewModel): number {
+  const retiredDiff = Number(!!a.deactivated) - Number(!!b.deactivated);
+  if (retiredDiff !== 0) return retiredDiff;
+  if (a.deactivated) return a.name.localeCompare(b.name);
   const statusDiff = statusRank(a) - statusRank(b);
   if (statusDiff !== 0) return statusDiff;
   const shownDiff = Number(hasEnoughData(b)) - Number(hasEnoughData(a));

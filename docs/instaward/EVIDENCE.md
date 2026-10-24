@@ -102,7 +102,7 @@ Contracts (testnet):
   funds, cross-contract calls, time, transparency, disputes), with the code
   that handles each risk and what remains.
 
-### 3.6 The 24-hour time lock, live (D2) — 20–21 Oct
+### 3.6 The 24-hour time lock, live (D2) — 20–23 Oct
 - Both live contracts were told about the D3 code a day ahead; the wasm
   uploaded from a local build hashed exactly as rehearsed.
 
@@ -111,7 +111,25 @@ Contracts (testnet):
 | Registry `propose_upgrade(e62e6e25…)` | executable from 2026-10-21 13:16:02 UTC | [`dc1af239`](https://stellar.expert/explorer/testnet/tx/dc1af23956e7c9d8babcbe829c13721c1ea5be6075bdb3938df2f48b3584f34a) |
 | Oracle `propose_upgrade(42a8d332…)` | executable from 2026-10-21 13:16:07 UTC | [`7edca4ee`](https://stellar.expert/explorer/testnet/tx/7edca4ee71f405f7d54f0b7ff54cb7c16871c4d93a4a4a3ac726de5bf860aa21) |
 | `execute_upgrade` at once, both contracts | refused in simulation, nothing sent: `HostError: Error(Contract, #21)` = `TimelockActive` | |
-| `execute_upgrade` after 24 hours | (21 Oct, registry first, then the oracle) | |
+| Registry `execute_upgrade` (23 Oct, 11:44:37 UTC) | live wasm now `e62e6e25…`; anchor count (106), every page and the sampled records equal before and after; no pending upgrade | [`a3dfef49`](https://stellar.expert/explorer/testnet/tx/a3dfef49902d957b0a19f79c80bdedb6af72c33d704acccb85cf41174ee1e88b) |
+| Oracle `execute_upgrade` (23 Oct, 11:45:07 UTC) | live wasm now `42a8d332…`; verdicts, quorum config, admins and delays equal before and after; dispute config at its default (10 XLM, 7 days) | [`8bead7a6`](https://stellar.expert/explorer/testnet/tx/8bead7a6f7385f6c930693c3fffc23d894d8e3b3429e5ed5126a7c121e105ed0) |
+
+- The collector's next round on A (11:47–11:49 UTC) wrote to the upgraded
+  oracle without a failed transaction (reporter `GDLWUVYW…`, e.g.
+  [`7cf81093`](https://stellar.expert/explorer/testnet/tx/7cf810935a8b6b2a58cbd2856a4f535b912aebc7095f5b67d9f7f95bb1ac59c8)).
+- Before executing, a clean local build (Rust 1.98.0, stellar-cli 28.0.0)
+  of `main` hashed exactly as the two proposals.
+
+Then, on the live contracts, ref1.monarank.xyz's SIGNING_KEY was read and
+attested from each server's own reporter key (`npm run d3 -- attest
+ref1_monarank_xyz_testnet`, under the collector lock). With the threshold
+still 1, the first reading already sets the key; the second repeats it.
+
+| Step | Result | Transaction |
+| --- | --- | --- |
+| A (`GBWXKNZB…`) attests `GBA7U6K6…JXAB` | 1 reporter agrees; the registry's `get_signing_key` now `41fa795e…a674` (= `GBA7U6K6…JXAB`) | [`16a1fa0a`](https://stellar.expert/explorer/testnet/tx/16a1fa0a9e5cc0792c930d226547010aea279f4d7e7bcc9ae04d55bb012c0b38) |
+| B (`GBN2RFNK…`) attests the same key | same key | [`c489d677`](https://stellar.expert/explorer/testnet/tx/c489d6773b1f676719a38a49cba4d34b7d4d3921a70d8c72c53ba6cdae5fb0f6) |
+| ref1 claimed (24 Oct, `npm run d3 -- claim`, with the signature made off-chain by the SIGNING_KEY's holder over the live `claim_message`, checked against it before sending) | `get_claim`: operator `GCYU7PVT…SO7U6O`, signing key `41fa795e…a674`; the record's operator moved from the admin `GARNK5UJ…` to it | [`772ce2d2`](https://stellar.expert/explorer/testnet/tx/772ce2d267da353e14ab287bf7913656be0a6897ae6efaf8757b968f4a783ff8) |
 
 ## Week 2 (26 Oct–1 Nov)
 

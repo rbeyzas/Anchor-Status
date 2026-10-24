@@ -12,7 +12,8 @@ export type FlagName =
   | 'LOW_COVERAGE'
   | 'NO_MARKET'
   | 'FROZEN_SUPPLY'
-  | 'VOLATILE';
+  | 'VOLATILE'
+  | 'REPORTER_DISAGREEMENT';
 
 /** Bit positions, as stored on-chain in `ScoreCard.flags`. */
 const FLAG_BITS: Record<FlagName, number> = {
@@ -26,6 +27,8 @@ const FLAG_BITS: Record<FlagName, number> = {
   NO_MARKET: 7,
   FROZEN_SUPPLY: 8,
   VOLATILE: 9,
+  // 10-15 reserved for off-chain flags; 16+ set by the oracle itself.
+  REPORTER_DISAGREEMENT: 16,
 };
 
 export function flagsFromMask(mask: number): FlagName[] {
@@ -43,6 +46,7 @@ export const FLAG_COPY: Record<FlagName, string> = {
   NO_MARKET: 'No liquid market to measure a peg',
   FROZEN_SUPPLY: 'Token supply has not moved in 30 days',
   VOLATILE: 'Asset fell more than 15% on the DEX in a week',
+  REPORTER_DISAGREEMENT: 'Reporters disagree: their scores are further apart than allowed',
 };
 
 /** Flags that cap the score; the rest are information. */

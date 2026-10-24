@@ -59,7 +59,10 @@ ssh "${SSH_OPTS[@]}" "$A" "grep -q '^BACKUP_HOST=' $REMOTE_DIR/.env || echo 'BAC
 echo "6/6 nginx: B's evidence and shadow cards, read-only"
 ssh "${SSH_OPTS[@]}" "$B" 'command -v nginx >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -yq nginx >/dev/null'
 scp -q "${SSH_OPTS[@]}" scripts/nginx/secondary.conf "$B:/etc/nginx/sites-available/anchor-status"
-ssh "${SSH_OPTS[@]}" "$B" 'ln -sfn /etc/nginx/sites-available/anchor-status /etc/nginx/sites-enabled/anchor-status
+ssh "${SSH_OPTS[@]}" "$B" 'mkdir -p /etc/systemd/system/nginx.service.d'
+scp -q "${SSH_OPTS[@]}" scripts/nginx/restart.conf "$B:/etc/systemd/system/nginx.service.d/restart.conf"
+ssh "${SSH_OPTS[@]}" "$B" 'systemctl daemon-reload
+  ln -sfn /etc/nginx/sites-available/anchor-status /etc/nginx/sites-enabled/anchor-status
   rm -f /etc/nginx/sites-enabled/default
   nginx -t -q && systemctl reload nginx'
 

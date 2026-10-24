@@ -2,11 +2,11 @@
 
 import { motion } from 'framer-motion';
 import { Lightning, TrendDown, TrendUp, Vault, WarningCircle } from '@phosphor-icons/react';
-import { formatStakeXlm } from '@/lib/format';
+import { formatShortDate, formatStakeXlm } from '@/lib/format';
 import { hasRecentSignificantDrop } from '@/lib/analysis';
 import { RISK_LABEL } from '@/lib/health';
 import { CONFIDENCE_TO_SHOW } from '@/lib/scorecard';
-import { hasEnoughData, headlineScore, LISTING_LABEL } from '@/lib/status-labels';
+import { currentDispute, DISPUTE_LABEL, hasEnoughData, headlineScore, LISTING_LABEL } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 import { ConfidenceChip, FlagChips, PillarDots } from './ScoreCardParts';
@@ -34,10 +34,14 @@ export function AnchorCard({
     : scoreTier(score) === 'low'
       ? 'Risky anchor'
       : null;
-  const badge = riskLabel ?? (recentDrop ? 'Sharp drop in 24h' : null);
-  const trend = anchor.health?.trend;
+  const retired = anchor.deactivated;
+  // A deactivated anchor is no longer measured: no risk alarm on it.
+  const badge = retired ? null : (riskLabel ?? (recentDrop ? 'Sharp drop in 24h' : null));
+  const trend = retired ? undefined : anchor.health?.trend;
   const enoughData = hasEnoughData(anchor);
   const status = anchor.status;
+  const dispute = currentDispute(anchor);
+  const pending = anchor.pendingRound;
 
   return (
     <motion.button
@@ -46,7 +50,7 @@ export function AnchorCard({
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
       transition={{ duration: 0.15, ease: [0.2, 0, 0, 1] }}
-      className={`as-panel as-panel--hover as-card h-full min-h-[160px] focus:outline-none ${badge ? 'as-panel--danger' : ''}`}
+      className={`as-panel as-panel--hover as-card h-full min-h-[160px] focus:outline-none ${badge ? 'as-panel--danger' : ''} ${retired ? 'as-card--retired' : ''}`}
     >
       {badge && (
         <span className="as-card__risk">
@@ -68,6 +72,25 @@ export function AnchorCard({
       <div className="as-card__main">
         <span className="as-card__name">{anchor.name}</span>
         <SourceBadge sourceType={anchor.sourceType} />
+        {retired && (
+          <div className="flex flex-wrap gap-1.5">
+            <StatusChip tone="neutral">Deactivated {formatShortDate(retired.since)}</StatusChip>
+          </div>
+        )}
+        {!retired && (dispute || (pending && pending.submitted < pending.threshold)) && (
+          <div className="flex flex-wrap gap-1.5">
+            {dispute && (
+              <StatusChip tone={dispute.status === 'Upheld' ? 'danger' : dispute.status === 'Open' ? 'amber' : 'neutral'} dot>
+                {DISPUTE_LABEL[dispute.status]}
+              </StatusChip>
+            )}
+            {pending && pending.submitted < pending.threshold && (
+              <StatusChip tone="pulse">
+                Pending {pending.submitted}/{pending.threshold}
+              </StatusChip>
+            )}
+          </div>
+        )}
         {(status?.listing || status?.policyNote || status?.dormant || status?.aliasOf) && (
           <div className="flex flex-wrap gap-1.5">
             {status?.aliasOf && (
@@ -106,6 +129,11 @@ export function AnchorCard({
             <Sparkline history={anchor.scoreHistory} currentScore={score} anchorId={anchor.anchorId} />
             {card && <PillarDots card={card} />}
           </>
+        ) : dispute?.status === 'Upheld' ? (
+          <span className="flex h-[52px] w-[88px] flex-col items-center justify-center text-center text-[11px] leading-tight text-as-ink-faint">
+            <span className="as-mono text-lg text-as-ink-muted">-</span>
+            Withheld after a dispute
+          </span>
         ) : card && !status?.aliasOf ? (
           // Withheld: show how far the card is from having a number to show.
           <span

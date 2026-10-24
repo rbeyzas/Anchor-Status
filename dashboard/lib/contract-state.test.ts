@@ -5,10 +5,16 @@ import {
   anchorInfoKey,
   decodeAnchorAt,
   decodeAnchorInfo,
+  decodeDispute,
   decodeHealth,
+  decodeLifecycle,
+  decodeQuorum,
+  decodeRound,
   healthKey,
   keyId,
+  readQuorumThreshold,
   readRegistryIndex,
+  roundKey,
 } from './contract-state';
 import { cursorLedger, ledgerRanges } from './soroban';
 
@@ -176,5 +182,97 @@ describe('event paging helpers', () => {
       [120, 125],
     ]);
     expect(ledgerRanges(100, 100, 10)).toEqual([]);
+  });
+});
+
+const addr = (a: string) => new Address(a).toScVal();
+const vec = (items: xdr.ScVal[]) => xdr.ScVal.scvVec(items);
+const bytes = (hex: string) => xdr.ScVal.scvBytes(Buffer.from(hex, 'hex'));
+const R1 = 'GBWXKNZBCZYKCMLGUBWQBBVLYTZ6OYMXVATDH6UWNRELHS2D2C5MHPQG';
+const R2 = 'GBN2RFNKQVMHOZ2FWC3JKBDJICW46435MIJA6HU3SXDHG5VWSDX7J2RB';
+
+describe('quorum, round, dispute and lifecycle records', () => {
+  it('keys a round in temporary storage', () => {
+    const key = roundKey(ORACLE, 'moneygram');
+    expect((key.value as xdr.LedgerKeyContractData).durability).toBe(xdr.ContractDataDurability.temporary);
+  });
+
+  it('reads the quorum behind a card, marking outliers', () => {
+    const entry = dataEntry(
+      ORACLE,
+      sym('ignored'),
+      struct({
+        window_end: u64(1792753200),
+        reporters: vec([addr(R1), addr(R2)]),
+        scores: vec([u32(74), u32(95)]),
+        inputs_hashes: vec([bytes('00'.repeat(32)), bytes('11'.repeat(32))]),
+        spread: u32(21),
+        outliers: vec([addr(R2)]),
+      }),
+    );
+    expect(decodeQuorum(entry, 2)).toEqual({
+      windowEnd: '2026-10-23T11:00:00.000Z',
+      reporters: [
+        { address: R1, score: 74, outlier: false },
+        { address: R2, score: 95, outlier: true },
+      ],
+      spread: 21,
+      threshold: 2,
+    });
+  });
+
+  it('counts the cards a pending round holds', () => {
+    const entry = dataEntry(
+      ORACLE,
+      sym('ignored'),
+      struct({ window_end: u64(1792753200), methodology_version: u32(1), submissions: vec([variant('x')]) }),
+    );
+    expect(decodeRound(entry, 2)).toMatchObject({ submitted: 1, threshold: 2 });
+  });
+
+  it('reads a dispute with its votes', () => {
+    const entry = dataEntry(
+      ORACLE,
+      sym('ignored'),
+      struct({
+        operator: addr(OPERATOR),
+        window_end: u64(1792753200),
+        opened_at: u64(1792760000),
+        reason_code: u32(1),
+        evidence_hash: bytes('ab'.repeat(32)),
+        status: variant('Upheld'),
+        uphold: vec([addr(R1), addr(R2)]),
+        reject: vec([]),
+        resolved_at: u64(1792761000),
+      }),
+    );
+    expect(decodeDispute(entry)).toMatchObject({ status: 'Upheld', upholdVotes: 2, rejectVotes: 0, reasonCode: 1 });
+  });
+
+  it('reads a deactivation, and nothing for an active anchor', () => {
+    const status = (state: string, reason: string) =>
+      dataEntry(REGISTRY, sym('ignored'), struct({ state: variant(state), reason: xdr.ScVal.scvString(reason), since: u64(1792753200) }));
+    expect(decodeLifecycle(status('Deactivated', 'mock retired'))).toEqual({
+      reason: 'mock retired',
+      since: '2026-10-23T11:00:00.000Z',
+    });
+    expect(decodeLifecycle(status('Active', ''))).toBeUndefined();
+  });
+
+  it('reads the threshold from the oracle instance, 1 without a config', () => {
+    const instance = (storage: xdr.ScMapEntry[]) =>
+      dataEntry(
+        ORACLE,
+        xdr.ScVal.scvLedgerKeyContractInstance(),
+        xdr.ScVal.scvContractInstance(
+          new xdr.ScContractInstance({ executable: xdr.ContractExecutable.contractExecutableStellarAsset(), storage }),
+        ),
+      );
+    expect(readQuorumThreshold(instance([]))).toBe(1);
+    const cfg = new xdr.ScMapEntry({
+      key: variant('QuorumCfg'),
+      val: struct({ threshold: u32(2), max_spread: u32(15), round_seconds: u64(21600) }),
+    });
+    expect(readQuorumThreshold(instance([cfg]))).toBe(2);
   });
 });

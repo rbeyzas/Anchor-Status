@@ -5,15 +5,112 @@ import Link from 'next/link';
 import { motion, useReducedMotion } from 'framer-motion';
 import { X } from '@phosphor-icons/react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { formatChartAxisLabel, formatRelativeTime, formatStakeXlm } from '@/lib/format';
+import { formatChartAxisLabel, formatRelativeTime, formatShortDate, formatStakeXlm } from '@/lib/format';
 import { describeHealth, RISK_LABEL, TREND_LABEL } from '@/lib/health';
 import { CONFIDENCE_LABEL, confidenceBand, isWithheld } from '@/lib/scorecard';
-import { evidenceUrl, hasEnoughData, headlineScore, latestEvidence, listingExplanation } from '@/lib/status-labels';
-import type { AnchorViewModel } from '@/lib/types';
+import {
+  DISPUTE_COPY,
+  DISPUTE_LABEL,
+  evidenceUrl,
+  hasEnoughData,
+  headlineScore,
+  isDisputeUpheld,
+  latestEvidence,
+  listingExplanation,
+} from '@/lib/status-labels';
+import type { AnchorViewModel, DisputeView, PendingRoundView, QuorumView } from '@/lib/types';
 import { PillarRadar } from './PillarRadar';
 import { ConfidenceChip, FlagChips, PillarBars } from './ScoreCardParts';
 import { ScoreValue } from './ScoreValue';
 import { SourceBadge } from './SourceBadge';
+import { StatusChip } from './StatusChip';
+
+const shortKey = (address: string) => `${address.slice(0, 4)}…${address.slice(-4)}`;
+const accountUrl = (address: string, sourceType: AnchorViewModel['sourceType']) =>
+  `https://stellar.expert/explorer/${sourceType === 'RealMainnet' ? 'public' : 'testnet'}/account/${address}`;
+
+/** Who published the current card, each reporter's own score, and the
+ * round still collecting, if any. */
+function QuorumPanel({
+  quorum,
+  pending,
+  sourceType,
+}: {
+  quorum?: QuorumView;
+  pending?: PendingRoundView;
+  sourceType: AnchorViewModel['sourceType'];
+}) {
+  const waiting = pending && pending.submitted < pending.threshold ? pending : undefined;
+  if (!quorum && !waiting) return null;
+  return (
+    <div className="mt-4 rounded-as-md border border-as-hairline px-3 py-3 text-xs">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="font-medium text-as-ink">Reporters</span>
+        {quorum && (
+          <span className="tabular text-as-ink-faint">
+            {quorum.reporters.length} of {quorum.threshold} needed · spread {quorum.spread}
+          </span>
+        )}
+      </div>
+      {quorum && (
+        <ul className="flex flex-col gap-1">
+          {quorum.reporters.map((r) => (
+            <li key={r.address} className="flex items-center justify-between gap-2">
+              <a
+                href={accountUrl(r.address, sourceType)}
+                target="_blank"
+                rel="noreferrer"
+                className="as-mono text-as-ink-muted underline decoration-as-hairline"
+                title={r.address}
+              >
+                {shortKey(r.address)}
+              </a>
+              <span className="flex items-center gap-2">
+                {r.outlier && <StatusChip tone="amber">Outlier</StatusChip>}
+                <span className="tabular font-medium text-as-ink">{r.score}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {waiting && (
+        <p className="mt-2 text-as-ink-muted">
+          <StatusChip tone="pulse">
+            Pending {waiting.submitted}/{waiting.threshold}
+          </StatusChip>{' '}
+          the round ending {formatRelativeTime(waiting.windowEnd)} has {waiting.submitted} of the {waiting.threshold} cards it
+          needs; until then the card above stands.
+        </p>
+      )}
+    </div>
+  );
+}
+
+const DISPUTE_TONE = { Open: 'amber', Upheld: 'danger', Rejected: 'neutral', Superseded: 'neutral' } as const;
+
+/** The operator's latest dispute and how the reporters voted. */
+function DisputePanel({ dispute, current }: { dispute: DisputeView; current: boolean }) {
+  return (
+    <div className="mb-5 rounded-as-md border border-as-hairline px-4 py-3 text-sm text-as-ink-muted">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
+        <StatusChip tone={DISPUTE_TONE[dispute.status]} dot>
+          {DISPUTE_LABEL[dispute.status]}
+        </StatusChip>
+        <span className="text-xs text-as-ink-faint">
+          {current ? 'against the card shown' : `against the card of ${formatShortDate(dispute.windowEnd)}`} · opened{' '}
+          {formatRelativeTime(dispute.openedAt)}
+        </span>
+      </div>
+      <p>{DISPUTE_COPY[dispute.status]}</p>
+      <p className="tabular mt-1 text-xs">
+        Votes: {dispute.upholdVotes} uphold, {dispute.rejectVotes} reject · reason code {dispute.reasonCode} · evidence{' '}
+        <span className="as-mono" title={dispute.evidenceHash}>
+          {dispute.evidenceHash.slice(0, 12)}…
+        </span>
+      </p>
+    </div>
+  );
+}
 
 export function AnchorDetailModal({
   anchor,
@@ -91,6 +188,23 @@ export function AnchorDetailModal({
           </button>
         </div>
 
+        {anchor.deactivated && (
+          <div className="mb-5 rounded-as-md border border-as-hairline bg-as-surface-2/50 px-4 py-3 text-sm text-as-ink-muted">
+            <span className="font-medium text-as-ink">Deactivated {formatShortDate(anchor.deactivated.since)}.</span> No
+            longer measured or ranked; the score below is the last one published before that.
+            {anchor.deactivated.reason && (
+              <>
+                {' '}
+                Reason on-chain: <span className="text-as-ink">&ldquo;{anchor.deactivated.reason}&rdquo;</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {anchor.dispute && (
+          <DisputePanel dispute={anchor.dispute} current={!!card && anchor.dispute.windowEnd === card.windowEnd} />
+        )}
+
         {anchor.sourceType === 'RealMainnet' && (
           <div className="mb-5 rounded-as-md border border-as-signal/30 bg-as-signal-soft px-4 py-3 text-sm text-as-ink-muted">
             Every 20 minutes we check this anchor&apos;s live mainnet API the way a
@@ -122,6 +236,8 @@ export function AnchorDetailModal({
                 <ScoreValue score={score} size={44} />
                 {card && <ConfidenceChip confidence={card.confidence} />}
               </>
+            ) : isDisputeUpheld(anchor) ? (
+              <span className="text-sm text-as-ink-faint">Withheld: the operator&apos;s dispute was upheld</span>
             ) : card ? (
               <span className="text-sm text-as-ink-faint">
                 {CONFIDENCE_LABEL[confidenceBand(card.confidence)]} yet (confidence {card.confidence} of the 40 needed)
@@ -171,6 +287,7 @@ export function AnchorDetailModal({
                 <FlagChips flags={card.flags} />
               </div>
             )}
+            <QuorumPanel quorum={anchor.quorum} pending={anchor.pendingRound} sourceType={anchor.sourceType} />
             <dl className="mt-4 grid grid-cols-3 gap-3 text-xs">
               <div className="flex flex-col gap-0.5">
                 <dt className="text-as-ink-faint">Confidence</dt>

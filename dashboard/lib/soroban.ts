@@ -10,12 +10,21 @@ import {
   decodeAnchorAt,
   decodeAnchorInfo,
   decodeCard,
+  decodeDispute,
   decodeHealth,
+  decodeLifecycle,
+  decodeQuorum,
+  decodeRound,
+  disputeKey,
   healthKey,
   instanceKey,
   keyId,
+  lifecycleKey,
   NEW_HEALTH,
+  quorumKey,
+  readQuorumThreshold,
   readRegistryIndex,
+  roundKey,
 } from './contract-state';
 import { createRpcPool, type RpcPool } from './rpc';
 import { fetchScoreSummary, mergeCardContext } from './score-summary';
@@ -151,18 +160,24 @@ async function readAnchorIds(pool: RpcPool, instance: Entry): Promise<string[]> 
 async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorViewModel[]; unreadable: UnreadableAnchor[] }> {
   assertLiveConfigPresent();
 
-  const registryInstance = (await fetchEntries(pool, [instanceKey(REGISTRY_CONTRACT_ID)])).entries.get(
-    keyId(instanceKey(REGISTRY_CONTRACT_ID)),
-  );
+  const instances = (await fetchEntries(pool, [instanceKey(REGISTRY_CONTRACT_ID), instanceKey(ORACLE_CONTRACT_ID)])).entries;
+  const registryInstance = instances.get(keyId(instanceKey(REGISTRY_CONTRACT_ID)));
   if (!registryInstance) throw new Error('AnchorRegistry contract not found');
   const anchorIds = await readAnchorIds(pool, registryInstance);
+  const oracleInstance = instances.get(keyId(instanceKey(ORACLE_CONTRACT_ID)));
+  const threshold = oracleInstance ? readQuorumThreshold(oracleInstance.val) : 1;
 
-  // Every anchor's record, health and card in two calls, instead of
-  // simulated contract calls per anchor.
+  // Every anchor's record, health, card, quorum, open round, dispute and
+  // lifecycle status in a few batched calls, instead of simulated contract
+  // calls per anchor. Keys an older contract never wrote are just absent.
   const keys = anchorIds.flatMap((id) => [
     anchorInfoKey(REGISTRY_CONTRACT_ID, id),
     healthKey(ORACLE_CONTRACT_ID, id),
     cardKey(ORACLE_CONTRACT_ID, id),
+    lifecycleKey(REGISTRY_CONTRACT_ID, id),
+    quorumKey(ORACLE_CONTRACT_ID, id),
+    roundKey(ORACLE_CONTRACT_ID, id),
+    disputeKey(ORACLE_CONTRACT_ID, id),
   ]);
   const [{ entries, latestLedger }, history] = await Promise.all([
     fetchEntries(pool, keys),
@@ -202,6 +217,27 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
     } catch (err) {
       console.warn(`[dashboard] could not decode the score card of ${anchorId}:`, err);
     }
+    // Context around the card: none of it may take the anchor off the page.
+    const live = (key: xdr.LedgerKey) => {
+      const entry = entries.get(keyId(key));
+      return entry && !isArchived(entry, latestLedger) ? entry.val : undefined;
+    };
+    const optional = <T,>(what: string, decode: () => T | undefined): T | undefined => {
+      try {
+        return decode();
+      } catch (err) {
+        console.warn(`[dashboard] could not decode the ${what} of ${anchorId}:`, err);
+        return undefined;
+      }
+    };
+    const lifecycleVal = live(lifecycleKey(REGISTRY_CONTRACT_ID, anchorId));
+    const quorumVal = live(quorumKey(ORACLE_CONTRACT_ID, anchorId));
+    const roundVal = live(roundKey(ORACLE_CONTRACT_ID, anchorId));
+    const disputeVal = live(disputeKey(ORACLE_CONTRACT_ID, anchorId));
+    const deactivated = lifecycleVal && optional('status', () => decodeLifecycle(lifecycleVal));
+    const quorum = quorumVal && optional('quorum', () => decodeQuorum(quorumVal, threshold));
+    const pendingRound = roundVal && optional('pending round', () => decodeRound(roundVal, threshold));
+    const dispute = disputeVal && optional('dispute', () => decodeDispute(disputeVal));
     const lastUpdated = new Date(Number(info.lastUpdated) * 1000).toISOString();
     const points = history.get(anchorId) ?? [];
     anchors.push({
@@ -217,6 +253,10 @@ async function fetchLiveDashboardData(pool: RpcPool): Promise<{ anchors: AnchorV
       lastUpdated,
       health,
       ...(card ? { card } : {}),
+      ...(quorum ? { quorum } : {}),
+      ...(pendingRound ? { pendingRound } : {}),
+      ...(dispute ? { dispute } : {}),
+      ...(deactivated ? { deactivated } : {}),
     });
   }
   if (pool.activeProvider !== 'primary') console.warn('[dashboard] this render was served by the backup RPC');

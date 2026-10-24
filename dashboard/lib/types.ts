@@ -65,6 +65,47 @@ export interface ScoreCardContext {
   excluded?: { incident: string; probes: number }[];
 }
 
+/** The reporters behind the current card (oracle `Quorum(id)`). */
+export interface QuorumView {
+  windowEnd: string;
+  /** Each reporter's own score; outliers were further than max_spread
+   * from the median. */
+  reporters: { address: string; score: number; outlier: boolean }[];
+  /** Highest minus lowest score. */
+  spread: number;
+  /** Reporters needed for a card to count. */
+  threshold: number;
+}
+
+/** A round still collecting cards (oracle `Round(id)`). */
+export interface PendingRoundView {
+  windowEnd: string;
+  submitted: number;
+  threshold: number;
+}
+
+export type DisputeStatus = 'Open' | 'Upheld' | 'Rejected' | 'Superseded';
+
+/** The anchor's latest dispute (oracle `Dispute(id)`). */
+export interface DisputeView {
+  status: DisputeStatus;
+  /** The window of the card it objects to. */
+  windowEnd: string;
+  openedAt: string;
+  resolvedAt?: string;
+  reasonCode: number;
+  evidenceHash: string;
+  upholdVotes: number;
+  rejectVotes: number;
+}
+
+/** A deactivated anchor's on-chain status (registry `Status(id)`). */
+export interface LifecycleView {
+  /** In the operator's words, shown as they are. */
+  reason: string;
+  since: string;
+}
+
 /** Off-chain context from mainnet-probe: how the directory lists the anchor,
  * and what its latest check found. */
 export interface AnchorStatusView {
@@ -122,6 +163,11 @@ export interface AnchorViewModel {
   /** The anchor's score card, when one has been published. */
   card?: ScoreCardView;
   cardContext?: ScoreCardContext;
+  quorum?: QuorumView;
+  pendingRound?: PendingRoundView;
+  dispute?: DisputeView;
+  /** Set once deactivated in the registry: no longer measured or ranked. */
+  deactivated?: LifecycleView;
 }
 
 /** 'unavailable': the chain could not be read, and nothing is shown. */

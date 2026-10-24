@@ -180,3 +180,30 @@ describe('acceptedAnchorIds', () => {
     expect([...acceptedAnchorIds(main, test, null)].sort()).toEqual(['a', 'c']);
   });
 });
+
+describe('disputes and deactivated anchors', () => {
+  const card = {
+    score: 80, availability: 80, speed: 80, integrity: 80, market: null, confidence: 90, flags: [],
+    windowEnd: '2026-10-20T09:00:00Z', methodologyVersion: 1, inputsHash: '00', publishedAt: '2026-10-20T09:05:00Z',
+  } as AnchorViewModel['card'];
+  const dispute = (status: 'Open' | 'Upheld', windowEnd = '2026-10-20T09:00:00Z') => ({
+    status, windowEnd, openedAt: windowEnd, reasonCode: 1, evidenceHash: 'ab', upholdVotes: 0, rejectVotes: 0,
+  });
+
+  it('withholds the score only while an upheld dispute names the card shown', async () => {
+    const { hasEnoughData, currentDispute } = await import('./status-labels');
+    expect(hasEnoughData(anchor({ card }))).toBe(true);
+    expect(hasEnoughData(anchor({ card, dispute: dispute('Open') }))).toBe(true);
+    expect(hasEnoughData(anchor({ card, dispute: dispute('Upheld') }))).toBe(false);
+    // A dispute about an older card says nothing about this one.
+    const old = anchor({ card, dispute: dispute('Upheld', '2026-10-19T09:00:00Z') });
+    expect(hasEnoughData(old)).toBe(true);
+    expect(currentDispute(old)).toBeUndefined();
+  });
+
+  it('ranks deactivated anchors last, whatever their score', () => {
+    const retired = anchor({ anchorId: 'r', name: 'R', card, deactivated: { reason: 'gone', since: '2026-10-20T00:00:00Z' } });
+    const low = anchor({ anchorId: 'l', name: 'L', card: { ...card!, score: 40 } });
+    expect([retired, low].sort(compareAnchors).map((a) => a.anchorId)).toEqual(['l', 'r']);
+  });
+});

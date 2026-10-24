@@ -667,6 +667,16 @@ body {
   line-height: 1.35;
   white-space: normal;
 }
+/* Deactivated in the registry: still listed with its last score, but out of
+   the ranking, so it reads as greyed out rather than as a live result. */
+.as-card--retired {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+.as-card--retired:hover,
+.as-card--retired:focus-visible {
+  opacity: 0.85;
+}
 .as-card__side {
   display: flex;
   flex-direction: column;
