@@ -69,6 +69,7 @@ export interface GovernanceData {
   registry: ContractGovernance;
   oracle: OracleGovernance;
   reporters: Record<SourceType, string[]>;
+  /** The admins and any proposed admin, with their signers. */
   admins: AdminAccount[];
   /** The last 7 days, newest first. */
   history: GovernanceEvent[];
@@ -175,7 +176,10 @@ export async function getGovernanceData(): Promise<GovernanceData> {
     reporters[t] = val ? (scValToNative(contractDataVal(val)) as string[]).map(String) : [];
   });
 
-  const admins = await Promise.all([...new Set([registry.admin, oracle.admin])].map(adminAccount));
+  // A proposed admin's signers count too: they are the ones who sign its
+  // accept_admin, from the panel's queue.
+  const candidates = [registry.admin, oracle.admin, registry.pendingAdmin, oracle.pendingAdmin].filter((a): a is string => !!a);
+  const admins = await Promise.all([...new Set(candidates)].map(adminAccount));
   const history = events
     .map((e) => describeEvent(e.contractId?.toString() === REGISTRY_CONTRACT_ID ? 'registry' : 'oracle', e))
     .reverse();
