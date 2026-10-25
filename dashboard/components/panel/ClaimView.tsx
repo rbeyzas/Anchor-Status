@@ -83,11 +83,12 @@ export function ClaimView({ address, anchors, registryId }: { address: string; a
                     <span className="as-mono break-all">{lookup.signingKey}</span>
                   ) : (
                     <span className="text-as-amber">
-                      Not yet. The reporters attest it from{' '}
+                      Not yet. Our reporters read{' '}
                       <a href={`https://${anchor.domain}/.well-known/stellar.toml`} target="_blank" rel="noreferrer" className="underline">
                         {anchor.domain}/.well-known/stellar.toml
-                      </a>
-                      ; ask us once its SIGNING_KEY is set there.
+                      </a>{' '}
+                      every 20 minutes and record its SIGNING_KEY here. If the file has none, add one; if it has one, check back
+                      within the hour.
                     </span>
                   )}
                 </Field>

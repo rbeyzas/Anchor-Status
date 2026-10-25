@@ -70,6 +70,11 @@ else
   log "aggregator skipped: secondary not publishing yet (SECONDARY_PUBLISH unset)"
 fi
 
+# The SIGNING_KEY each anchor publishes, attested when the registry does not
+# hold it yet, so its operator can claim the record (the panel's Claim).
+log "attest-keys (record each anchor's stellar.toml SIGNING_KEY on-chain)"
+(cd services/aggregator && npm run --silent attest-keys) || log "attest-keys failed"
+
 # Open disputes: the primary compares both hosts' cards for the panel and
 # tells the admins; each host casts its vote once the admins have decided
 # (a secondary only once it publishes). It decides that itself from .env.

@@ -19,8 +19,9 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Address, contract, Keypair, rpc, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { contract, Keypair, rpc } from '@stellar/stellar-sdk';
 import { config } from './config.js';
+import { readPerAnchor } from './ledger.js';
 import { FLAGS } from './scoring/constants.js';
 import { readShadow, shadowPath, type ShadowRow } from './scoring/shadow.js';
 
@@ -105,34 +106,18 @@ interface OpenDispute {
 const tag = (v: unknown) => (Array.isArray(v) ? String(v[0]) : String(v));
 
 async function openDisputes(server: rpc.Server, oracle: string, anchorIds: string[]): Promise<OpenDispute[]> {
-  const contractAddress = new Address(oracle).toScAddress();
   const out: OpenDispute[] = [];
-  for (let i = 0; i < anchorIds.length; i += 100) {
-    const keys = anchorIds.slice(i, i + 100).map((id) =>
-      xdr.LedgerKey.contractData(
-        new xdr.LedgerKeyContractData({
-          contract: contractAddress,
-          key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('Dispute'), xdr.ScVal.scvSymbol(id)]),
-          durability: xdr.ContractDataDurability.persistent,
-        }),
-      ),
-    );
-    const { entries } = await server.getLedgerEntries(...keys);
-    for (const e of entries) {
-      if (e.val.type !== 'contractData') continue;
-      const data = e.val.contractData;
-      const anchorId = String(scValToNative(data.key)[1]);
-      const d = scValToNative(data.val) as Record<string, unknown>;
-      if (tag(d.status) !== 'Open') continue;
-      out.push({
-        anchorId,
-        windowEnd: Number(d.window_end),
-        openedAt: Number(d.opened_at),
-        reasonCode: Number(d.reason_code),
-        evidenceHash: Buffer.from(d.evidence_hash as Uint8Array).toString('hex'),
-        voters: [...(d.uphold as unknown[]), ...(d.reject as unknown[])].map(String),
-      });
-    }
+  for (const [anchorId, value] of await readPerAnchor(server, oracle, 'Dispute', anchorIds)) {
+    const d = value as Record<string, unknown>;
+    if (tag(d.status) !== 'Open') continue;
+    out.push({
+      anchorId,
+      windowEnd: Number(d.window_end),
+      openedAt: Number(d.opened_at),
+      reasonCode: Number(d.reason_code),
+      evidenceHash: Buffer.from(d.evidence_hash as Uint8Array).toString('hex'),
+      voters: [...(d.uphold as unknown[]), ...(d.reject as unknown[])].map(String),
+    });
   }
   return out;
 }

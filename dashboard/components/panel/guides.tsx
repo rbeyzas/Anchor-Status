@@ -10,7 +10,10 @@ export const CLAIM_GUIDE: GuideContent = {
       Make sure your domain&apos;s <span className="as-mono">/.well-known/stellar.toml</span> has a <span className="as-mono">SIGNING_KEY</span>{' '}
       and that you hold its secret. Anchors with SEP-10 already have one.
     </>,
-    <>Choose your anchor below. If step 1 shows &quot;Not yet&quot;, write to us: our reporters read the key from your stellar.toml and record it on-chain.</>,
+    <>
+      Choose your anchor below. Step 1 shows the key our reporters recorded on-chain from your stellar.toml; they check it every 20 minutes, so
+      a key you just added shows up within the hour.
+    </>,
     <>Connect the wallet that should operate the anchor; it needs a little XLM for the fee. The message to sign names this wallet.</>,
     <>
       Sign the message with the <span className="as-mono">SIGNING_KEY</span> secret on your own machine, for example with the command shown. Never paste
