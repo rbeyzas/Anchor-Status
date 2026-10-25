@@ -5,8 +5,10 @@
 // queues, checked by separate services. It reads onboarding.json but never
 // writes it, holds no key, and does no network I/O of its own.
 import { timingSafeEqual } from 'node:crypto';
+import fs from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createItem, loadQueue, updateItem } from './admin-queue.js';
+import { addDecisionSignature, addEvidence, loadDisputes } from './dispute-store.js';
 import {
   appendSubmission,
   decideSubmission,
@@ -32,6 +34,10 @@ export interface IntakeOptions {
   perClient: { max: number; windowMs: number };
   /** The multisig admin's transaction queue (admin-queue.ts). */
   adminQueueFile?: string;
+  /** Dispute evidence and admin decisions (dispute-store.ts). */
+  disputesFile?: string;
+  /** The collector's comparison of the reporters' cards, read only. */
+  disputeCompareFile?: string;
   now?: () => Date;
 }
 
@@ -109,10 +115,46 @@ export function createIntakeHandler(opts: IntakeOptions) {
     return send(res, id ? 200 : 201, { item: result });
   }
 
+  /** GET: evidence, decisions and the collector's comparison. POST
+   * /evidence stores a text (rate-limited, like applications); POST
+   * /decision adds a signature the dashboard has checked. */
+  async function disputes(req: IncomingMessage, res: ServerResponse, url: URL) {
+    const file = opts.disputesFile;
+    if (!file) return send(res, 404, { error: 'not found' });
+    if (!tokenMatches(req.headers['x-onboarding-token'], opts.token)) return send(res, 401, { error: 'unauthorized' });
+    if (req.method === 'GET' && url.pathname === '/admin-queue/disputes') {
+      let comparisons: unknown = {};
+      try {
+        comparisons = JSON.parse(fs.readFileSync(opts.disputeCompareFile ?? '', 'utf8'));
+      } catch {
+        // None written yet.
+      }
+      return send(res, 200, { ...loadDisputes(file), comparisons });
+    }
+    const kind = url.pathname.slice('/admin-queue/disputes/'.length);
+    if (req.method !== 'POST' || (kind !== 'evidence' && kind !== 'decision')) return send(res, 404, { error: 'not found' });
+    if (kind === 'evidence') {
+      const clientHeader = req.headers['x-client-ip'];
+      const gate = allow((typeof clientHeader === 'string' && clientHeader.slice(0, 64)) || req.socket.remoteAddress || 'unknown');
+      if (!gate.ok) return send(res, 429, { error: 'too many requests' }, { 'retry-after': String(gate.retryAfterS) });
+    }
+    const raw = await readBody(req, 16 * 1024);
+    if (raw === null) return send(res, 413, { error: 'request too large' }, { connection: 'close' });
+    let body: unknown;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return send(res, 400, { error: 'expected a JSON body' });
+    }
+    const result = kind === 'evidence' ? addEvidence(file, body, now()) : addDecisionSignature(file, body, now());
+    return result ? send(res, 201, result as unknown as Record<string, unknown>) : send(res, 400, { error: 'unexpected fields' });
+  }
+
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
       const url = new URL(req.url ?? '/', 'http://intake');
       if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true });
+      if (url.pathname === '/admin-queue/disputes' || url.pathname.startsWith('/admin-queue/disputes/')) return disputes(req, res, url);
       if (url.pathname === '/admin-queue' || url.pathname.startsWith('/admin-queue/')) return adminQueue(req, res, url);
       const network: Network | undefined =
         url.pathname === '/' || url.pathname === '/mainnet' ? 'mainnet' : url.pathname === '/testnet' ? 'testnet' : undefined;

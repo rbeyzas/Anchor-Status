@@ -7,6 +7,7 @@ import { buildArgs, METHODS } from '@/lib/admin-calls';
 import type { GovernanceData } from '@/lib/governance';
 import { rejectMessage } from '@/lib/queue-message';
 import { buildAdminCall, signEnvelope, signText } from '@/lib/wallet';
+import { QUEUE_GUIDE } from './guides';
 import { AccountLink, INPUT, Section, TxLink, When } from './parts';
 
 async function api(body?: unknown): Promise<Record<string, unknown>> {
@@ -83,7 +84,7 @@ export function QueuePanel({ address, governance: g }: { address: string; govern
   }
 
   return (
-    <Section title="Transactions to sign" aside="each needs the admin account's threshold of signatures">
+    <Section title="Transactions to sign" aside="each needs the admin account's threshold of signatures" guide={QUEUE_GUIDE}>
       <form
         className="mb-6 grid gap-2 rounded-as-md border border-as-hairline p-4 sm:grid-cols-2"
         onSubmit={(e) => {

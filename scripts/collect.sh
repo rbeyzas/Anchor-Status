@@ -70,6 +70,12 @@ else
   log "aggregator skipped: secondary not publishing yet (SECONDARY_PUBLISH unset)"
 fi
 
+# Open disputes: the primary compares both hosts' cards for the panel and
+# tells the admins; each host casts its vote once the admins have decided
+# (a secondary only once it publishes). It decides that itself from .env.
+log "disputes (compare the reporters' cards, carry the admins' decisions on-chain)"
+(cd services/aggregator && npm run --silent disputes) || log "disputes step failed"
+
 if [ "$ROLE" = "primary" ]; then
   # Must run last and always: it is what makes history survive the RPC's
   # ~12h event window, so it runs even if a collector above failed.

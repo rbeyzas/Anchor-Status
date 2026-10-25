@@ -78,6 +78,15 @@ export async function invoke(address: string, contractId: string, method: string
   return sent.sendTransactionResponse?.hash ?? '';
 }
 
+/** A read-only call, simulated without a source account (the wallet's may
+ * not exist yet on this network): nothing is signed or sent. */
+export async function read(contractId: string, method: string, args: Record<string, unknown>): Promise<unknown> {
+  const client = await contract.Client.from({ contractId, networkPassphrase: NETWORK_PASSPHRASE, rpcUrl: RPC_URL });
+  const fn = (client as unknown as Record<string, (a: Record<string, unknown>) => Promise<contract.AssembledTransaction<unknown>>>)[method];
+  if (typeof fn !== 'function') throw new Error(`${method} is not a function of ${contractId}`);
+  return (await fn(args)).result;
+}
+
 /** A queued admin call stays valid this long; its sequence number may be
  * used up sooner, and then it is proposed again. */
 const QUEUE_VALID_SECONDS = 7 * 24 * 3600;

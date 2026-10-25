@@ -39,6 +39,7 @@ services/mainnet-probe/evidence/
 services/testnet-probe/evidence/
 services/testnet-probe/output/
 services/aggregator/state.json
+services/aggregator/disputes-state.json
 
 # os / editor
 .DS_Store

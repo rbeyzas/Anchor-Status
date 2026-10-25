@@ -37,10 +37,25 @@ const anchor = createAnchor(
   }),
 );
 
+// The D3 dispute demo's fault switch: FAULT=all answers 503 to everyone,
+// FAULT=<ip>,<ip> only to those clients (one reporter's view of an outage).
+// stellar.toml stays up for fly's health check and the attestation.
+// `fly secrets set FAULT=...` / `fly secrets unset FAULT` flips it.
+const fault = (process.env.FAULT ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const faulted = (req: http.IncomingMessage, path: string) => {
+  if (!fault.length || path === '/.well-known/stellar.toml') return false;
+  const ip = String(req.headers['fly-client-ip'] ?? req.socket.remoteAddress ?? '');
+  return fault.includes('all') || fault.includes(ip);
+};
+if (fault.length) console.warn(`[reference-anchor] FAULT on for ${fault.join(', ')}`);
+
 const port = Number(process.env.PORT ?? 8080);
 http
   .createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://local');
+    if (faulted(req, url.pathname)) {
+      return void res.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'unavailable' }));
+    }
     let body = '';
     for await (const chunk of req) {
       body += chunk;

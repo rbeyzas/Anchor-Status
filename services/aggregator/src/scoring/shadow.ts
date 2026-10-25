@@ -83,7 +83,7 @@ export function compareShadow(a: ShadowRow[], b: ShadowRow[], candidates = [5, 1
   };
 }
 
-function shadowPath(): string {
+export function shadowPath(): string {
   return path.resolve(process.env.SHADOW_CARDS_PATH ?? path.join(path.dirname(process.env.AGGREGATOR_STATE_PATH ?? 'state.json'), 'shadow-cards.jsonl'));
 }
 

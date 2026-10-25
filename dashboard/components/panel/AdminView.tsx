@@ -3,6 +3,7 @@
 import type { ChipTone } from '@/components/StatusChip';
 import { StatusChip } from '@/components/StatusChip';
 import type { ContractGovernance, GovernanceData, GovernanceEvent } from '@/lib/governance';
+import { WAITING_GUIDE } from './guides';
 import { AccountLink, Field, Section, shortKey, TxLink, When } from './parts';
 import { QueuePanel } from './QueuePanel';
 
@@ -51,7 +52,9 @@ function waitingOn(name: string, c: ContractGovernance): Waiting[] {
   return out;
 }
 
-export function AdminView({ address, governance: g }: { address: string; governance: GovernanceData }) {
+/** `transactions`: what is waiting and the multisig's queue; `contracts`:
+ * the contracts' settings, signers and history. */
+export function AdminView({ address, governance: g, part }: { address: string; governance: GovernanceData; part: 'transactions' | 'contracts' }) {
   const waiting = [
     ...waitingOn('Registry', g.registry),
     ...waitingOn('Oracle', g.oracle),
@@ -60,9 +63,11 @@ export function AdminView({ address, governance: g }: { address: string; governa
       : []),
   ];
 
+  if (part === 'contracts') return <ContractsView governance={g} />;
+
   return (
     <div className="flex flex-col gap-6">
-      <Section title="Waiting to change" aside="proposed on-chain, not yet in force">
+      <Section title="Waiting to change" aside="proposed on-chain, not yet in force" guide={WAITING_GUIDE}>
         {waiting.length === 0 ? (
           <p className="text-sm text-as-ink-muted">Nothing is waiting: no proposed admin, upgrade or time-lock change.</p>
         ) : (
@@ -88,6 +93,13 @@ export function AdminView({ address, governance: g }: { address: string; governa
       </Section>
 
       <QueuePanel address={address} governance={g} />
+    </div>
+  );
+}
+
+function ContractsView({ governance: g }: { governance: GovernanceData }) {
+  return (
+    <div className="flex flex-col gap-6">
 
       <div className="grid gap-6 md:grid-cols-2">
         {[

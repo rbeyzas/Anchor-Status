@@ -171,3 +171,47 @@ describe('admin queue', () => {
     expect(await list()).toEqual([]);
   });
 });
+
+describe('disputes', () => {
+  const G = `G${'A'.repeat(55)}`;
+  const decision = { anchorId: 'ref1_monarank_xyz_testnet', windowEnd: 1792926000, decision: 'uphold', signer: G, signature: 'c2ln' };
+
+  async function store() {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'disputes-'));
+    fs.writeFileSync(path.join(dir, 'compare.json'), JSON.stringify({ 'ref1@1': { recommendation: 'uphold' } }));
+    const s = await start({ disputesFile: path.join(dir, 'disputes.json'), disputeCompareFile: path.join(dir, 'compare.json') });
+    const get = async () => (await fetch(`${s.base}/admin-queue/disputes`, { headers: { 'x-onboarding-token': TOKEN } })).json();
+    return { ...s, get };
+  }
+
+  it('stores evidence under the SHA-256 the operator puts on-chain', async () => {
+    const { post, get } = await store();
+    const text = 'https://status.example.com/incident/42 shows planned maintenance';
+    const res = await post({ text }, {}, '/admin-queue/disputes/evidence');
+    expect(res.status).toBe(201);
+    // The hash the panel computes: sha256 of the same UTF-8 text.
+    const { createHash } = await import('node:crypto');
+    const hash = createHash('sha256').update(text).digest('hex');
+    expect(await res.json()).toEqual({ hash });
+    expect(await get()).toMatchObject({ evidence: { [hash]: { text } }, comparisons: { 'ref1@1': { recommendation: 'uphold' } } });
+    expect((await post({ text: 'x'.repeat(2001) }, {}, '/admin-queue/disputes/evidence')).status).toBe(400);
+  });
+
+  it('collects one signature per signer on a decision', async () => {
+    const { post, get } = await store();
+    expect((await post(decision, {}, '/admin-queue/disputes/decision')).status).toBe(201);
+    expect((await post(decision, {}, '/admin-queue/disputes/decision')).status).toBe(201);
+    await post({ ...decision, signer: `G${'B'.repeat(55)}` }, {}, '/admin-queue/disputes/decision');
+    await post({ ...decision, decision: 'reject' }, {}, '/admin-queue/disputes/decision');
+    const { decisions } = (await get()) as { decisions: { decision: string; signatures: unknown[] }[] };
+    expect(decisions.map((d) => [d.decision, d.signatures.length])).toEqual([['uphold', 2], ['reject', 1]]);
+  });
+
+  it('refuses a malformed decision and requests without the token', async () => {
+    const { base, post } = await store();
+    expect((await post({ ...decision, decision: 'maybe' }, {}, '/admin-queue/disputes/decision')).status).toBe(400);
+    expect((await post({ ...decision, extra: 1 }, {}, '/admin-queue/disputes/decision')).status).toBe(400);
+    expect((await post({ ...decision, windowEnd: '1' }, {}, '/admin-queue/disputes/decision')).status).toBe(400);
+    expect((await fetch(`${base}/admin-queue/disputes`)).status).toBe(401);
+  });
+});

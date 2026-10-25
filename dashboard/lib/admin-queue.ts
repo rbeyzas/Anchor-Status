@@ -119,7 +119,7 @@ export function mergeSignatures(stored: Transaction, incoming: Transaction): Tra
   return stored;
 }
 
-export const weightOf = (keys: string[], account: Account) =>
+export const weightOf = (keys: string[], account: Pick<Account, 'signers'>) =>
   keys.reduce((w, k) => w + (account.signers.find((s) => s.key === k)?.weight ?? 0), 0);
 
 export { rejectMessage } from './queue-message';
@@ -150,7 +150,7 @@ export function viewOf(item: QueueItem, account: Account | undefined, now = Date
   return { ...item, ...fromEnvelope, signers: signed, weight: weightOf(signed, account), threshold: account.threshold, stale };
 }
 
-async function loadAccount(address: string): Promise<Account> {
+export async function loadAccount(address: string): Promise<Account> {
   const res = await fetch(`${HORIZON_URL}/accounts/${address}`, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`Horizon: account ${address} HTTP ${res.status}`);
   const a = (await res.json()) as { signers: { key: string; weight: number }[]; thresholds: { med_threshold: number }; sequence: string };
@@ -163,7 +163,7 @@ async function loadAccount(address: string): Promise<Account> {
 
 /** Who may be the source of a queued call to each contract: its admin, and
  * its proposed admin (which signs accept_admin). */
-async function allowedSources(): Promise<Record<string, string[]>> {
+export async function allowedSources(): Promise<Record<string, string[]>> {
   const keys = [instanceKey(REGISTRY_CONTRACT_ID), instanceKey(ORACLE_CONTRACT_ID)];
   const { entries } = await fetchEntries(createRpcPool(), keys);
   const out: Record<string, string[]> = {};
@@ -199,12 +199,17 @@ export interface QueueOptions {
   fetchImpl?: typeof fetch;
 }
 
-const json = (status: number, body: unknown) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
+export const json = (status: number, body: unknown) => Response.json(body, { status, headers: { 'cache-control': 'no-store' } });
 
-async function intake(opts: QueueOptions, path: string, body?: unknown): Promise<{ status: number; data: Record<string, unknown> }> {
+export async function intake(
+  opts: QueueOptions,
+  path: string,
+  body?: unknown,
+  headers: Record<string, string> = {},
+): Promise<{ status: number; data: Record<string, unknown> }> {
   const res = await (opts.fetchImpl ?? fetch)(`${opts.url}${path}`, {
     method: body === undefined ? 'GET' : 'POST',
-    headers: { 'content-type': 'application/json', 'x-onboarding-token': opts.token },
+    headers: { 'content-type': 'application/json', 'x-onboarding-token': opts.token, ...headers },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(10_000),
     cache: 'no-store',
