@@ -77,9 +77,13 @@ fi
 # The intake is the one long-running process: it keeps the code it started
 # with, so a change to it needs a restart (collector rounds start fresh).
 if [ "$local_sha" != none ] && ! git diff --quiet "$local_sha" "$remote_sha" -- services/mainnet-probe/src/intake.ts \
-  services/mainnet-probe/src/intake-server.ts services/mainnet-probe/src/admin-queue.ts services/mainnet-probe/src/candidates.ts; then
-  log "restarting the onboarding intake"
-  systemctl restart onboarding-intake || log "WARNING: the intake did not restart"
+  services/mainnet-probe/src/intake-server.ts services/mainnet-probe/src/admin-queue.ts services/mainnet-probe/src/candidates.ts \
+  services/mainnet-probe/src/dispute-store.ts; then
+  # Only the primary runs the intake.
+  if systemctl cat onboarding-intake >/dev/null 2>&1; then
+    log "restarting the onboarding intake"
+    systemctl restart onboarding-intake || log "WARNING: the intake did not restart"
+  fi
 fi
 
 # The dashboard is not deployed from here: the Vercel project
