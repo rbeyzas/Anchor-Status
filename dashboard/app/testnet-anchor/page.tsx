@@ -39,7 +39,7 @@ The anchor
 - MONAREF is a test asset with no value. Deposits and withdrawals of 1 to 100, no fee. There is no bank and no KYC: a deposit is paid when its sandbox button is pressed.
 - Fair-use limits: 5 deposits per account and 20 per IP address a day, 3 transfers in flight per account, 120 requests a minute. Over a limit the anchor answers HTTP 429 (or 503 when busy) with {"error": "..."}; handle it and do not retry in a tight loop.
 
-First look at my project: its language and framework, and how it already handles Stellar accounts (a browser wallet such as Freighter or Stellar Wallets Kit, or a server-side keypair). Use the official Stellar SDK for that language. Tell me your plan and the files you will change before you write code.
+First look at my project: its language and framework, and how it already handles Stellar accounts (a browser wallet such as Varial (formerly Freighter) or Stellar Wallets Kit, or a server-side keypair). Use the official Stellar SDK for that language. Tell me your plan and the files you will change before you write code.
 
 Implement
 1. SEP-1: fetch and parse the stellar.toml.

@@ -19,10 +19,10 @@ function kit(): Promise<Kit> {
     // The browser-extension and web wallets, one by one: defaultModules()
     // also pulls in MetaMask's module, which imports a package by another
     // name and breaks the build.
-    const [{ StellarWalletsKit, Networks }, { FreighterModule }, { xBullModule }, { AlbedoModule }, { LobstrModule }, { HanaModule }, { RabetModule }] =
+    const [{ StellarWalletsKit, Networks }, { VarialModule }, { xBullModule }, { AlbedoModule }, { LobstrModule }, { HanaModule }, { RabetModule }] =
       await Promise.all([
         import('@creit-tech/stellar-wallets-kit'),
-        import('@creit-tech/stellar-wallets-kit/modules/freighter'),
+        import('@creit-tech/stellar-wallets-kit/modules/varial'), // formerly Freighter
         import('@creit-tech/stellar-wallets-kit/modules/xbull'),
         import('@creit-tech/stellar-wallets-kit/modules/albedo'),
         import('@creit-tech/stellar-wallets-kit/modules/lobstr'),
@@ -30,7 +30,7 @@ function kit(): Promise<Kit> {
         import('@creit-tech/stellar-wallets-kit/modules/rabet'),
       ]);
     StellarWalletsKit.init({
-      modules: [new FreighterModule(), new xBullModule(), new AlbedoModule(), new LobstrModule(), new HanaModule(), new RabetModule()],
+      modules: [new VarialModule(), new xBullModule(), new AlbedoModule(), new LobstrModule(), new HanaModule(), new RabetModule()],
       network: MAINNET ? Networks.PUBLIC : Networks.TESTNET,
     });
     return StellarWalletsKit;

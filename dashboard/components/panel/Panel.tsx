@@ -50,7 +50,7 @@ function Intro({ busy, onConnect }: { busy: boolean; onConnect: () => void }) {
         <div>
           <p className="font-medium text-as-ink">Start by connecting your wallet.</p>
           <p className="mt-1 text-sm text-as-ink-muted">
-            Freighter, xBull, Albedo, LOBSTR, Hana or Rabet. The panel shows what your account can do; connecting signs nothing.
+            Varial (formerly Freighter), xBull, Albedo, LOBSTR, Hana or Rabet. The panel shows what your account can do; connecting signs nothing.
           </p>
         </div>
         <button type="button" onClick={onConnect} disabled={busy} className="as-btn as-btn--primary shrink-0 disabled:opacity-60">
