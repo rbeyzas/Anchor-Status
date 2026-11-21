@@ -118,8 +118,8 @@ export function ScoreCalculator() {
 
       <div className="flex flex-col justify-center gap-5 rounded-as-md bg-as-surface-2/60 p-6">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-as-ink-faint">Score</span>
-          <div className="tabular mt-1 font-heading text-6xl font-bold tracking-tight text-as-ink">
+          <span className="text-xs text-as-ink-faint">Score</span>
+          <div className="tabular mt-1 font-heading text-6xl font-medium tracking-tight text-as-ink">
             {withheld ? <span className="text-as-ink-faint">-</span> : result.score}
           </div>
           {withheld && (

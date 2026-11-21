@@ -108,8 +108,8 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
 
         <header className="pb-10 pt-8 md:pt-14">
           <NetworkSwitch current="mainnet" />
-          <h1 className="mt-5 max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-as-ink sm:text-6xl">
-            Add your mainnet anchor.
+          <h1 className="mt-5 max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-[-0.03em] text-as-ink sm:text-6xl">
+            Add your mainnet anchor
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
             Apply with your domain. If your anchor passes the checks below, it is measured every 20 minutes like every
@@ -144,7 +144,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
 
         <section className="grid gap-10 py-14 md:grid-cols-2 md:py-20">
           <div>
-            <h2 className="font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink">What we check.</h2>
+            <h2 className="font-heading text-3xl font-medium tracking-[-0.025em] text-as-ink">What we check</h2>
             <ol className="mt-6 flex flex-col gap-4">
               {checks.map(([title, body], i) => (
                 <li key={title} className="flex gap-4">
@@ -162,7 +162,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
             </p>
           </div>
           <div>
-            <h2 className="font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink">What happens next.</h2>
+            <h2 className="font-heading text-3xl font-medium tracking-[-0.025em] text-as-ink">What happens next</h2>
             <ul className="mt-6 flex flex-col gap-4 text-[15px] leading-relaxed text-as-ink-muted">
               <li>
                 <span className="font-medium text-as-ink">Admitted:</span> it is registered on-chain in the same round and
@@ -185,7 +185,7 @@ export default async function ApplyPage({ searchParams }: { searchParams: Promis
         </section>
 
         <section className="pb-16" aria-label="Recent applications">
-          <h2 className="font-heading text-2xl font-bold tracking-[-0.02em] text-as-ink">Recent applications</h2>
+          <h2 className="font-heading text-2xl font-medium tracking-[-0.02em] text-as-ink">Recent applications</h2>
           {!file ? (
             <p className="mt-4 text-sm text-as-ink-muted">Application status is not available right now.</p>
           ) : recent.length === 0 ? (

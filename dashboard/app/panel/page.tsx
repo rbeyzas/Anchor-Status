@@ -39,9 +39,9 @@ export default async function PanelPage() {
       <div className="mx-auto max-w-6xl px-5 sm:px-8">
         <SiteNav />
         <header className="pb-8 pt-10">
-          <p className="font-mono text-xs uppercase tracking-widest text-as-signal">Panel</p>
-          <h1 className="mt-3 font-heading text-4xl font-bold tracking-[-0.03em] text-as-ink sm:text-5xl">
-            Operators and admins.
+          <p className="font-mono text-xs text-as-signal">Panel</p>
+          <h1 className="mt-3 font-heading text-4xl font-medium tracking-[-0.03em] text-as-ink sm:text-5xl">
+            Operators and admins
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-as-ink-muted">
             Connect a wallet. An anchor&apos;s operator manages its stake and disputes its score card; the contracts&apos;

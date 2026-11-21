@@ -119,8 +119,8 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
 
         <header className="pb-10 pt-8 md:pt-14">
           <NetworkSwitch current="testnet" />
-          <h1 className="mt-5 max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.03em] text-as-ink sm:text-6xl">
-            Add your testnet anchor.
+          <h1 className="mt-5 max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-[-0.03em] text-as-ink sm:text-6xl">
+            Add your testnet anchor
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
             On testnet, money moves. A fresh wallet deposits with your anchor and withdraws back, and every payment is
@@ -153,7 +153,7 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
         )}
 
         <section className="py-14 md:py-20">
-          <h2 className="font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink">The money-flow test.</h2>
+          <h2 className="font-heading text-3xl font-medium tracking-[-0.025em] text-as-ink">The money-flow test</h2>
           <ol className="mt-8 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {STEPS.map(([title, body], i) => (
               <li key={title} className="as-panel p-5">
@@ -170,7 +170,7 @@ export default async function ApplyTestnetPage({ searchParams }: { searchParams:
         </section>
 
         <section className="pb-16" aria-label="Recent testnet applications">
-          <h2 className="font-heading text-2xl font-bold tracking-[-0.02em] text-as-ink">Recent testnet applications</h2>
+          <h2 className="font-heading text-2xl font-medium tracking-[-0.02em] text-as-ink">Recent testnet applications</h2>
           {recent.length === 0 ? (
             <p className="mt-4 text-sm text-as-ink-muted">No testnet applications yet.</p>
           ) : (

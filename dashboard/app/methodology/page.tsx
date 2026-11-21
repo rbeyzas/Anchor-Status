@@ -78,7 +78,7 @@ const PILLAR_COPY = [
 function Section({ id, title, lead, children }: { id: string; title: string; lead?: string; children: React.ReactNode }) {
   return (
     <section id={id} className="scroll-mt-8 py-14 md:py-20">
-      <h2 className="max-w-2xl font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink md:text-4xl">{title}</h2>
+      <h2 className="max-w-2xl font-heading text-3xl font-medium tracking-[-0.025em] text-as-ink md:text-4xl">{title}</h2>
       {lead && <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-as-ink-muted">{lead}</p>}
       <div className="mt-10">{children}</div>
     </section>
@@ -122,8 +122,8 @@ export default function MethodologyPage() {
         <p className="mb-5 inline-block rounded-pill border border-as-hairline bg-as-surface-1 px-3 py-1 text-xs font-semibold text-as-ink-muted">
           Methodology version {METHODOLOGY_VERSION}
         </p>
-        <h1 className="max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
-          How we measure an anchor.
+        <h1 className="max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
+          How we measure an anchor
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
           Every anchor we measure, on mainnet and on testnet, gets a score card built from 30 days of checks and of
@@ -151,14 +151,14 @@ export default function MethodologyPage() {
 
       <Section
         id="checks"
-        title="A check like a wallet’s, every 20 minutes."
+        title="A check like a wallet’s, every 20 minutes"
         lead="We call each anchor’s public API the way a wallet would, from a fresh throwaway wallet each time. On mainnet we stop before any money moves. An anchor that has not answered for a week is checked every six hours instead, until it answers again. Which steps apply depends on what the anchor’s own stellar.toml advertises."
       >
         <ol className="grid gap-3 md:grid-cols-5">
           {STAGES.map((s, i) => (
             <li key={s.stage} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
               <span className="text-xs font-semibold text-as-ink-faint">Step {i + 1}</span>
-              <h3 className="mt-1 font-heading text-lg font-bold text-as-ink">{s.stage}</h3>
+              <h3 className="mt-1 font-heading text-lg font-medium text-as-ink">{s.stage}</h3>
               <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{s.what}</p>
             </li>
           ))}
@@ -184,7 +184,7 @@ export default function MethodologyPage() {
 
       <Section
         id="chain"
-        title="What the ledger says, not what the API says."
+        title="What the ledger says, not what the API says"
         lead="An API that answers is not an anchor that works. In the same round we read the public ledger for every asset an anchor issues, because the ledger cannot be styled, cached or claimed. All of it is read-only: no key of ours signs anything on mainnet."
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -211,7 +211,7 @@ export default function MethodologyPage() {
             },
           ].map((c) => (
             <div key={c.title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
-              <h3 className="font-heading text-lg font-bold text-as-ink">{c.title}</h3>
+              <h3 className="font-heading text-lg font-medium text-as-ink">{c.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{c.body}</p>
               <p className="mt-2 text-sm leading-relaxed text-as-ink-faint">{c.why}</p>
             </div>
@@ -228,7 +228,7 @@ export default function MethodologyPage() {
 
       <Section
         id="pillars"
-        title="Four pillars, weighted."
+        title="Four pillars, weighted"
         lead="Each pillar is a number from 0 to 100. The weights say how much each moves the score. Market applies only to an anchor that issues its own asset, declares what it is worth, and trades where we can see it; when it does not, its weight is spread over the other three."
       >
         <div className="mb-10 grid gap-4 md:grid-cols-2">
@@ -259,7 +259,7 @@ export default function MethodologyPage() {
             <article key={p.key} className="grid gap-6 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel md:grid-cols-[1.4fr_1fr]">
               <div>
                 <div className="flex items-baseline gap-3">
-                  <h3 className="font-heading text-2xl font-bold text-as-ink">{p.title}</h3>
+                  <h3 className="font-heading text-2xl font-medium text-as-ink">{p.title}</h3>
                   <span className="text-sm text-as-ink-faint">
                     {Math.round(withMarket[p.key] * 100)}% of the score
                     {p.key !== 'market' && `, ${Math.round(withoutMarket[p.key] * 100)}% without Market`}
@@ -311,12 +311,12 @@ export default function MethodologyPage() {
 
       <Section
         id="confidence"
-        title="Confidence: how much we measured."
+        title="Confidence: how much we measured"
         lead="A score from three days of checks and one from a month are not equally sure. Confidence is a second number, from 0 to 100, and it is what separates ‘we know little’ from ‘it is failing’."
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div className="min-w-0 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel">
-            <h3 className="font-heading text-lg font-bold text-as-ink">What goes into it</h3>
+            <h3 className="font-heading text-lg font-medium text-as-ink">What goes into it</h3>
             <ul className="mt-3 flex flex-col gap-3 text-[15px] text-as-ink-muted">
               <li>
                 <span className="font-medium text-as-ink">Time watched</span>: full after 14 days of monitoring.
@@ -336,7 +336,7 @@ confidence  = 100 · sufficiency · depth`}
             </pre>
           </div>
           <div className="min-w-0 rounded-as-md border border-as-hairline bg-as-surface-1 p-6 shadow-as-panel">
-            <h3 className="font-heading text-lg font-bold text-as-ink">What it changes</h3>
+            <h3 className="font-heading text-lg font-medium text-as-ink">What it changes</h3>
             <table className="mt-3 w-full text-sm">
               <tbody className="divide-y divide-as-hairline">
                 {CONFIDENCE_BANDS.map((b) => (
@@ -362,7 +362,7 @@ confidence  = 100 · sufficiency · depth`}
 
       <Section
         id="score"
-        title="From pillars to one score."
+        title="From pillars to one score"
         lead="Three steps, in whole numbers, so anyone can check a published score from the card alone."
       >
         <ol className="mb-10 grid gap-3 md:grid-cols-3">
@@ -386,13 +386,13 @@ confidence  = 100 · sufficiency · depth`}
             </p>
           </li>
         </ol>
-        <h3 className="mb-4 font-heading text-xl font-bold text-as-ink">Try it</h3>
+        <h3 className="mb-4 font-heading text-xl font-medium text-as-ink">Try it</h3>
         <ScoreCalculator />
       </Section>
 
       <Section
         id="gates"
-        title="Gates and flags."
+        title="Gates and flags"
         lead="A gate is a hard cap for a failure no average should hide: three of them come from the API, four from the ledger. Information flags cap nothing; they explain the card. Both are always shown, whatever the confidence."
       >
         <div className="grid gap-4 md:grid-cols-2">
@@ -433,7 +433,7 @@ confidence  = 100 · sufficiency · depth`}
         </div>
       </Section>
 
-      <Section id="not-scored" title="What never adds points." lead="Some signals are easy to show and easy to fake. They are context at most.">
+      <Section id="not-scored" title="What never adds points" lead="Some signals are easy to show and easy to fake. They are context at most.">
         <ul className="grid gap-3 md:grid-cols-2">
           {[
             ['Transaction volume', 'A payment on Stellar costs a fraction of a cent, so volume can be inflated by anyone, and a busy anchor is not a reliable one. Movement is read as a yes-or-no: money moved, or it did not.'],
@@ -442,7 +442,7 @@ confidence  = 100 · sufficiency · depth`}
             ['Machine learning', 'There is no labelled ground truth and the score must be explainable to the anchor it describes. Plain statistics: windows, percentiles, and a pull toward the middle.'],
           ].map(([title, body]) => (
             <li key={title} className="rounded-as-md border border-as-hairline bg-as-surface-1 p-5 shadow-as-panel">
-              <h3 className="font-heading text-lg font-bold text-as-ink">{title}</h3>
+              <h3 className="font-heading text-lg font-medium text-as-ink">{title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-as-ink-muted">{body}</p>
             </li>
           ))}
@@ -451,7 +451,7 @@ confidence  = 100 · sufficiency · depth`}
 
       <Section
         id="incidents"
-        title="When we are the ones who broke."
+        title="When we are the ones who broke"
         lead="A check that failed because our own collector could not reach anything says nothing about the anchor. Counting it would be a lie about somebody else’s service, so we drop those rounds and publish what happened."
       >
         <ul className="flex flex-col gap-3 text-[15px] text-as-ink-muted">
@@ -482,7 +482,7 @@ confidence  = 100 · sufficiency · depth`}
 
       <Section
         id="verify"
-        title="Don’t take our word for it."
+        title="Don’t take our word for it"
         lead="Every score card goes on-chain with the SHA-256 of the inputs it was computed from, and the inputs are published. Nothing in the chain of evidence depends on trusting us."
       >
         <ol className="flex flex-col gap-3 text-[15px] text-as-ink-muted">

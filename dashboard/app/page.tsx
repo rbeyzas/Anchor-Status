@@ -165,10 +165,10 @@ export default async function LandingPage() {
 
           <header className="grid grid-cols-1 gap-12 pb-20 pt-12 md:grid-cols-[1.25fr_1fr] md:items-center md:pb-28 md:pt-16">
             <div className="min-w-0">
-              <h1 className="font-heading text-5xl font-bold leading-[0.96] tracking-[-0.03em] text-as-ink sm:text-6xl lg:text-[72px]">
+              <h1 className="font-heading text-5xl font-medium leading-[0.96] tracking-[-0.03em] text-as-ink sm:text-6xl lg:text-[72px]">
                 Which anchor
                 <br />
-                will <span className="text-as-signal">hold?</span>
+                will hold?
               </h1>
               <p className="mt-7 max-w-md text-base leading-relaxed text-as-ink-muted sm:text-lg">
                 Anyone can claim an anchor is reliable. We measure it, from evidence a wallet can’t
@@ -273,17 +273,15 @@ export default async function LandingPage() {
         )}
 
         <section id="method" className="scroll-mt-8 py-20 md:py-28">
-          <h2 className="max-w-xl font-heading text-[44px] font-bold leading-[1.02] tracking-[-0.025em] text-as-ink">
-            Measured four ways, published once.
+          <h2 className="max-w-xl font-heading text-[44px] font-medium leading-[1.02] tracking-[-0.025em] text-as-ink">
+            Measured four ways, published once
           </h2>
           <ol className="mt-12 flex flex-col gap-14">
             {STEPS.map((s, i) => (
               <li key={s.n} className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
                 <div>
-                  <span className="flex h-11 w-11 items-center justify-center rounded-as-md bg-as-signal-soft text-as-signal">
-                    <s.icon size={22} weight="bold" aria-hidden="true" />
-                  </span>
-                  <h3 className="mt-4 font-heading text-[22px] font-bold tracking-[-0.011em] text-as-ink">
+                  <s.icon size={20} className="text-as-ink-faint" aria-hidden="true" />
+                  <h3 className="mt-4 font-heading text-[22px] font-medium tracking-[-0.011em] text-as-ink">
                     <span className="as-mono mr-2 text-sm text-as-ink-faint">{s.n}</span>
                     {s.title}
                   </h3>
@@ -308,8 +306,8 @@ export default async function LandingPage() {
         <section id="evidence" className="scroll-mt-8 pb-20 md:pb-28">
           <div className="grid gap-10 md:grid-cols-[1fr_2fr]">
             <div>
-              <h2 className="font-heading text-4xl font-bold tracking-[-0.025em] text-as-ink">
-                Three kinds of evidence.
+              <h2 className="font-heading text-4xl font-medium tracking-[-0.025em] text-as-ink">
+                Three kinds of evidence
               </h2>
               <p className="mt-4 max-w-xs text-[15px] leading-relaxed text-as-ink-muted">
                 Every score says where it came from.
@@ -325,7 +323,7 @@ export default async function LandingPage() {
                     {e.type ? <SourceBadge sourceType={e.type} /> : <StatusChip tone="neutral">{e.label}</StatusChip>}
                   </div>
                   <div>
-                    <h3 className="font-heading text-xl font-bold tracking-[-0.01em] text-as-ink">
+                    <h3 className="font-heading text-xl font-medium tracking-[-0.01em] text-as-ink">
                       {e.title}
                     </h3>
                     <p className="mt-1.5 max-w-md text-[15px] leading-relaxed text-as-ink-muted">
@@ -339,8 +337,8 @@ export default async function LandingPage() {
         </section>
 
         <section className="as-panel as-panel--lg as-panel--live mb-16 px-8 py-16 text-center sm:px-14 md:mb-24">
-          <h2 className="mx-auto max-w-lg font-heading text-4xl font-bold leading-tight tracking-[-0.025em] text-as-ink">
-            Check an anchor before you route money through it.
+          <h2 className="mx-auto max-w-lg font-heading text-4xl font-medium leading-tight tracking-[-0.025em] text-as-ink">
+            Check an anchor before you route money through it
           </h2>
           <Link
             href="/scores"

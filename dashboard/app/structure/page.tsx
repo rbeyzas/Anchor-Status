@@ -16,9 +16,9 @@ export default function StructurePage() {
     <div className="mx-auto max-w-6xl px-5 sm:px-8">
       <SiteNav />
       <header className="pb-8 pt-10">
-        <p className="font-mono text-xs uppercase tracking-widest text-as-signal">Project structure</p>
-        <h1 className="mt-3 max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
-          How the code fits together.
+        <p className="font-mono text-xs text-as-signal">Project structure</p>
+        <h1 className="mt-3 max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
+          How the code fits together
         </h1>
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">
           Every function, type and file in the repository as a node, every import, call and containment as an edge, grouped

@@ -19,12 +19,12 @@ export function StatsBar({ anchors }: { anchors: AnchorViewModel[] }) {
   ).length;
 
   const stats = [
-    { label: 'Anchors tracked', value: String(anchors.length), icon: ShieldCheck, tone: 'text-as-pulse' },
+    { label: 'Anchors tracked', value: String(anchors.length), icon: ShieldCheck, tone: 'text-as-ink-faint' },
     {
       label: scored.length ? `Average score (${scored.length} scored)` : 'Average score',
       value: scored.length ? Math.round(avgScore).toString() : '-',
       icon: ChartLineUp,
-      tone: 'text-as-signal',
+      tone: 'text-as-ink-faint',
     },
     {
       label: 'Active risk alerts',

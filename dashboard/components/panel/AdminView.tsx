@@ -178,7 +178,7 @@ function ContractsView({ governance: g }: { governance: GovernanceData }) {
                   <When iso={e.at} />
                 </span>
                 <StatusChip tone={EVENT[e.topic]?.tone ?? 'neutral'}>{EVENT[e.topic]?.label ?? e.topic}</StatusChip>
-                <span className="text-xs uppercase tracking-wide text-as-ink-faint">{e.contract}</span>
+                <span className="text-xs text-as-ink-faint">{e.contract}</span>
                 <span className="min-w-0 flex-1 truncate text-as-ink-muted" title={eventSummary(e)}>
                   {eventSummary(e)}
                 </span>

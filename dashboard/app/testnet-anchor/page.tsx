@@ -106,7 +106,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function SectionHead({ title, lead }: { title: string; lead?: React.ReactNode }) {
   return (
     <>
-      <h2 className="max-w-2xl font-heading text-3xl font-bold tracking-[-0.025em] text-as-ink md:text-4xl">{title}</h2>
+      <h2 className="max-w-2xl font-heading text-3xl font-medium tracking-[-0.025em] text-as-ink md:text-4xl">{title}</h2>
       {lead && <p className="mt-4 max-w-2xl text-[15px] leading-relaxed text-as-ink-muted">{lead}</p>}
     </>
   );
@@ -129,7 +129,7 @@ export default async function TestnetAnchorPage() {
               Stellar testnet · SEP-1 · SEP-10 · SEP-6
             </span>
           </div>
-          <h1 className="max-w-3xl font-heading text-5xl font-bold leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
+          <h1 className="max-w-3xl font-heading text-5xl font-medium leading-[1.02] tracking-[-0.033em] text-as-ink sm:text-6xl">
             Mona Testnet Anchor
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-as-ink-muted">

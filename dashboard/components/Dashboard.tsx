@@ -60,7 +60,7 @@ export function Dashboard({
         <header className="flex flex-col gap-8 pb-12 pt-2 md:pt-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1 className="font-heading text-4xl font-bold leading-[1.02] tracking-[-0.025em] text-as-ink sm:text-[44px]">
+              <h1 className="font-heading text-4xl font-medium leading-[1.02] tracking-[-0.025em] text-as-ink sm:text-[44px]">
                 Live scores
               </h1>
               <p className="mt-4 max-w-lg text-base leading-relaxed text-as-ink-muted">

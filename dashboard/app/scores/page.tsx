@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { Dashboard } from '@/components/Dashboard';
 import { getDashboardData } from '@/lib/soroban';
+
+export const metadata: Metadata = { title: 'Live scores: Mona' };
 
 export const revalidate = 60;
 

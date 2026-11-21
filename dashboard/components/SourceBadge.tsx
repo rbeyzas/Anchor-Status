@@ -20,7 +20,7 @@ export function SourceBadge({ sourceType }: { sourceType: SourceType }) {
   const Icon = ICONS[sourceType];
   return (
     <span
-      className={`as-mono inline-flex w-fit self-start items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] ${STYLES[sourceType]}`}
+      className={`as-mono inline-flex w-fit self-start items-center gap-1.5 rounded-pill px-2.5 py-1 text-[11px] font-normal ${STYLES[sourceType]}`}
     >
       <Icon size={12} weight="bold" aria-hidden="true" />
       {sourceLabel(sourceType)}

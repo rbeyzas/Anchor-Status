@@ -7,7 +7,7 @@ export function NetworkSwitch({ current }: { current: 'mainnet' | 'testnet' }) {
     <Link
       href={href}
       aria-current={current === network ? 'page' : undefined}
-      className={`as-mono rounded-pill px-4 py-1.5 text-xs font-medium uppercase tracking-[0.08em] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse ${
+      className={`as-mono rounded-pill px-4 py-1.5 text-xs font-normal transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse ${
         current === network
           ? network === 'mainnet'
             ? 'bg-as-signal text-as-on-signal'
