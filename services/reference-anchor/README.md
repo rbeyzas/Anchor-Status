@@ -20,6 +20,27 @@ amount, with its text memo, from the account that asked, is on the ledger.
 Transfers are kept in memory, so a restart drops the ones in flight.
 `MONAREF` has no value; the issuer's `home_domain` is `ref1.monarank.xyz`.
 
+## Fair-use limits
+
+It is a public sandbox, so nobody may drain the asset, flood the one-at-a-time
+payout queue or memory, or crowd out our own reporters' probes
+(`DEFAULT_LIMITS` in `src/anchor.ts`):
+
+| Limit | Default |
+| --- | --- |
+| Deposits per account / per IP address, per day | 5 / 20 |
+| Transfers in flight per account | 3 |
+| Requests per IP address, per minute (not `stellar.toml`) | 120 |
+| Transfers kept in memory | 5,000 |
+| Payouts waiting at once | 10 |
+| Reserve: below this `MONAREF` balance only trusted clients get deposits | 50,000 |
+
+`TRUSTED_IPS` (in `fly.toml`) lists the reporters' addresses; they skip every
+limit. A withdrawal's payment is searched for back to when it was asked for
+(not only the last 100 payments, which anyone could push out), at most every
+5 s. `GET /health` reports the balance (`low` under the reserve), transfers
+and payouts in flight.
+
 Tests: `npm test`. They drive the anchor with testnet-probe's own parsers
 (stellar.toml, the sandbox form, SEP-10 signature checks), with the ledger
 faked.

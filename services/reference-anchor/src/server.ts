@@ -42,10 +42,14 @@ const anchor = createAnchor(
 // stellar.toml stays up for fly's health check and the attestation.
 // `fly secrets set FAULT=...` / `fly secrets unset FAULT` flips it.
 const fault = (process.env.FAULT ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+// Our reporters' addresses: they probe the anchor all day, so the sandbox
+// limits must not apply to them.
+const trusted = (process.env.TRUSTED_IPS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+const clientIp = (req: http.IncomingMessage) => String(req.headers['fly-client-ip'] ?? req.socket.remoteAddress ?? '');
+
 const faulted = (req: http.IncomingMessage, path: string) => {
   if (!fault.length || path === '/.well-known/stellar.toml') return false;
-  const ip = String(req.headers['fly-client-ip'] ?? req.socket.remoteAddress ?? '');
-  return fault.includes('all') || fault.includes(ip);
+  return fault.includes('all') || fault.includes(clientIp(req));
 };
 if (fault.length) console.warn(`[reference-anchor] FAULT on for ${fault.join(', ')}`);
 
@@ -53,6 +57,7 @@ const port = Number(process.env.PORT ?? 8080);
 http
   .createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://local');
+    const ip = clientIp(req);
     if (faulted(req, url.pathname)) {
       return void res.writeHead(503, { 'content-type': 'application/json' }).end(JSON.stringify({ error: 'unavailable' }));
     }
@@ -68,6 +73,7 @@ http
         query: url.searchParams,
         headers: { authorization: req.headers.authorization, 'content-type': req.headers['content-type'] },
         body,
+        client: { ip, trusted: trusted.includes(ip) },
       });
       res.writeHead(out.status, out.headers).end(out.body);
     } catch (err) {

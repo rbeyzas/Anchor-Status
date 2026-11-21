@@ -5,14 +5,14 @@ import { Keypair, Networks, Transaction } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 import { findSandboxForm, transferType } from '../../testnet-probe/src/sep6.js';
 import { parseAnchorToml } from '../../testnet-probe/src/toml.js';
-import { createAnchor, type Chain, type Request } from './anchor.js';
+import { createAnchor, type Chain, type Limits, type Request } from './anchor.js';
 
 const DOMAIN = 'ref1.monarank.xyz';
 const signingKey = Keypair.random();
 const distribution = Keypair.random().publicKey();
 const issuer = Keypair.random().publicKey();
 
-function setup(chainOverrides: Partial<Chain> = {}) {
+function setup(chainOverrides: Partial<Chain> = {}, limits: Partial<Limits> = {}) {
   const paid: { to: string; amount: string }[] = [];
   const chain: Chain = {
     pay: async (to, amount) => {
@@ -20,8 +20,11 @@ function setup(chainOverrides: Partial<Chain> = {}) {
       return 'ab'.repeat(32);
     },
     findPayment: async () => undefined,
+    balance: async () => 1_000_000,
     ...chainOverrides,
   };
+  // A manual clock: the anchor searches the ledger for a withdrawal at most every 5 s.
+  let t = Date.parse('2026-11-21T12:00:00Z');
   const anchor = createAnchor(
     {
       homeDomain: DOMAIN,
@@ -34,10 +37,12 @@ function setup(chainOverrides: Partial<Chain> = {}) {
       orgName: 'MonaRank reference anchor 1 (testnet)',
       minAmount: 1,
       maxAmount: 100,
+      limits,
     },
     chain,
+    () => new Date(t),
   );
-  const call = async (method: string, target: string, opts: { token?: string; body?: string } = {}) => {
+  const call = async (method: string, target: string, opts: { token?: string; body?: string; ip?: string; trusted?: boolean } = {}) => {
     const url = new URL(target, `https://${DOMAIN}`);
     const req: Request = {
       method,
@@ -45,11 +50,12 @@ function setup(chainOverrides: Partial<Chain> = {}) {
       query: url.searchParams,
       headers: { authorization: opts.token ? `Bearer ${opts.token}` : undefined },
       body: opts.body ?? '',
+      client: { ip: opts.ip ?? '203.0.113.7', trusted: opts.trusted ?? false },
     };
     const res = await anchor.handle(req);
     return { ...res, json: () => JSON.parse(res.body) };
   };
-  return { call, paid };
+  return { call, paid, tick: (ms: number) => (t += ms) };
 }
 
 /** SEP-10 as the probe does it: check the anchor's signature, sign, exchange. */
@@ -120,7 +126,7 @@ describe('reference anchor', () => {
   it('completes a withdrawal once the payment with its memo is on the ledger', async () => {
     let onLedger: { hash: string; from: string } | undefined;
     const asked: string[] = [];
-    const { call } = setup({
+    const { call, tick } = setup({
       findPayment: async (memo, amount) => {
         asked.push(`${memo}:${amount}`);
         return onLedger;
@@ -134,7 +140,10 @@ describe('reference anchor', () => {
     expect(w).toMatchObject({ account_id: distribution, memo_type: 'text' });
     expect(Buffer.byteLength(w.memo)).toBeLessThanOrEqual(28);
 
-    const status = async () => (await call('GET', `/sep6/transaction?id=${w.id}`, { token })).json().transaction.status;
+    const status = async () => {
+      tick(5000);
+      return (await call('GET', `/sep6/transaction?id=${w.id}`, { token })).json().transaction.status;
+    };
     expect(await status()).toBe('pending_user_transfer_start');
     // Someone else paying with the same memo does not count.
     onLedger = { hash: 'cd'.repeat(32), from: Keypair.random().publicKey() };
@@ -156,5 +165,62 @@ describe('reference anchor', () => {
     const id = (await call('GET', q(10), { token })).json().id;
     const other = await login(call);
     expect((await call('GET', `/sep6/transaction?id=${id}`, { token: other.token })).status).toBe(404);
+  });
+});
+
+describe('sandbox limits', () => {
+  const deposit = (call: ReturnType<typeof setup>['call'], token: string, opts: { ip?: string; trusted?: boolean } = {}) =>
+    call('GET', '/sep6/deposit?asset_code=MONAREF&amount=10', { token, ...opts });
+
+  it('caps transfers in flight per account', async () => {
+    const { call } = setup({}, { openPerAccount: 2 });
+    const { token } = await login(call);
+    expect((await deposit(call, token)).status).toBe(200);
+    expect((await deposit(call, token)).status).toBe(200);
+    expect((await deposit(call, token)).status).toBe(429);
+  });
+
+  it('caps deposits per account per day', async () => {
+    const { call } = setup({}, { openPerAccount: 10, depositsPerAccountPerDay: 3 });
+    const { token } = await login(call);
+    for (let i = 0; i < 3; i++) expect((await deposit(call, token)).status).toBe(200);
+    expect((await deposit(call, token)).status).toBe(429);
+  });
+
+  it('caps deposits per address, but never for our reporters', async () => {
+    const { call } = setup({}, { depositsPerIpPerDay: 2 });
+    for (let i = 0; i < 2; i++) expect((await deposit(call, (await login(call)).token)).status).toBe(200);
+    expect((await deposit(call, (await login(call)).token)).status).toBe(429);
+    expect((await deposit(call, (await login(call)).token, { trusted: true })).status).toBe(200);
+  });
+
+  it('keeps the reserve for our reporters when the asset runs low', async () => {
+    const { call } = setup({ balance: async () => 10 }, { reserve: 50_000 });
+    expect((await deposit(call, (await login(call)).token)).status).toBe(503);
+    expect((await deposit(call, (await login(call)).token, { trusted: true })).status).toBe(200);
+    expect((await call('GET', '/health')).json()).toMatchObject({ ok: true, balance: 10, low: true });
+  });
+
+  it('rate-limits requests per address, except stellar.toml', async () => {
+    const { call } = setup({}, { requestsPerIpPerMinute: 3 });
+    for (let i = 0; i < 3; i++) expect((await call('GET', '/sep6/info')).status).toBe(200);
+    expect((await call('GET', '/sep6/info')).status).toBe(429);
+    expect((await call('GET', '/.well-known/stellar.toml')).status).toBe(200);
+    expect((await call('GET', '/sep6/info', { ip: '198.51.100.1' })).status).toBe(200);
+  });
+
+  it('turns payouts away while too many are in flight, without losing the deposit', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const { call } = setup({ pay: async () => (await gate, 'cd'.repeat(32)) }, { maxPayoutsInFlight: 1, openPerAccount: 5 });
+    const { token } = await login(call);
+    const a = (await deposit(call, token)).json().id;
+    const b = (await deposit(call, token)).json().id;
+    const first = call('POST', '/sep6/more_info', { body: `id=${a}` });
+    const busy = await call('POST', '/sep6/more_info', { body: `id=${b}` });
+    expect(busy.status).toBe(503);
+    release();
+    expect((await first).status).toBe(303);
+    expect((await call('GET', `/sep6/transaction?id=${b}`, { token })).json().transaction.status).toBe('pending_user_transfer_start');
   });
 });

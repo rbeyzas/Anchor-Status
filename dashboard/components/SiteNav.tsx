@@ -29,17 +29,24 @@ export function SiteNav({ showCta = true }: { showCta?: boolean }) {
           className={`hidden whitespace-nowrap sm:inline ${linkClass('/methodology')}`}
           aria-current={isCurrent('/methodology') ? 'page' : undefined}
         >
-          How we measure
+          How We Measure
         </Link>
         <Link href="/#evidence" className="hidden text-sm text-as-ink-muted transition-colors hover:text-as-ink sm:inline">
           Evidence
+        </Link>
+        <Link
+          href="/testnet-anchor"
+          className={`hidden whitespace-nowrap lg:inline ${linkClass('/testnet-anchor')}`}
+          aria-current={isCurrent('/testnet-anchor') ? 'page' : undefined}
+        >
+          Mona Testnet Anchor
         </Link>
         <Link
           href="/apply"
           className={`hidden lg:inline ${linkClass('/apply')}`}
           aria-current={isCurrent('/apply') ? 'page' : undefined}
         >
-          Add your anchor
+          Add Your Anchor
         </Link>
         {/* A wrapper: .as-chip sets its own display, which `hidden` can't override. */}
         <span className="hidden sm:inline-flex">

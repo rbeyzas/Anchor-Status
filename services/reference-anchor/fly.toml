@@ -8,6 +8,8 @@ primary_region = "fra"
 [env]
   HOME_DOMAIN = "ref1.monarank.xyz"
   ASSET_CODE = "MONAREF"
+  # Reporters A and B: exempt from the sandbox limits (src/anchor.ts).
+  TRUSTED_IPS = "37.221.76.23,95.169.201.61"
 
 [http_service]
   internal_port = 8080

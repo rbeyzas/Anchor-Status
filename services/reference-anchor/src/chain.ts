@@ -29,18 +29,31 @@ export function horizonChain(opts: {
       return run;
     },
 
-    async findPayment(memo, amount) {
-      // Recent payments to us; a withdrawal is paid within minutes of being asked for.
-      const page = await server.payments().forAccount(me).order('desc').limit(100).join('transactions').call();
-      for (const p of page.records) {
-        if (p.type !== 'payment' || p.to !== me || p.from === me) continue;
-        if (p.asset_code !== opts.asset.getCode() || p.asset_issuer !== opts.asset.getIssuer() || !same(p.amount, amount)) continue;
-        const tx = (await p.transaction()) as unknown as { memo_type?: string; memo?: string; successful?: boolean };
-        if (tx.successful !== false && tx.memo_type === Memo.text('x').type && tx.memo === memo) {
-          return { hash: p.transaction_hash, from: p.from };
+    async findPayment(memo, amount, since) {
+      // Newest first, back to when the withdrawal was asked for: payments
+      // others send us (anyone can, cheaply) cannot push it out of view.
+      let page = await server.payments().forAccount(me).order('desc').limit(200).join('transactions').call();
+      for (let pages = 0; pages < 10 && page.records.length; pages++) {
+        for (const p of page.records) {
+          if (Date.parse(p.created_at) < since.getTime()) return undefined;
+          if (p.type !== 'payment' || p.to !== me || p.from === me) continue;
+          if (p.asset_code !== opts.asset.getCode() || p.asset_issuer !== opts.asset.getIssuer() || !same(p.amount, amount)) continue;
+          const tx = (await p.transaction()) as unknown as { memo_type?: string; memo?: string; successful?: boolean };
+          if (tx.successful !== false && tx.memo_type === Memo.text('x').type && tx.memo === memo) {
+            return { hash: p.transaction_hash, from: p.from };
+          }
         }
+        page = await page.next();
       }
       return undefined;
+    },
+
+    async balance() {
+      const account = await server.loadAccount(me);
+      const b = account.balances.find(
+        (x) => 'asset_code' in x && x.asset_code === opts.asset.getCode() && 'asset_issuer' in x && x.asset_issuer === opts.asset.getIssuer(),
+      );
+      return b ? Number(b.balance) : 0;
     },
   };
 }

@@ -12,6 +12,7 @@
 //   GET  /sep6/transaction?id                           (token)
 //   GET  /sep6/more_info?id            the sandbox page: "Simulate incoming transfer"
 //   POST /sep6/more_info               pays the deposit out
+//   GET  /health                       balance, transfers, payouts in flight
 //
 // There is no fiat: a deposit is paid out when the sandbox button is
 // pressed, and a withdrawal completes once its payment, with its memo, is
@@ -33,13 +34,42 @@ export interface AnchorConfig {
   orgName: string;
   minAmount: number;
   maxAmount: number;
+  limits?: Partial<Limits>;
 }
+
+/** Guards for a public sandbox: nobody can drain the asset, flood the
+ * payout queue or memory, or crowd out our own reporters' probes. */
+export interface Limits {
+  depositsPerAccountPerDay: number;
+  depositsPerIpPerDay: number;
+  requestsPerIpPerMinute: number;
+  /** Transfers an account may have in flight. */
+  openPerAccount: number;
+  /** Transfers kept in memory. */
+  maxTransfers: number;
+  /** Deposits waiting for their payout; payouts run one at a time. */
+  maxPayoutsInFlight: number;
+  /** Below this balance, only trusted clients (our reporters) get deposits. */
+  reserve: number;
+}
+
+export const DEFAULT_LIMITS: Limits = {
+  depositsPerAccountPerDay: 5,
+  depositsPerIpPerDay: 20,
+  requestsPerIpPerMinute: 120,
+  openPerAccount: 3,
+  maxTransfers: 5000,
+  maxPayoutsInFlight: 10,
+  reserve: 50_000,
+};
 
 export interface Chain {
   /** Sends `amount` of the asset from the distribution account to `to`; returns the tx hash. */
   pay(to: string, amount: string): Promise<string>;
-  /** A payment of `amount` of the asset to the distribution account with this text memo, if one is on the ledger. */
-  findPayment(memo: string, amount: string): Promise<{ hash: string; from: string } | undefined>;
+  /** A payment of `amount` of the asset to the distribution account with this text memo, made after `since`, if one is on the ledger. */
+  findPayment(memo: string, amount: string, since: Date): Promise<{ hash: string; from: string } | undefined>;
+  /** The distribution account's balance of the asset. */
+  balance(): Promise<number>;
 }
 
 type Status = 'pending_user_transfer_start' | 'pending_anchor' | 'completed' | 'error';
@@ -55,6 +85,8 @@ interface Transfer {
   stellar_transaction_id?: string;
   /** Withdrawal memo the payment must carry. */
   memo?: string;
+  /** When the ledger was last searched for its payment, ms. */
+  checkedAt?: number;
 }
 
 export interface Request {
@@ -63,6 +95,8 @@ export interface Request {
   query: URLSearchParams;
   headers: Record<string, string | undefined>;
   body: string;
+  /** Who is asking. Trusted clients (our reporters) skip the limits. */
+  client?: { ip: string; trusted: boolean };
 }
 
 export interface Response {
@@ -80,11 +114,47 @@ const TOKEN_SECONDS = 24 * 60 * 60;
 // fails at most one probe round.
 // ponytail: in-memory store, persist to a volume if transfers must survive restarts
 const KEEP_MS = 2 * 24 * 60 * 60 * 1000;
+/** A withdrawal's payment is searched for at most this often. */
+const CHECK_EVERY_MS = 5000;
+const BALANCE_TTL_MS = 60_000;
+
+/** At most `max` hits per key in `ms`; records a hit only when allowed. */
+function rateLimit(max: number, ms: number, now: () => Date) {
+  const seen = new Map<string, number[]>();
+  return (key: string) => {
+    const t = now().getTime();
+    const recent = (seen.get(key) ?? []).filter((x) => t - x < ms);
+    if (recent.length >= max) {
+      seen.set(key, recent);
+      return false;
+    }
+    recent.push(t);
+    seen.set(key, recent);
+    if (seen.size > 10_000) seen.clear(); // bounded memory under a flood
+    return true;
+  };
+}
 
 export function createAnchor(cfg: AnchorConfig, chain: Chain, now: () => Date = () => new Date()) {
   const transfers = new Map<string, Transfer>();
   const base = `https://${cfg.homeDomain}`;
   const asset = { code: cfg.assetCode, issuer: cfg.issuer };
+  const limits = { ...DEFAULT_LIMITS, ...cfg.limits };
+  const DAY = 24 * 60 * 60 * 1000;
+  const perMinute = rateLimit(limits.requestsPerIpPerMinute, 60_000, now);
+  const accountDeposits = rateLimit(limits.depositsPerAccountPerDay, DAY, now);
+  const ipDeposits = rateLimit(limits.depositsPerIpPerDay, DAY, now);
+  let payoutsInFlight = 0;
+  let balanceCache: { at: number; value: number } | undefined;
+
+  async function balance(): Promise<number> {
+    const t = now().getTime();
+    if (!balanceCache || t - balanceCache.at > BALANCE_TTL_MS) balanceCache = { at: t, value: await chain.balance() };
+    return balanceCache.value;
+  }
+
+  const open = (who: string) =>
+    [...transfers.values()].filter((t) => t.account === who && (t.status === 'pending_user_transfer_start' || t.status === 'pending_anchor')).length;
 
   function sign(sub: string): string {
     const iat = Math.floor(now().getTime() / 1000);
@@ -181,6 +251,11 @@ export function createAnchor(cfg: AnchorConfig, chain: Chain, now: () => Date = 
       return { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type' }, body: '' };
     }
     const route = `${req.method} ${req.path.replace(/\/$/, '') || '/'}`;
+    const ip = req.client?.ip ?? 'unknown';
+    const trusted = req.client?.trusted ?? false;
+    if (!trusted && route !== 'GET /.well-known/stellar.toml' && !perMinute(ip)) {
+      return error(429, 'too many requests; slow down');
+    }
     switch (route) {
       case 'GET /.well-known/stellar.toml':
         return { status: 200, headers: { 'content-type': 'text/plain; charset=utf-8', 'access-control-allow-origin': '*' }, body: toml };
@@ -251,7 +326,17 @@ export function createAnchor(cfg: AnchorConfig, chain: Chain, now: () => Date = 
         if (!who) return error(403, 'a valid SEP-10 token is required');
         const p = transferParams(req, who);
         if ('status' in p) return p;
+        if (open(who) >= limits.openPerAccount) return error(429, `at most ${limits.openPerAccount} transfers in flight per account; finish one first`);
+        if (transfers.size >= limits.maxTransfers) {
+          prune();
+          if (transfers.size >= limits.maxTransfers) return error(503, 'the sandbox is busy; try again later');
+        }
         if (route === 'GET /sep6/deposit') {
+          if (!trusted) {
+            if ((await balance()) < limits.reserve) return error(503, `the sandbox is low on ${cfg.assetCode}; try again later`);
+            if (!accountDeposits(who)) return error(429, `at most ${limits.depositsPerAccountPerDay} deposits per account per day`);
+            if (!ipDeposits(ip)) return error(429, `at most ${limits.depositsPerIpPerDay} deposits per address per day`);
+          }
           const t = newTransfer('deposit', who, p.amount);
           return json(200, {
             id: t.id,
@@ -274,7 +359,9 @@ export function createAnchor(cfg: AnchorConfig, chain: Chain, now: () => Date = 
         if (!t || t.account !== who) return error(404, 'no such transaction');
         // A withdrawal completes once its payment is on the ledger.
         if (t.kind === 'withdrawal' && t.status === 'pending_user_transfer_start') {
-          const paid = await chain.findPayment(t.memo!, t.amount);
+          const at = now().getTime();
+          const paid = at - (t.checkedAt ?? 0) < CHECK_EVERY_MS ? undefined : await chain.findPayment(t.memo!, t.amount, new Date(t.started_at));
+          t.checkedAt = at;
           if (paid && paid.from === t.account) {
             Object.assign(t, { status: 'completed', stellar_transaction_id: paid.hash, completed_at: now().toISOString() });
           }
@@ -305,18 +392,35 @@ export function createAnchor(cfg: AnchorConfig, chain: Chain, now: () => Date = 
         const t = transfers.get(new URLSearchParams(req.body).get('id') ?? '');
         if (!t || t.kind !== 'deposit') return { status: 404, headers: { 'content-type': 'text/html' }, body: '<p>No such deposit.</p>' };
         if (t.status === 'pending_user_transfer_start') {
+          if (payoutsInFlight >= limits.maxPayoutsInFlight && !trusted) {
+            return { status: 503, headers: { 'content-type': 'text/html; charset=utf-8', 'retry-after': '30' }, body: '<p>The sandbox is busy paying other deposits. Go back and press the button again in a minute.</p>' };
+          }
           // Marked before paying, so a second press cannot pay twice.
           t.status = 'pending_anchor';
+          payoutsInFlight++;
           try {
             t.stellar_transaction_id = await chain.pay(t.account, t.amount);
             t.completed_at = now().toISOString();
             t.status = 'completed';
+            balanceCache = undefined;
           } catch (err) {
             t.status = 'error';
             console.error(`[reference-anchor] deposit ${t.id} payout failed: ${(err as Error).message}`);
+          } finally {
+            payoutsInFlight--;
           }
         }
         return { status: 303, headers: { location: `${base}/sep6/more_info?id=${t.id}` }, body: '' };
+      }
+
+      case 'GET /health': {
+        let held: number | null = null;
+        try {
+          held = await balance();
+        } catch {
+          // Horizon unreachable: report the rest.
+        }
+        return json(200, { ok: true, asset: cfg.assetCode, balance: held, low: held !== null && held < limits.reserve, transfers: transfers.size, payouts_in_flight: payoutsInFlight });
       }
 
       default:
