@@ -48,6 +48,13 @@ export async function connectWallet(): Promise<string> {
  * keeps it in localStorage until disconnectWallet(); the kit itself is only
  * loaded when there is one. */
 export async function restoreWallet(): Promise<string | null> {
+  // Development only (removed from production builds): `/panel?as=G…` shows
+  // the panel as that account sees it, read-only, for checking the layout of
+  // each role without its wallet. Signing still needs the real wallet.
+  if (process.env.NODE_ENV === 'development') {
+    const as = new URLSearchParams(window.location.search).get('as');
+    if (as && /^G[A-Z2-7]{55}$/.test(as)) return as;
+  }
   try {
     if (!localStorage.getItem('@StellarWalletsKit/activeAddress')) return null;
     return (await (await kit()).getAddress()).address || null;

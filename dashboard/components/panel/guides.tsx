@@ -30,7 +30,7 @@ export const stakeGuide = (minStakeXlm: number, cooldown: string): GuideContent 
     <>Stake is XLM you lock on your anchor&apos;s record. It does not change the score; it shows you stand behind your anchor.</>,
     <>To open a dispute, the record needs at least {minStakeXlm} XLM. It is checked, never taken.</>,
     <>Add stake: enter an amount, press Add stake and approve in your wallet.</>,
-    <>To take it back: press Request with the amount, wait for the cooldown{cooldown ? ` (${cooldown})` : ''}, then press Withdraw.</>,
+    <>To take it back: enter the amount and press Request withdrawal, wait for the cooldown{cooldown ? ` (${cooldown})` : ''}, then press Withdraw.</>,
   ],
 });
 
@@ -75,7 +75,7 @@ export const WAITING_GUIDE: GuideContent = {
   title: 'Why changes wait',
   steps: [
     <>Upgrades and shorter time locks wait out the contract&apos;s time lock after they are proposed, so anyone watching can see them coming.</>,
-    <>Once a change shows Ready, execute it from Transactions to sign below (for example Execute upgrade).</>,
-    <>An admin handover takes effect only when the new admin accepts it, also from below.</>,
+    <>Once a change shows Ready, execute it with Propose a change above (for example Execute the proposed upgrade), signed like any other change.</>,
+    <>An admin handover takes effect only when the new admin accepts it, also with Propose a change.</>,
   ],
 };

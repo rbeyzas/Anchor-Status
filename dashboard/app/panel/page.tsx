@@ -12,7 +12,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export const revalidate = 30;
+// Read fresh on every request: a cached page once showed a dispute as still
+// open, with no votes, a quarter of an hour after the reporters had voted.
+// The panel has few visitors; the data files it shares with the dashboard
+// keep their own 60-second cache.
+export const dynamic = 'force-dynamic';
 
 export default async function PanelPage() {
   const [dashboard, governance] = await Promise.all([
@@ -51,7 +55,7 @@ export default async function PanelPage() {
         {'error' in governance ? (
           <p className="as-panel px-5 py-4 text-sm text-as-danger">Could not read the contracts: {governance.error}</p>
         ) : (
-          <Panel anchors={anchors} governance={governance} />
+          <Panel anchors={anchors} governance={governance} readAt={new Date().toISOString()} />
         )}
         <div className="h-16" />
       </div>

@@ -1,15 +1,20 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { Anchor, Scales, ShieldCheck, Wallet } from '@phosphor-icons/react';
+import { useEffect, useState, useTransition, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
+import { Anchor, ArrowClockwise, Scales, ShieldCheck, Wallet } from '@phosphor-icons/react';
+import type { QueueView } from '@/lib/admin-queue';
+import type { DisputesData } from '@/lib/disputes';
 import type { GovernanceData } from '@/lib/governance';
 import type { AnchorViewModel } from '@/lib/types';
 import { connectWallet, disconnectWallet, restoreWallet } from '@/lib/wallet';
 import { AdminView } from './AdminView';
 import { ClaimView } from './ClaimView';
+import { carried, decisionsFor, useDisputesData } from './dispute-progress';
 import { DisputeDecisions } from './DisputeDecisions';
 import { OperatorView } from './OperatorView';
 import { shortKey } from './parts';
+import { isPending, useQueue } from './QueuePanel';
 
 export type PanelAnchor = Pick<
   AnchorViewModel,
@@ -81,11 +86,70 @@ function Intro({ busy, onConnect }: { busy: boolean; onConnect: () => void }) {
   );
 }
 
-export function Panel({ anchors, governance }: { anchors: PanelAnchor[]; governance: GovernanceData }) {
+type Todo = { key: string; tone: 'amber' | 'signal' | 'neutral'; text: ReactNode; tab: TabId; action: string };
+
+/** What this wallet should do now, or is waiting for, across its roles. */
+function todos(
+  address: string,
+  operated: PanelAnchor[],
+  admin: boolean,
+  openDisputes: PanelAnchor[],
+  disputes: DisputesData | null,
+  queue: QueueView[] | null,
+  minStakeXlm: number,
+): Todo[] {
+  const out: Todo[] = [];
+  if (admin) {
+    for (const a of openDisputes) {
+      const decisions = decisionsFor(disputes, a.anchorId, a.dispute!);
+      const done = carried(decisions);
+      const mine = decisions.some((x) => x.signers.includes(address));
+      out.push(
+        done
+          ? { key: `d-${a.anchorId}`, tone: 'neutral', text: <>Dispute on <b>{a.name}</b> is decided ({done.decision}); the reporters vote within 20 minutes.</>, tab: 'disputes', action: 'View' }
+          : mine
+            ? { key: `d-${a.anchorId}`, tone: 'neutral', text: <>You signed on <b>{a.name}</b>’s dispute; it needs another admin signer.</>, tab: 'disputes', action: 'View' }
+            : { key: `d-${a.anchorId}`, tone: 'amber', text: <>Decide the dispute on <b>{a.name}</b>.</>, tab: 'disputes', action: 'Decide' },
+      );
+    }
+    for (const i of (queue ?? []).filter(isPending)) {
+      const ready = i.weight >= i.threshold;
+      const mine = i.signers.includes(address);
+      if (!ready && mine) continue;
+      out.push({
+        key: `q-${i.id}`,
+        tone: 'amber',
+        text: ready ? <>A change is fully signed and ready to send: <span className="as-mono">{i.method}</span>.</> : <>A change waits for your signature: <span className="as-mono">{i.method}</span>.</>,
+        tab: 'transactions',
+        action: ready ? 'Send' : 'Sign',
+      });
+    }
+  }
+  for (const a of operated) {
+    const d = a.dispute;
+    if (d?.status === 'Open') out.push({ key: `o-${a.anchorId}`, tone: 'neutral', text: <>Your dispute on <b>{a.name}</b> is being decided.</>, tab: 'anchors', action: 'Follow it' });
+    else if (a.stake < minStakeXlm) out.push({ key: `o-${a.anchorId}`, tone: 'amber', text: <>Add at least {minStakeXlm} XLM stake to <b>{a.name}</b> to be able to dispute its cards.</>, tab: 'anchors', action: 'Add stake' });
+  }
+  return out;
+}
+
+export function Panel({ anchors, governance, readAt }: { anchors: PanelAnchor[]; governance: GovernanceData; readAt: string }) {
+  const router = useRouter();
   const [address, setAddress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<TabId | null>(null);
+  const [refreshing, startRefresh] = useTransition();
+  const admin = !!address && isAdminSigner(address, governance);
+  const operated = address ? anchors.filter((a) => a.claim?.operator === address) : [];
+  const disputes = useDisputesData();
+  const queue = useQueue(admin);
+
+  function refresh() {
+    startRefresh(() => router.refresh());
+    void disputes.reload();
+    if (admin) void queue.reload();
+  }
 
   // Stay connected across reloads, until Disconnect.
   useEffect(() => {
@@ -121,15 +185,18 @@ export function Panel({ anchors, governance }: { anchors: PanelAnchor[]; governa
 
   // An operator is whoever claimed the record: before a claim the operator
   // field is still the admin, which is not an operator role.
-  const operated = anchors.filter((a) => a.claim?.operator === address);
-  const admin = isAdminSigner(address, governance);
   const openDisputes = anchors.filter((a) => a.dispute?.status === 'Open');
+  // Each anchor's latest dispute, open or decided in the last 30 days.
+  const recentDisputes = anchors.filter(
+    (a) => a.dispute && (a.dispute.status === 'Open' || Date.now() - Date.parse(a.dispute.resolvedAt ?? a.dispute.openedAt) < 30 * 86400_000),
+  );
+  const pendingQueue = (queue.items ?? []).filter(isPending).length;
   const tabs: { id: TabId; label: string; count?: number }[] = [
     ...(operated.length ? [{ id: 'anchors' as const, label: 'My anchors', count: operated.length }] : []),
     ...(admin
       ? [
           { id: 'disputes' as const, label: 'Disputes', count: openDisputes.length },
-          { id: 'transactions' as const, label: 'Transactions' },
+          { id: 'transactions' as const, label: 'Transactions', count: pendingQueue },
           { id: 'contracts' as const, label: 'Contracts' },
         ]
       : []),
@@ -140,24 +207,57 @@ export function Panel({ anchors, governance }: { anchors: PanelAnchor[]; governa
     operated.length ? `operate ${operated.length === 1 ? operated[0].name : `${operated.length} anchors`}` : null,
     admin ? 'decide disputes and co-sign contract changes' : null,
   ].filter(Boolean);
+  const todo = todos(address, operated, admin, openDisputes, disputes.data, queue.items, governance.oracle.dispute.minStakeXlm);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="as-panel flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <div className="flex flex-col gap-1">
-          <span className="flex flex-wrap items-center gap-2 text-sm text-as-ink-muted">
-            <Wallet size={16} aria-hidden="true" />
-            Connected as <span className="as-mono text-as-ink" title={address}>{shortKey(address)}</span>
-            {admin && <span className="as-chip as-chip--signal">Admin signer</span>}
-            {operated.length > 0 && <span className="as-chip as-chip--pulse">Operator</span>}
-          </span>
-          <span className="text-xs text-as-ink-faint">
-            {summary.length ? `With this wallet you can ${summary.join(', and ')}.` : 'This wallet has no role yet: claim your anchor below to manage it.'}
-          </span>
+      <div className="as-panel flex flex-col gap-4 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-2 text-sm text-as-ink-muted">
+              <Wallet size={16} aria-hidden="true" />
+              Connected as <span className="as-mono text-as-ink" title={address}>{shortKey(address)}</span>
+              {admin && <span className="as-chip as-chip--signal">Admin signer</span>}
+              {operated.length > 0 && <span className="as-chip as-chip--pulse">Operator</span>}
+            </span>
+            <span className="text-xs text-as-ink-faint">
+              {summary.length ? `With this wallet you can ${summary.join(', and ')}.` : 'This wallet has no role yet: claim your anchor below to manage it.'}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-as-ink-faint" title={readAt}>
+              Read from the chain at {readAt.slice(11, 16)} UTC
+            </span>
+            <button type="button" onClick={refresh} disabled={refreshing} className="as-btn as-btn--ghost as-btn--sm disabled:opacity-60">
+              <ArrowClockwise size={14} aria-hidden="true" className={refreshing ? 'animate-spin' : ''} />
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </button>
+            <button type="button" onClick={disconnect} className="as-btn as-btn--outline as-btn--sm">
+              Disconnect
+            </button>
+          </div>
         </div>
-        <button type="button" onClick={disconnect} className="as-btn as-btn--outline as-btn--sm">
-          Disconnect
-        </button>
+
+        <div className="border-t border-as-hairline pt-4">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-as-ink-faint">What needs you now</h2>
+          {todo.length === 0 ? (
+            <p className="mt-2 text-sm text-as-ink-muted">Nothing. Everything this wallet can act on is up to date.</p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-2">
+              {todo.map((t) => (
+                <li key={t.key} className="flex flex-wrap items-center justify-between gap-3 rounded-as-md bg-as-surface-2 px-3 py-2 text-sm">
+                  <span className="flex items-center gap-2 text-as-ink">
+                    <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${t.tone === 'amber' ? 'bg-as-amber' : t.tone === 'signal' ? 'bg-as-signal' : 'bg-as-ink-faint'}`} />
+                    <span>{t.text}</span>
+                  </span>
+                  <button type="button" onClick={() => setTab(t.tab)} className="as-btn as-btn--outline as-btn--sm">
+                    {t.action}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
       {error && <p className="text-sm text-as-danger">{error}</p>}
 
@@ -183,11 +283,19 @@ export function Panel({ anchors, governance }: { anchors: PanelAnchor[]; governa
 
       <div role="tabpanel">
         {current === 'anchors' && (
-          <OperatorView address={address} anchors={operated} minStakeXlm={governance.oracle.dispute.minStakeXlm} governance={governance} />
+          <OperatorView address={address} anchors={operated} minStakeXlm={governance.oracle.dispute.minStakeXlm} governance={governance} disputes={disputes.data} />
         )}
-        {current === 'disputes' && <DisputeDecisions address={address} anchors={openDisputes} oracleId={governance.oracle.id} />}
-        {current === 'transactions' && <AdminView address={address} governance={governance} part="transactions" />}
-        {current === 'contracts' && <AdminView address={address} governance={governance} part="contracts" />}
+        {current === 'disputes' && (
+          <DisputeDecisions
+            address={address}
+            anchors={recentDisputes}
+            oracleId={governance.oracle.id}
+            cooldownSeconds={governance.oracle.dispute.cooldownSeconds}
+            disputes={disputes}
+          />
+        )}
+        {current === 'transactions' && <AdminView address={address} governance={governance} part="transactions" queue={queue} />}
+        {current === 'contracts' && <AdminView address={address} governance={governance} part="contracts" queue={queue} />}
         {current === 'claim' && <ClaimView address={address} anchors={anchors} registryId={governance.registry.id} />}
       </div>
     </div>

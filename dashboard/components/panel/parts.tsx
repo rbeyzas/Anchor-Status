@@ -81,3 +81,107 @@ export function Field({ label, children }: { label: string; children: ReactNode 
 
 export const INPUT =
   'as-mono h-9 w-full min-w-0 rounded-as-sm border border-as-border-control bg-as-surface-2 px-3 text-sm text-as-ink placeholder:text-as-ink-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-as-pulse';
+
+/** 604800 → "7 days", 21600 → "6 hours", 90 → "90 seconds". */
+export function humanDuration(seconds: number): string {
+  const unit = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  if (seconds > 0 && seconds % 86400 === 0) return unit(seconds / 86400, 'day');
+  if (seconds > 0 && seconds % 3600 === 0) return unit(seconds / 3600, 'hour');
+  if (seconds > 0 && seconds % 60 === 0) return unit(seconds / 60, 'minute');
+  return unit(seconds, 'second');
+}
+
+type Tone = 'signal' | 'amber' | 'danger' | 'neutral' | 'pulse';
+const TONE_TEXT: Record<Tone, string> = {
+  signal: 'text-as-signal',
+  amber: 'text-as-amber',
+  danger: 'text-as-danger',
+  neutral: 'text-as-ink',
+  pulse: 'text-as-pulse',
+};
+const TONE_BOX: Record<Tone, string> = {
+  signal: 'border-as-signal/40 bg-as-signal-soft',
+  amber: 'border-as-amber/40 bg-as-amber-soft',
+  danger: 'border-as-danger/40 bg-as-danger-soft',
+  neutral: 'border-as-hairline bg-as-surface-2',
+  pulse: 'border-as-pulse/40 bg-as-pulse-soft',
+};
+
+/** One figure with its label and a line under it. */
+export function Stat({ label, value, sub, tone = 'neutral' }: { label: string; value: ReactNode; sub?: ReactNode; tone?: Tone }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 rounded-as-md border border-as-hairline bg-as-surface-2 px-4 py-3">
+      <span className="text-xs text-as-ink-faint">{label}</span>
+      <span className={`font-heading text-xl font-semibold leading-tight ${TONE_TEXT[tone]}`}>{value}</span>
+      {sub && <span className="text-xs text-as-ink-muted">{sub}</span>}
+    </div>
+  );
+}
+
+/** A boxed message: what is going on, in one or two lines. */
+export function Notice({ tone = 'neutral', title, children }: { tone?: Tone; title?: ReactNode; children?: ReactNode }) {
+  return (
+    <div className={`rounded-as-md border px-4 py-3 text-sm ${TONE_BOX[tone]}`}>
+      {title && <p className={`font-medium ${TONE_TEXT[tone]}`}>{title}</p>}
+      {children && <div className={`text-as-ink-muted ${title ? 'mt-1' : ''}`}>{children}</div>}
+    </div>
+  );
+}
+
+/** A form control with a visible label and an optional hint under it. */
+export function FormField({ label, hint, htmlFor, children }: { label: string; hint?: ReactNode; htmlFor: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={htmlFor} className="text-xs font-medium text-as-ink">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-xs leading-relaxed text-as-ink-faint">{hint}</p>}
+    </div>
+  );
+}
+
+/** A requirement and whether it is met. */
+export function Check({ ok, children }: { ok: boolean; children: ReactNode }) {
+  return (
+    <li className="flex gap-2 text-sm">
+      <span aria-hidden="true" className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] ${ok ? 'bg-as-signal-soft text-as-signal' : 'bg-as-surface-2 text-as-ink-faint'}`}>
+        {ok ? '✓' : '·'}
+      </span>
+      <span className={ok ? 'text-as-ink' : 'text-as-ink-muted'}>
+        <span className="sr-only">{ok ? 'Met: ' : 'Not met: '}</span>
+        {children}
+      </span>
+    </li>
+  );
+}
+
+export type StepState = 'done' | 'current' | 'todo' | 'failed';
+
+/** Where a process stands: done steps, the current one, what comes next. */
+export function Steps({ steps, label }: { steps: { title: string; detail?: ReactNode; state: StepState }[]; label: string }) {
+  const mark: Record<StepState, string> = {
+    done: 'border-as-signal bg-as-signal text-as-on-signal',
+    current: 'border-as-amber bg-as-amber-soft text-as-amber',
+    todo: 'border-as-hairline-strong text-as-ink-faint',
+    failed: 'border-as-danger bg-as-danger-soft text-as-danger',
+  };
+  return (
+    <ol aria-label={label} className="grid gap-3 sm:grid-flow-col sm:auto-cols-fr">
+      {steps.map((s, i) => (
+        <li key={s.title} className="flex gap-3 sm:flex-col sm:gap-2" aria-current={s.state === 'current' ? 'step' : undefined}>
+          <div className="flex items-center gap-2 sm:w-full">
+            <span className={`as-mono flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs ${mark[s.state]}`}>
+              {s.state === 'done' ? '✓' : s.state === 'failed' ? '✕' : i + 1}
+            </span>
+            {i < steps.length - 1 && <span aria-hidden="true" className={`hidden h-px flex-1 sm:block ${s.state === 'done' ? 'bg-as-signal/60' : 'bg-as-hairline'}`} />}
+          </div>
+          <div className="min-w-0">
+            <p className={`text-sm font-medium ${s.state === 'todo' ? 'text-as-ink-muted' : 'text-as-ink'}`}>{s.title}</p>
+            {s.detail && <p className="mt-0.5 text-xs leading-relaxed text-as-ink-muted">{s.detail}</p>}
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
