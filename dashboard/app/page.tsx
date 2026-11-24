@@ -35,7 +35,9 @@ import { hasEnoughData, headlineScore } from '@/lib/status-labels';
 import type { AnchorViewModel } from '@/lib/types';
 import { scoreTier } from '@/lib/types';
 
-export const revalidate = 60;
+// Rendered per request, like /scores: with ISR the first visitor after a
+// quiet stretch got numbers hours old.
+export const dynamic = 'force-dynamic';
 
 const TIER_TEXT = {
   high: 'text-as-score-high',
