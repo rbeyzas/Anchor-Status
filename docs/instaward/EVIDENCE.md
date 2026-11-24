@@ -7,6 +7,199 @@ Contracts (testnet):
 - AnchorRegistry `CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB`
 - PerformanceOracle `CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU`
 
+## Week 4
+
+### 4.1–4.2 Reporter quorum switched on (D1) — 24 Nov
+Times UTC.
+- 4.1: `set_quorum_config(2, 15, 3600)` sent by the admin multisig through
+  /panel at 00:14,
+  [`8d971561`](https://stellar.expert/explorer/testnet/tx/8d9715615fb37dca265cc06fbfdff4df698dded5a8fadde740e3e0f9895057ee);
+  `get_quorum_config` → threshold 2, max_spread 15, round_seconds 3600.
+  The plan said a 6-hour round (21600); we chose 1 hour so cards stay
+  hourly, as the collectors already compute them, and an outage reaches a
+  card within the hour. Server B set to `SECONDARY_PUBLISH=true` at 00:14.
+- 4.2, first quorum cards (window ending 00:00): 13 `quorum_reached`
+  events in the 00:26 round, each from two reporters, B's mainnet reporter
+  `GC3ODFHC…` first (submitted 1/2), then A's `GDLWUVYW…` (2/2):
+
+  | Anchor | B (1/2) | A (2/2, quorum) | Score |
+  |---|---|---|---|
+  | citron_cash | [`1a04441c`](https://stellar.expert/explorer/testnet/tx/1a04441c7b0155988380c47bac14e4bd8478596f882a4705d638b5b68d97a57b) | [`264fda8b`](https://stellar.expert/explorer/testnet/tx/264fda8b710a26b33268666c5653cd57b2f4a0af17d863257fd0f49371724b82) | 13, spread 0 |
+  | anchor_stablecop_com | [`840bdbed`](https://stellar.expert/explorer/testnet/tx/840bdbed47c59a76a0114593f8a6d76144cf1a6d7496ef9146a0424ca4b6e2f1) | [`499c1fae`](https://stellar.expert/explorer/testnet/tx/499c1fae11454be21c9581b67aec5496f0e6a79fedeeaedd5da33207f20e673d) | 15, spread 0 |
+  | charnatoken_top | [`90353672`](https://stellar.expert/explorer/testnet/tx/903536720c7e2ce027990415501ea9c426ff3c306e8c3726979fa128a5a2fa59) | [`f6b0f8ac`](https://stellar.expert/explorer/testnet/tx/f6b0f8ac905d9b806d0a3e68fa84e223c9b8c69f98b2f32e4917605be9c9a274) | 13, spread 0 |
+
+  ![B's submission, 1 of 2](evidence/q41-1-citron-b-submit-tx.png)
+  ![A's submission, quorum reached](evidence/q41-2-citron-a-quorum-tx.png)
+- 4.2, a round waiting for its second card (window ending 13:00, read at
+  13:26). A's `GDLWUVYW…` submitted citron_cash at 13:11:52,
+  [`4bf574c4`](https://stellar.expert/explorer/testnet/tx/4bf574c461f730ce2c92cb830bfb04a443ca9bcbf5cdc78f40555aeea5d36e09)
+  (`score_card_submitted`, submitted 1, threshold 2). Until B's card
+  arrives, the anchor's card stays on the 12:00 window and the round holds
+  one submission:
+
+  ```
+  $ stellar contract invoke --id CBDDBO5Y…WGWU --network testnet \
+      --source-account <any G… account> --send=no -- \
+      get_pending_round --anchor_id citron_cash
+  {"window_end":1795525200,"methodology_version":2,
+   "submissions":[{"reporter":"GDLWUVYW6ZEDFCMRLQPM4TLRLMXX6M3UQ3XE7AEALFXY5VV55WKZX54H",
+     "submitted_at":1795525912,
+     "card":{"score":13,"availability":0,"speed":0,"integrity":0,"market":null,
+             "confidence":75,"flags":3,"window_end":1795525200,"methodology_version":2,
+             "inputs_hash":"be98c62a49a5a0bd2a84f665dde48cd6bfcdc2153de0b6909ee6a381e24a18dc"}}]}
+  ```
+
+  B's card closed this round at 13:27:57,
+  [`89297dcf`](https://stellar.expert/explorer/testnet/tx/89297dcf397787f9be41db59f13aba333258b037076c51c446515e86ac5fa5b5)
+  (submitted 2/2, `quorum_reached` spread 0, `score_card_published` score
+  13), and the pending round was removed.
+
+  At that moment 52 of 107 anchors had a round at 1/2: 25 opened by A, 26
+  by B's mainnet reporter, and ref1 by A's testnet reporter. The two servers
+  work through the anchor list in different orders. A runs at about :11
+  past the hour and B at about :27, so each round closes within about
+  15 minutes. The round before, for the window ending 12:00, closed this way:
+  A [`a47211ea`](https://stellar.expert/explorer/testnet/tx/a47211ea87741a7b6076015d34c145a0cdb4bc27cd1315a4e02d7df27b510545)
+  (12:11, 1/2), then B
+  [`78101781`](https://stellar.expert/explorer/testnet/tx/781017812b04f3720abf0b4edca20136d92f550b2efcd397f2720bfe9b6dda72)
+  (12:27, 2/2, `quorum_reached`, spread 0). `get_quorum_info` for ref1
+  on that window shows A 89 and B 96, spread 7: under max_spread 15, so no
+  outlier.
+- verify-score on the live quorum cards (13:28–13:31, read-only): for
+  each card it fetches both reporters' bundles, one from A's server and
+  one from B's, recomputes each reporter's card and rebuilds the median:
+
+  ```
+  $ npm run verify-score -- --quorum citron_cash
+  citron_cash: card for the window ending 2026-11-24T13:00:00.000Z, 2 reporter(s), spread 0
+    GDLWUVYW… bundle be98c62a49a5 from http://37.221.76.23/evidence/: submitted 13, recomputed 13 (confidence 75)
+    GC3ODFHC… bundle 2c29bc07fbc1 from http://95.169.201.61/evidence/: submitted 13, recomputed 13 (confidence 75)
+  on-chain card matches the median of its reporters' bundles exactly
+
+  $ npm run verify-score -- --quorum ref1_monarank_xyz_testnet
+  ref1_monarank_xyz_testnet: card for the window ending 2026-11-24T12:00:00.000Z, 2 reporter(s), spread 7
+    GBWXKNZB… bundle b87affaa9ad1 from http://37.221.76.23/evidence/: submitted 89, recomputed 89 (confidence 100)
+    GBN2RFNK… bundle f39f4e5a3fe6 from http://95.169.201.61/evidence/: submitted 96, recomputed 96 (confidence 100)
+  on-chain card matches the median of its reporters' bundles exactly
+
+  $ npm run verify-score -- --quorum mtlf_me
+  mtlf_me: card for the window ending 2026-11-24T12:00:00.000Z, 2 reporter(s), spread 0
+    GDLWUVYW… bundle 24985a781084 from http://37.221.76.23/evidence/: submitted 70, recomputed 70 (confidence 96)
+    GC3ODFHC… bundle 90bd1d21c962 from http://95.169.201.61/evidence/: submitted 70, recomputed 70 (confidence 71)
+  on-chain card matches the median of its reporters' bundles exactly
+  ```
+
+  On ref1 the two reporters differ: 89 from A, 96 from B. With two cards
+  the oracle takes the lower median field by field, so the stored card
+  has score 89 and points to A's bundle (`b87affaa…`). mtlf_me shows the
+  same rule on a single field: the scores agree but confidence is 96 from
+  A and 71 from B, and the card stores 71.
+- 4.2, reporters disagree (window ending 14:00). At 13:37 ref1 was set to
+  answer 503 to reporter A (37.221.76.23) only (`FAULT` on fly.io). B and
+  everyone else got normal answers. A's probe failed from 13:49.
+  - A (`GBWXKNZB…`) submitted 79 at 14:13, the round at 1/2,
+    [`90d119e9`](https://stellar.expert/explorer/testnet/tx/90d119e9574c6ccfe75b58020ccc4c6aecb79a9d9561435334f9aab424b72499).
+  - B (`GBN2RFNK…`) submitted 96 at 14:48, which closed the round,
+    [`8fa335ca`](https://stellar.expert/explorer/testnet/tx/8fa335ca4932653f940e6f4443469c5d5024c9f4b7e972e887fc48efc938e834).
+    The same tx emitted `quorum_reached` (spread 17 > max_spread 15),
+    `reporter_outlier` (B, median 79, score 96), `score_card_published`
+    (score 79, flags 65536 = `FLAG_REPORTER_DISAGREEMENT`) and
+    `risk_status_changed` (ConsecutiveFailures, Degrading).
+  - `get_quorum_info`: reporters [A, B], scores [79, 96], spread 17,
+    outliers [B]. `get_score_card`: score 79, availability 80, integrity
+    56, flags 65536, inputs hash `83520d62…` (A's bundle).
+  - verify-score on that card: "submitted 79, recomputed 79" for A and
+    "submitted 96, recomputed 96" for B. Its verdict: "on-chain card
+    matches the median of its reporters' bundles exactly".
+  - FAULT removed at 14:49, right after the card.
+
+  With two reporters the median is the lower card, so the reporter named as
+  outlier is the one further from it. Here that is B, the one that saw ref1
+  up. The flag on the card is what tells readers the two reporters disagree.
+  A third reporter would make the median point to the majority.
+
+  ![A's card, 1 of 2](evidence/q42-1-ref1-a-submit-tx.png)
+  ![B's card closes the round with a spread of 17](evidence/q42-2-ref1-outlier-tx.png)
+
+### 4.5 Dispute demo on ref1, upheld (D3) — 21 Nov
+One reporter's view of an outage, disputed by the operator, decided by the
+admin signers and carried on-chain by the reporter. Times UTC.
+- Stake: the operator `GCYU7PVT…` staked 10 XLM through /panel, 20:50,
+  [`a95b1e9a`](https://stellar.expert/explorer/testnet/tx/a95b1e9a59be8c241b0cb5087eeb33182e48f17e0375e3280ae5b2113a1cb27e).
+- Fault: from 20:37 ref1 answered 503 to reporter A (37.221.76.23) only
+  (`FAULT` on fly.io); B and everyone else got normal answers. A's probes
+  failed from 20:46; the card for the window ending 22:00 was published at
+  22:10 with score 50 and OUTAGE. B's card for the same window: 100, no flags.
+- Dispute: opened by the operator through /panel at 22:22, reason code 1,
+  evidence text stored with its SHA-256 on-chain,
+  [`cd91efef`](https://stellar.expert/explorer/testnet/tx/cd91efefca50e99c787d5e7030ef301b605b164c041f154ae6162347ac5f5109).
+- Decision: uphold, signed (SEP-53 messages) by admin signers `GBC4GADS…` and
+  `GBKL5WL2…`, 2 of 2.
+- Vote: A's collector re-verified both signatures against Horizon and voted
+  uphold as reporter `GBWXKNZB…` at 22:31,
+  [`cd65d009`](https://stellar.expert/explorer/testnet/tx/cd65d009d7e016f6bafeac99926d57b603c9ff74102d4d12b7d3614beec8485c).
+  `get_dispute` → `Upheld`; the registry score is withheld (0) until a newer
+  card. Fault switched off at 22:34.
+
+Screenshots (`evidence/`):
+
+| | |
+|---|---|
+| Stake, [`a95b1e9a`](https://stellar.expert/explorer/testnet/tx/a95b1e9a59be8c241b0cb5087eeb33182e48f17e0375e3280ae5b2113a1cb27e) | ![stake tx](evidence/d3-upheld-1-stake-tx.png) |
+| Dispute opened, [`cd91efef`](https://stellar.expert/explorer/testnet/tx/cd91efefca50e99c787d5e7030ef301b605b164c041f154ae6162347ac5f5109) | ![open_dispute tx](evidence/d3-upheld-2-open-dispute-tx.png) |
+| Reporter vote uphold, [`cd65d009`](https://stellar.expert/explorer/testnet/tx/cd65d009d7e016f6bafeac99926d57b603c9ff74102d4d12b7d3614beec8485c) | ![vote_dispute tx](evidence/d3-upheld-3-reporter-vote-tx.png) |
+| /panel, operator: timeline ending Upheld | ![operator panel](evidence/d3-upheld-4-panel-operator.png) |
+| /panel, admin: listed under Decided | ![admin panel](evidence/d3-upheld-5-panel-admin-decided.png) |
+
+### 4.5 Dispute demo on ref1, rejected (D3) — 23 Nov
+A real outage, disputed by the operator without evidence, rejected by the
+admin signers. Times UTC.
+- Fault: from 21:35 ref1 answered 503 to every client (`FAULT=all`);
+  stellar.toml stayed up. The card for the window ending 23:00 was published
+  at 23:10 with score 50 and OUTAGE; B's card for the same window: 50,
+  OUTAGE.
+- Dispute: opened by the operator `GCYU7PVT…` through /panel at 23:13,
+  reason code 1, evidence "ref1 was serving our own users … we saw no
+  errors on our side",
+  [`a7072026`](https://stellar.expert/explorer/testnet/tx/a7072026b7c93466566616c8ba4f8463e9327d62664f4e691c46a17d649a6037).
+- Comparison (A's collector, 23:31): A 50 OUTAGE, B 50 OUTAGE, recommendation
+  "Decide on the evidence": both reporters saw the outage, and the evidence
+  names no announced maintenance.
+- Decision: reject, signed (SEP-53) by admin signers `GBC4GADS…` and
+  `GBIJOL2I…` (the backup signer), 2 of 2.
+- Vote: A's collector voted reject as reporter `GBWXKNZB…` at 23:50,
+  [`a23fcac5`](https://stellar.expert/explorer/testnet/tx/a23fcac51eb44bd43877bb8c7d3dab3aabc99e0e1201ed674df42b573bd57b75),
+  `vote_dispute(…, false) → Rejected`. The card stands at 50 and the
+  operator's 7-day cooldown started. Fault switched off at 23:51.
+
+Screenshots (`evidence/`):
+
+| | |
+|---|---|
+| Dispute opened, [`a7072026`](https://stellar.expert/explorer/testnet/tx/a7072026b7c93466566616c8ba4f8463e9327d62664f4e691c46a17d649a6037) | ![open_dispute tx](evidence/d3-rejected-1-open-dispute-tx.png) |
+| /panel, admin: new dispute waiting for a decision | ![admin panel open](evidence/d3-rejected-2-panel-admin-open.png) |
+| /panel, operator: dispute with the admins | ![operator panel open](evidence/d3-rejected-3-panel-operator-open.png) |
+| /panel, admin: A/B comparison and recommendation | ![admin comparison](evidence/d3-rejected-4-panel-admin-compare.png) |
+| /panel, admin: 2 of 2 signed reject | ![admin decided](evidence/d3-rejected-5-panel-admin-decided.png) |
+| Reporter vote reject, [`a23fcac5`](https://stellar.expert/explorer/testnet/tx/a23fcac51eb44bd43877bb8c7d3dab3aabc99e0e1201ed674df42b573bd57b75) | ![vote_dispute tx](evidence/d3-rejected-6-reporter-vote-tx.png) |
+| /panel, operator: Rejected, 7-day cooldown | ![operator panel rejected](evidence/d3-rejected-7-panel-operator-rejected.png) |
+| /panel, admin: listed under Decided | ![admin panel rejected](evidence/d3-rejected-8-panel-admin-rejected.png) |
+
+### 4.8 All test suites (shared) — 24 Nov
+On `main` at `980950f`, no failures:
+
+| Suite | Result |
+|---|---|
+| `contracts/anchor-registry` (`stellar contract build && cargo test`) | 39 passed; `tests/upgrade.rs` 1 passed |
+| `contracts/performance-oracle` (`cargo test`, with the 4 proptests of 10,000 rounds) | 91 passed |
+| `services/aggregator` (`npm test`) | 105 passed |
+| `services/mainnet-probe` | 129 passed |
+| `services/passive-monitor` | 72 passed |
+| `services/history-archiver` | 27 passed |
+| `services/testnet-probe` | 29 passed |
+| `services/reference-anchor` | 11 passed |
+| `dashboard` (`npm test`) | 108 passed |
+
 ## Week 3 (2–8 Nov)
 
 ### 3.1–3.2 Operator claims and disputes (D3) — 20 Oct
