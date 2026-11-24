@@ -50,25 +50,49 @@ not enforced.
   anchor in the index moves into its position.
 - `get_anchor_status(anchor_id)` — `{ state, reason, since }`; an anchor
   never deactivated is `Active` since its registration.
+- Operator claims. A discovered anchor is registered by our collector, so
+  its record's operator is our key until the anchor claims it:
+  - `set_signing_key(anchor_id, signing_key)` — callable only by
+    PerformanceOracle, once its reporter quorum has read the same SEP-1
+    `SIGNING_KEY` from the anchor's stellar.toml (`attest_signing_key`
+    there). `get_signing_key(anchor_id)` reads it.
+  - `claim_message(anchor_id, operator)` — the exact bytes the anchor's
+    `SIGNING_KEY` must sign: the network id, this registry's address, the
+    anchor, the new operator and a per-anchor nonce. Read it with a
+    simulated call and sign it off-chain.
+  - `claim_anchor(anchor_id, operator, signature)` — signed by `operator`
+    too. The contract checks the signature with `ed25519_verify` against
+    the attested key and sets the record's operator. A signature for
+    another network, registry, anchor or operator, or one already used,
+    does not verify. Refused without an attested key (`NoSigningKey`),
+    for a deactivated anchor, and while the record holds a stake or a
+    pending withdrawal, which the current operator must take out first.
+  - `get_claim(anchor_id)` — the operator the anchor's key named, the key
+    and when. PerformanceOracle lets only this operator open a dispute.
 - Admin handover in two steps: `propose_admin(new_admin)` (admin), then
   `accept_admin()` signed by the proposed address. Until it accepts nothing
   changes, so a mistyped address cannot take the contract. `get_admin()`.
 - Time-locked upgrades, all admin-only: `propose_upgrade(wasm_hash)` (the
   wasm already uploaded), `execute_upgrade()` once `get_upgrade_delay()`
   seconds have passed, `cancel_upgrade()`, `get_pending_upgrade()`. The
-  code is replaced in place, keeping the contract ID and all state. There
-  is no instant `upgrade()` any more; the testnet registry's own (old)
-  `upgrade` is what brings this code in.
-- `set_upgrade_delay(seconds)` — admin-only, at most 30 days, 0 until set
-  (testnet). A longer delay applies at once, a shorter one only after the
-  current delay has passed, so the lock cannot be dropped and an upgrade
-  pushed through in one go.
+  code is replaced in place, keeping the contract ID and all state.
+  `execute_upgrade` before the delay has passed fails with
+  `TimelockActive` (#21). There is no instant `upgrade()`.
+- `set_upgrade_delay(seconds)` — admin-only, at most 30 days, 0 until set;
+  24 hours on the testnet deployment. A longer delay applies at once, a
+  shorter one only after the current delay has passed, so the lock cannot
+  be dropped and an upgrade pushed through in one go.
+
+On testnet the admin of this contract is a 2-of-3 Stellar multisig account,
+so every admin-only call above needs two signers.
 
 Every state change publishes one event (`src/events.rs`), so all of it can
 be followed from the ledger. Events about one anchor carry its id as the
 second topic: `anchor_registered`, `stake_added`, `withdrawal_requested`,
 `stake_withdrawn`, `score_updated`, `anchor_deactivated` (with the reason),
-`anchor_reactivated`, `anchor_removed`. The rest: `initialized`,
+`anchor_reactivated`, `anchor_removed`, `signing_key_attested`,
+`anchor_claimed` (with the previous and the new operator). The rest:
+`initialized`,
 `index_migrated` (copied of total), `index_finalized`, `admin_proposed`,
 `admin_changed`, `upgrade_delay_set` (with when it applies),
 `upgrade_proposed` (wasm hash and when it can run), `upgrade_executed`,
@@ -79,8 +103,11 @@ still in use are never archived by the network.
 
 Tests: `stellar contract build && cargo test` (no network access needed —
 uses `soroban_sdk::testutils`). The build is for `tests/upgrade.rs`, which
-starts from the wasm testnet really runs (`../fixtures`), registers 120
-anchors, upgrades to this code and migrates the index.
+starts from the wasm testnet ran before the paged index (`../fixtures`),
+registers 120 anchors, upgrades to this code and migrates the index.
+`src/proptests.rs` checks the paged index over 1,000 random sequences of
+registrations and removals: no gap, no duplicate, nothing removed left
+behind.
 
 Deploy: `../../scripts/deploy-contracts.sh` (testnet, requires network
 access).

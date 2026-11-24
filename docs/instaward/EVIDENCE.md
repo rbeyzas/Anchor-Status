@@ -1,13 +1,16 @@
 # Evidence log
 
-What was done for each SOW item, and where to check it. Newest week first.
+What was done for each SOW item, and where to check it. The 30-day sprint
+runs from 4 Nov to 3 Dec 2026. Sections follow the sprint plan's item
+numbers (1.x to 4.x), newest first; each heading carries the date the work
+was done.
 Testnet transactions link to stellar.expert; commits are on `main`.
 
 Contracts (testnet):
 - AnchorRegistry `CBQGNUIX5ZDQOE6VBDHTF3SSWSCNMYK37ES5CBYUTQAED7NLZOFEE4AB`
 - PerformanceOracle `CBDDBO5YU3MERDJ7LFA5RIXFORW5HI3NKMK67TG5TPO5QT64M5GUWGWU`
 
-## Week 4
+## Week 4 items
 
 ### 4.1–4.2 Reporter quorum switched on (D1) — 24 Nov
 Times UTC.
@@ -94,7 +97,9 @@ Times UTC.
   has score 89 and points to A's bundle (`b87affaa…`). mtlf_me shows the
   same rule on a single field: the scores agree but confidence is 96 from
   A and 71 from B, and the card stores 71.
-- 4.2, reporters disagree (window ending 14:00). At 13:37 ref1 was set to
+- 4.2, reporters disagree (window ending 14:00). **Deliberate test:** we
+  made the two reporters disagree on our own reference anchor; no other
+  anchor's data was touched. At 13:37 ref1 was set to
   answer 503 to reporter A (37.221.76.23) only (`FAULT` on fly.io). B and
   everyone else got normal answers. A's probe failed from 13:49.
   - A (`GBWXKNZB…`) submitted 79 at 14:13, the round at 1/2,
@@ -120,6 +125,19 @@ Times UTC.
 
   ![A's card, 1 of 2](evidence/q42-1-ref1-a-submit-tx.png)
   ![B's card closes the round with a spread of 17](evidence/q42-2-ref1-outlier-tx.png)
+
+### 4.5 Signing keys attested every round (D3) — 24 Nov
+- Both servers run `attest-keys` in every collection round
+  (`services/aggregator/src/attest-keys.ts`): each reads every registered
+  anchor's stellar.toml and attests a `SIGNING_KEY` the registry does not
+  hold yet. The registry takes a key only from the oracle, and the oracle
+  only once the reporters' quorum has read the same key, so no key can be
+  set by hand.
+- State on 24 Nov (18:33 UTC round, the same line in both servers' logs):
+  `107 anchor(s): 17 publish a SIGNING_KEY, 20 on-chain, 0 to attest`.
+  For example `get_signing_key` returns `fada3097…9383` for moneygram and
+  `8eb38c2e…adad` for stellar_test_anchor; any of these anchors can claim
+  its record with that key the way ref1 did (3.6).
 
 ### 4.5 Dispute demo on ref1, upheld (D3) — 21 Nov
 One reporter's view of an outage, disputed by the operator, decided by the
@@ -150,6 +168,10 @@ Screenshots (`evidence/`):
 | Reporter vote uphold, [`cd65d009`](https://stellar.expert/explorer/testnet/tx/cd65d009d7e016f6bafeac99926d57b603c9ff74102d4d12b7d3614beec8485c) | ![vote_dispute tx](evidence/d3-upheld-3-reporter-vote-tx.png) |
 | /panel, operator: timeline ending Upheld | ![operator panel](evidence/d3-upheld-4-panel-operator.png) |
 | /panel, admin: listed under Decided | ![admin panel](evidence/d3-upheld-5-panel-admin-decided.png) |
+| /panel, admin: both reporters' cards (A 50 OUTAGE, B 100), 2 of 2 signed uphold | ![admin decision](evidence/2026-11-21-d3-panel-decision.png) |
+| Scores page: "Dispute upheld", score withheld | ![scores page](evidence/2026-11-21-d3-upheld-scores.png) |
+| The card on the scores page | ![card](evidence/2026-11-21-d3-upheld-card.png) |
+| Card detail: "Dispute upheld", "Withheld: the operator's dispute was upheld" | ![card detail](evidence/2026-11-21-d3-upheld-detail.png) |
 
 ### 4.5 Dispute demo on ref1, rejected (D3) — 23 Nov
 A real outage, disputed by the operator without evidence, rejected by the
@@ -185,8 +207,42 @@ Screenshots (`evidence/`):
 | /panel, operator: Rejected, 7-day cooldown | ![operator panel rejected](evidence/d3-rejected-7-panel-operator-rejected.png) |
 | /panel, admin: listed under Decided | ![admin panel rejected](evidence/d3-rejected-8-panel-admin-rejected.png) |
 
+### 4.6 Final stellar.toml (D1) — 24 Nov
+- `curl -sI https://monarank.xyz/.well-known/stellar.toml` (18:17 UTC):
+  `HTTP/2 200`, `access-control-allow-origin: *`,
+  `content-type: text/plain; charset=utf-8`, no redirect.
+- Both contract IDs: `MONA_ANCHOR_REGISTRY` `CBQGNUIX…EE4AB` and
+  `MONA_PERFORMANCE_ORACLE` `CBDDBO5Y…WGWU`, with
+  `MONA_NETWORK_PASSPHRASE` (testnet).
+- Every reporter key, in `[[MONA_REPORTERS]]` with each server's evidence
+  URL: server A `GDLWUVYW…X54H` (mainnet anchors) and `GBWXKNZB…HPQG`
+  (testnet anchors); server B `GC3ODFHC…2OX5` and `GBN2RFNK…J2RB`. These
+  are exactly the keys the oracle's `get_reporters` returns for
+  `RealMainnet` and `RealTestnet` (read 24 Nov).
+- `MONA_ADMIN`: the 2-of-3 multisig `GBLHN3SL…JO2F`.
+- `ACCOUNTS`: the multisig, the deployer `GARNK5UJ…`, the four reporter
+  keys and the probe's `SIGNING_KEY` `GB4LRKMB…LVO2`.
+
+### 2.6 Anchor count and the old index key (D2) — 24 Nov
+- `anchor_count()` → 107 (18:17 UTC).
+- The registry's instance storage, read from the ledger, holds five keys:
+  `Admin`, `AnchorCount` (107), `OracleAddress`, `TokenAddress` and
+  `UpgradeDelay`. There is no `AnchorIds`: `finalize_migration`
+  ([`233919ab`](https://stellar.expert/explorer/testnet/tx/233919ab5abcb3df911824c74ee4f4ac02fd9a5542d51a9f65a9251d530dedc0))
+  deleted the old one-entry list.
+
+  ```
+  $ stellar contract read --id CBQGNUIX…EE4AB --network testnet \
+      --key-xdr AAAAFA== --durability persistent --output json
+  ```
+- On the number: the SOW's 109 was the count when it was written. On the
+  day of the migration (18 Oct) the old list held 110 ids, and all 110
+  moved to the paged index in the same order (table under 1.2–1.6). The
+  five removals listed there left 105; ref1 made it 106 (read on 23 Oct,
+  3.6), and it is 107 today.
+
 ### 4.8 All test suites (shared) — 24 Nov
-On `main` at `980950f`, no failures:
+On `main` at `8f44490` (rerun 24 Nov after the last dashboard commits), no failures:
 
 | Suite | Result |
 |---|---|
@@ -200,7 +256,30 @@ On `main` at `980950f`, no failures:
 | `services/reference-anchor` | 11 passed |
 | `dashboard` (`npm test`) | 108 passed |
 
-## Week 3 (2–8 Nov)
+## Week 3 items
+
+### 3.8 max_spread from the shadow data (D1) — 24 Nov
+- `npm run shadow -- compare a.jsonl b.jsonl` in `services/aggregator`,
+  over both servers' shadow cards from 18 Oct to 24 Nov (A's file from the
+  server, B's from http://95.169.201.61/shadow-cards.jsonl): 92,489
+  anchor-windows computed on both servers, 74,013 of them with a card both
+  would show (confidence 40 or more).
+
+  ```
+  92489 anchor-windows on both hosts, 74013 shown by both
+  score gap: p50 0  p90 11  p95 14  p99 17  max 50
+    over  5: 25.1%
+    over 10: 10.5%
+    over 15: 2.3%
+    over 20: 0.4%
+    over 25: 0.0%
+  ```
+- `max_spread` is 15: the gap 95% of the pairs stay within (14), rounded
+  up, the rule in [`MAINNET_RUNBOOK.md`](../MAINNET_RUNBOOK.md) section 3.
+  Half of all pairs agree exactly.
+- The two largest gaps, 50 against 100 and 50 against 96, are the fault
+  tests on ref1 of 21 and 24 Nov (4.5 and 4.2). The next three are from
+  21 Oct, in server B's first week of measuring.
 
 ### 3.1–3.2 Operator claims and disputes (D3) — 20 Oct
 - `contracts/anchor-registry`: `set_signing_key` (PerformanceOracle only),
@@ -366,7 +445,7 @@ still 1, the first reading already sets the key; the second repeats it.
 | B (`GBN2RFNK…`) attests the same key | same key | [`c489d677`](https://stellar.expert/explorer/testnet/tx/c489d6773b1f676719a38a49cba4d34b7d4d3921a70d8c72c53ba6cdae5fb0f6) |
 | ref1 claimed (24 Oct, `npm run d3 -- claim`, with the signature made off-chain by the SIGNING_KEY's holder over the live `claim_message`, checked against it before sending) | `get_claim`: operator `GCYU7PVT…SO7U6O`, signing key `41fa795e…a674`; the record's operator moved from the admin `GARNK5UJ…` to it | [`772ce2d2`](https://stellar.expert/explorer/testnet/tx/772ce2d267da353e14ab287bf7913656be0a6897ae6efaf8757b968f4a783ff8) |
 
-## Week 2 (26 Oct–1 Nov)
+## Week 2 items
 
 ### Reproducible contract builds (D2) — 18 Oct
 - `rust-toolchain.toml` pins Rust 1.98.0 (it said `stable`); with
@@ -538,7 +617,7 @@ still 1, the first reading already sets the key; the second repeats it.
 | Retired mock reporter `GDK2XJTC…S7JE` revoked | [`ef1ef5e5`](https://stellar.expert/explorer/testnet/tx/ef1ef5e589c48ee70b86943e2950d46aa908ad9b986d951ae0e770d9b97218b1) |
 | Oracle `set_upgrade_delay(86400)`: oracle upgrades and a lower quorum threshold now wait 24 hours | [`33ef5791`](https://stellar.expert/explorer/testnet/tx/33ef579191ae9e8b7a395da31c7d45d89c15512663fabee96ccc80ffcc0d358a) |
 
-## Week 1 (19–25 Oct)
+## Week 1 items
 
 ### 1.1 Live wasm kept as fixtures (D2) — 18 Oct
 - `contracts/fixtures/anchor_registry_live.wasm`, sha256 `9b8a9ab8…7868`, and
@@ -581,14 +660,14 @@ still 1, the first reading already sets the key; the second repeats it.
 - The page-level hide lists went once their entries were off the chain:
   `lib/delisted.ts` (commit `4e8ccce`) and the `SimulatedMock` filter.
 
-### 1.8 stellar.toml at monarank.xyz (D1) — 18 Oct, in part
+### 1.8 stellar.toml at monarank.xyz (D1) — 18 Oct
 - `https://monarank.xyz/.well-known/stellar.toml` (HTTP 200,
   `access-control-allow-origin: *`, `text/plain`): `ORG_URL`
   `https://monarank.xyz`, `ORG_NAME` MonaRank, and, as non-SEP-1 keys with
   a comment saying so, `MONA_ANCHOR_REGISTRY`, `MONA_PERFORMANCE_ORACLE`
   and their `MONA_NETWORK_PASSPHRASE` (testnet). Commit `698192f`.
-- Still to add: `ACCOUNTS` with A's and B's reporter keys and the multisig
-  admin, once those keys are final (D1: `revoke_reporter`, key rotation).
+- `ACCOUNTS`, the reporter keys and the multisig admin were added later
+  (2.7 and 3.4–3.5); the final file is under 4.6.
 
 ### 1.9 Identifying User-Agent (D1) — 18 Oct
 - Every request from mainnet-probe, testnet-probe and passive-monitor,
@@ -638,7 +717,7 @@ still 1, the first reading already sets the key; the second repeats it.
   `ref1_monarank_xyz_testnet` (`RealTestnet`, active). Its first probe
   rounds succeeded (26.0 s and 36.1 s), and their reports are on-chain.
 
-## Week 0 (16–18 Oct)
+## Before the sprint (16–18 Oct)
 
 | # | Item | Evidence |
 | --- | --- | --- |

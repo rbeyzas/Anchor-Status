@@ -12,6 +12,27 @@ Root-level setup / deploy / demo scripts.
   on B: A pushes (03:05 UTC) into a write-only, no-delete `incoming/`, B
   turns it into a dated, hardlinked snapshot (03:50 UTC), 30 kept.
   Installed by `setup-secondary.sh`.
+- `collect.sh` — one collection round, run by cron every 20 minutes on
+  each reporter server: probes, aggregator (reports and score cards),
+  `attest-keys`, `disputes`, then the history archiver on the primary.
+- `setup-secondary.sh` — sets up the second reporter server
+  (`COLLECTOR_ROLE=secondary`): it copies the primary's public settings
+  only (no key leaves the primary), installs the code, cron, the nightly
+  backup and the watch job, and serves the server's evidence over nginx
+  (`nginx/secondary.conf`). The server's own reporter keys are generated
+  on it afterwards; it writes nothing on-chain until they are authorized
+  and `SECONDARY_PUBLISH=true` is set.
+- `upgrade-contracts.sh upload|propose|execute|cancel|status|delay|send`
+  — time-locked contract upgrades. With `ADMIN=G…` and no signing key it
+  writes the unsigned, simulated transaction for the multisig admin's
+  signers (`stellar tx sign`, then `send`).
+- `rehearse-upgrade.sh`, `rehearse-d3.sh`, `rehearse-multisig.sh` — run an
+  upgrade, the claim and dispute flow, or the multisig handover on freshly
+  deployed testnet contracts before touching the live ones.
+- `watch-peer.mjs` — every 10 minutes: alerts (Telegram) when the other
+  server's data goes stale or a step of this server's round fails several
+  rounds in a row.
+- `deploy-to-server.sh`, `server-autodeploy.sh` — see below.
 
 These scripts **require network access** to Stellar testnet.
 

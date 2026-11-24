@@ -2,7 +2,8 @@
 
 Next.js (App Router) + TypeScript + Tailwind CSS + recharts. Reads
 `AnchorRegistry` and `PerformanceOracle` state over testnet Soroban RPC
-and visualizes it (read-only — never signs a transaction).
+and visualizes it. The public pages are read-only; only `/panel` builds
+transactions, and each one is signed in the visitor's own wallet.
 
 - 3 filters at the top: All / Live mainnet / Live testnet.
 - Each anchor is a card: name, source badge, the score with a sparkline
@@ -13,6 +14,16 @@ and visualizes it (read-only — never signs a transaction).
   chart and the health summary (recent success rate, failure streak,
   number of checks). Slashes from the previous oracle version are marked
   as legacy.
+- **Reporter quorum.** The detail view has a "Reporters" panel: how many
+  reporters the card needed, each reporter's address and score, and the
+  spread between them (`get_quorum_info`). While a round has fewer cards
+  than the threshold, the card in the list shows "Pending k/K"
+  (`get_pending_round`).
+- **Disputes.** A card whose current score card is disputed shows the
+  dispute's state (open, upheld, rejected) on the list and in the detail
+  view, with the votes, the reason code and the evidence hash. An upheld
+  dispute shows the score as withheld, never as a number. An anchor the
+  admin deactivated on-chain is greyed out with its reason.
 - **Visual direction**: a dark-first "console" (the Mona design
   system): flat `surface-0` ground, `as-panel` cards with a 1px ring,
   one accent (`signal` green) for live readings and primary actions,
@@ -81,6 +92,29 @@ If the public RPC fails, the page falls back to `SOROBAN_RPC_FALLBACK_URL`
 (server-side only; ours is an Alchemy URL with its key), with at most 8
 requests in flight. If no RPC answers, the page says so and shows no
 scores. There is no demo data.
+
+## Panel
+
+`/panel` is for the two parties who can act on the contracts, each with a
+connected wallet. What the page shows depends on what the connected
+address is on-chain.
+
+- **An anchor's operator** (the address `get_claim` names): the anchor's
+  current card, its stake, a form to add stake or take it back, and a form
+  to dispute the current card. The evidence text stays with the collector;
+  only its SHA-256 goes on-chain. A timeline follows the dispute: opened,
+  admins decide, reporters vote, result. "Claim another anchor" walks
+  through `claim_message` and `claim_anchor`.
+- **An admin signer** (a signer of the contracts' multisig admin account):
+  the open disputes with both reporters' cards for the disputed window and
+  a recommendation, buttons to sign "uphold" or "reject", and a queue of
+  contract changes waiting for a second signature. A decision on a dispute
+  is a signed message, not a transaction: once enough signers agree, the
+  reporter servers check the signatures and vote that way on-chain in their
+  next round.
+
+The queue and the dispute decisions go through `/api/admin-queue` and
+`/api/disputes` to the collector; nothing is decided in the browser.
 
 ## Applications
 

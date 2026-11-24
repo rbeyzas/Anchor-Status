@@ -11,9 +11,9 @@ prerequisites in section 1.
 | Prerequisite | Why | State on testnet |
 | --- | --- | --- |
 | An external security audit of both contracts | A self-assessment ([`SECURITY.md`](SECURITY.md)) is not an audit | Not done; planned before mainnet |
-| A multisig admin account (2-of-3, keys held by different people, one offline) | No single key can upgrade, change the quorum or hand over the admin role | Planned (sprint item 3.4) |
+| A multisig admin account (2-of-3, keys held by different people, one offline) | No single key can upgrade, change the quorum or hand over the admin role | In place since 24 Oct 2026: `GBLHN3SL…JO2F` is the admin of both contracts |
 | At least 3 reporters, at least one run outside the team | A quorum of the team's own servers removes the single key, not the single team; a third reporter makes an outlier attributable | 2 reporters, both run by the team |
-| A max_spread chosen from shadow data | Too tight flags honest measurement noise; too loose hides a bad reporter | Shadow mode since 18 Oct 2026 |
+| A max_spread chosen from shadow data | Too tight flags honest measurement noise; too loose hides a bad reporter | Shadow mode from 18 Oct 2026. The quorum went on with threshold 2 and `max_spread` 15 on 24 Nov 2026; in the shadow data the 95th percentile of the gap is 14 |
 | Reproducible builds checked by someone else | Anyone must be able to tie the on-chain wasm to this repository | Done on a second machine (section 2) |
 
 ## 2. Build, and check the build
@@ -40,10 +40,10 @@ and the same `shasum` must give them again.
 | Setting | Testnet today | Mainnet | Set with |
 | --- | --- | --- | --- |
 | Upgrade delay, both contracts | 86,400 s (24 h) | **604,800 s (7 days)** | `set_upgrade_delay` (a longer delay applies at once) |
-| Admin | One key (`GARNK5UJ…`) | **2-of-3 multisig account** (low 1, medium 2, high 2, master weight 0) | `propose_admin` then `accept_admin`, signed by the multisig |
-| Quorum threshold | 1 (shadow mode) | **2**, with at least 3 reporters | `set_quorum_config` |
-| max_spread | 100 (unused) | From shadow data: the gap 95% of honest pairs stay within, rounded up | `set_quorum_config` |
-| round_seconds | 0 | **21,600** (6 h) | `set_quorum_config` |
+| Admin | 2-of-3 multisig account `GBLHN3SL…JO2F` (low 1, medium 2, high 2, master weight 0) | **2-of-3 multisig account**, set up the same way with mainnet keys | `propose_admin` then `accept_admin`, signed by the multisig |
+| Quorum threshold | 2 | **2**, with at least 3 reporters | `set_quorum_config` |
+| max_spread | 15 (the 95th percentile of the score gap between the two servers' shadow cards is 14) | From shadow data: the gap 95% of honest pairs stay within, rounded up | `set_quorum_config` |
+| round_seconds | 3,600 (1 h) | **21,600** (6 h) | `set_quorum_config` |
 | Reporters per source type | 2 | 3–7 (the contract caps at 7) | `authorize_reporter` |
 | Dispute min_stake | 10 XLM (default) | Proportionate to the stake token chosen (e.g. 100 USDC) | `set_dispute_config` |
 | Dispute cooldown | 7 days (default) | 7 days | `set_dispute_config` |
